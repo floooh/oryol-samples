@@ -1,0 +1,7 @@
+#
+# oryol-samples
+#
+---
+imports:
+    oryol-tbui:
+        git: https://github.com/floooh/oryol-tbui
