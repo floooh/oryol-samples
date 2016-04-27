@@ -7,6 +7,8 @@ imports:
         git: https://github.com/floooh/oryol-tbui.git
     oryol-imgui:
         git: https://github.com/floooh/oryol-imgui.git
+    oryol-sound:
+        git: https://github.com/floooh/oryol-sound.git
     fips-soloud:
         git: https://github.com/floooh/fips-soloud.git
 
