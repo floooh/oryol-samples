@@ -7,7 +7,7 @@
 #include "Input/Input.h"
 #include "Sound/Sound.h"
 #include "IMUI/IMUI.h"
-#include "Assets/Sound/SoundGen.h"
+#include "Sound/SoundGen.h"
 #include "glm/trigonometric.hpp"
 
 using namespace Oryol;
