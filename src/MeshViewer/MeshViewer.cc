@@ -100,9 +100,9 @@ const char* MeshViewerApp::meshNames[numMeshes] = {
     "Teapot"
 };
 const char* MeshViewerApp::meshPaths[numMeshes] = {
-    "msh:tiger.omsh",
-    "msh:opelblitz.omsh",
-    "msh:teapot.omsh"
+    "msh:tiger.omsh.txt",
+    "msh:opelblitz.omsh.txt",
+    "msh:teapot.omsh.txt"
 };
 
 const char* MeshViewerApp::shaderNames[numShaders] = {
