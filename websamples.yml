@@ -1,0 +1,50 @@
+- name: Paclone
+  desc: Simple Pacman clone (work in progress!
+  type: emscripten,pnacl,android
+  image: /Users/floh/projects/oryol-samples/src/Paclone/Paclone.jpg
+  src: Paclone/Paclone.cc
+- name: StbVoxelDemo
+  desc: Voxel Demo using stb_voxel_render.h
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/StbVoxelDemo/StbVoxelDemo.jpg
+  src: StbVoxelDemo/
+- name: TurboBadgerDemo
+  desc: Turbobadger UI integration
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/TurboBadgerDemo/TurboBadgerDemo.jpg
+  src: TurboBadgerDemo/TurboBadgerDemo.cc
+- name: ImGuiDemo
+  desc: ImGui UI integration
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/ImGuiDemo/ImGuiDemo.jpg
+  src: ImGuiDemo/ImGuiDemo.cc
+- name: Fractal
+  desc: Simple fractal explorer
+  type: emscripten,pnacl,android
+  image: /Users/floh/projects/oryol-samples/src/Fractal/Fractal.jpg
+  src: Fractal/Fractal.cc
+- name: DrawCallExplorer
+  desc: Explore 3D API draw call behaviour
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/DrawCallExplorer/DrawCallExplorer.jpg
+  src: DrawCallExplorer/DrawCallExplorer.cc
+- name: MeshViewer
+  desc: Load and render .omsh mesh files
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/MeshViewer/MeshViewer.jpg
+  src: MeshViewer/MeshViewer.cc
+- name: SoloudMOD
+  desc: Soloud MOD sample
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/SoloudMOD/SoloudMOD.jpg
+  src: SoloudMOD/SoloudMOD.cc
+- name: SoloudTedSid
+  desc: Soloud integration
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/SoloudTedSid/SoloudTedSid.jpg
+  src: SoloudTedSid/SoloudTedSid.cc
+- name: SoundTest
+  desc: Test Sound module functionality
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/SoundTest/SoundTest.jpg
+  src: SoundTest/SoundTest.cc
