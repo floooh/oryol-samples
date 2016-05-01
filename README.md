@@ -28,9 +28,6 @@ To build and run one of the samples:
 > ./fips build
 > ./fips run Paclone
 
-# list samples
-> ./fips list samples
-
 # open project in VStudio or XCode:
 > ./fips open
 ```
