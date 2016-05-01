@@ -8,3 +8,5 @@ fips_add_subdirectory(MeshViewer)
 fips_add_subdirectory(SoloudMOD)
 fips_add_subdirectory(SoloudTedSid)
 fips_add_subdirectory(SoundTest)
+fips_add_subdirectory(BulletPhysicsBasic)
+

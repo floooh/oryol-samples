@@ -1,0 +1,7 @@
+fips_begin_app(BulletPhysicsBasic windowed)
+    fips_vs_warning_level(3)
+    fips_files(BulletPhysicsBasic.cc)
+    oryol_shader(shaders.shd)
+    fips_deps(Gfx Assets Input IMUI Bullet)
+    oryol_add_web_sample(BulletPhysicsBasic "Simplet Bullet physics integration" "emscripten,pnacl" none "BulletPhysicsBasic/BulletPhysicsBasic.cc")
+fips_end_app()
