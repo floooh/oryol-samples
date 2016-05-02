@@ -100,7 +100,7 @@ BulletPhysicsBasicApp::OnInit() {
 AppState::Code
 BulletPhysicsBasicApp::OnRunning() {
 
-    this->dynamicsWorld->stepSimulation(1.0 / 60.0, 10);
+    this->dynamicsWorld->stepSimulation(1.0f / 60.0f, 10);
 
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.7f, 0.7f, 0.7f, 1.0f), 1.0f, 0));
     Gfx::ApplyDrawState(this->drawState);
