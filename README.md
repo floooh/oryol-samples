@@ -7,6 +7,13 @@ Oryol is here: http://github.com/floooh/oryol
 
 The Extension Samples webpage is here: http://floooh.github.com/oryol-samples
 
+### Build Status:
+
+|Platform|Build Status|
+|--------|------|
+|OSX + Linux (OpenGL)|[![Build Status](https://travis-ci.org/floooh/oryol-samples.svg?branch=master)](https://travis-ci.org/floooh/oryol-samples)|
+|Windows (OpenGL + D3D11)|[![Build status](https://ci.appveyor.com/api/projects/status/t1l7s1hobnocpn6q/branch/master?svg=true)](https://ci.appveyor.com/project/floooh/oryol-samples/branch/master)|
+
 ### How to build
 
 You need a recent cmake, python 2.7.x (3.x should work too), and a

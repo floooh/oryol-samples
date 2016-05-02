@@ -1,0 +1,44 @@
+# force old non-container infrastructure, to see whether this
+# is the reason why the IO test hangs
+sudo:   true
+git:
+  depth: 3
+language: cpp
+compiler: gcc
+os: 
+  - osx
+  - linux
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - kalakris-cmake
+    packages:
+      - cmake
+      - gcc-4.8
+      - g++-4.8
+      - libglu1-mesa-dev
+      - xorg-dev
+      - libasound2-dev
+
+install:
+  - echo $TRAVIS_OS_NAME
+  # LINUX
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 50; fi
+  # OSX
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install cmake; fi
+
+script:
+  - echo $TRAVIS_OS_NAME
+  - cmake --version
+
+  # LINUX
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then python fips set config linux-make-unittest; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then python fips clean all; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then python fips build; fi
+
+  # OSX
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then python fips set config oryol-osx-unittest-headless; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then python fips clean all; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then python fips build; fi
+
