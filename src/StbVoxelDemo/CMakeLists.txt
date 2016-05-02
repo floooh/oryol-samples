@@ -15,8 +15,9 @@ fips_begin_app(StbVoxelDemo windowed)
 fips_end_app()
 
 # silence some stb_voxel_render warnings
-if (FIPS_CLANG)
-    set_target_properties(StbVoxelDemo
-        PROPERTIES COMPILE_FLAGS 
-        "-Wno-missing-field-initializers -Wno-unused-variable")
+if (FIPS_CLANG OR FIPS_GCC)
+    target_compile_options(StbVoxelDemo PRIVATE -Wno-missing-field-initializers -Wno-unused-variable)
+endif()
+if (FIPS_GCC)
+    target_compile_options(StbVoxelDemo PRIVATE -Wno-extra)
 endif()

@@ -85,7 +85,6 @@ VisTree::Merge(int16_t nodeIndex) {
     VisNode& node = this->NodeAt(nodeIndex);
     for (int childIndex = 0; childIndex < VisNode::NumChilds; childIndex++) {
         if (VisNode::InvalidChild != node.childs[childIndex]) {
-            VisNode& childNode = this->NodeAt(node.childs[childIndex]);
             this->FreeGeoms(node.childs[childIndex]);
             this->Merge(node.childs[childIndex]);
             this->freeNodes.Add(node.childs[childIndex]);
