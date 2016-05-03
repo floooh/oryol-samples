@@ -3,10 +3,10 @@
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "Core/Main.h"
+#include "PhysicsCommon/Physics.h"
 #include "Gfx/Gfx.h"
 #include "IMUI/IMUI.h"
 #include "Assets/Gfx/ShapeBuilder.h"
-#include "btBulletDynamicsCommon.h"
 #include "shaders.h"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -18,12 +18,6 @@ public:
     AppState::Code OnRunning();
     AppState::Code OnInit();
     AppState::Code OnCleanup();
-
-    btBroadphaseInterface* broadphase = nullptr;
-    btDefaultCollisionConfiguration* collisionConfiguration = nullptr;
-    btCollisionDispatcher* dispatcher = nullptr;
-    btSequentialImpulseConstraintSolver* solver = nullptr;
-    btDiscreteDynamicsWorld* dynamicsWorld = nullptr;
 
     btCollisionShape* groundShape = nullptr;
     btDefaultMotionState* groundMotionState = nullptr;
@@ -68,20 +62,14 @@ BulletPhysicsBasicApp::OnInit() {
     this->view = glm::lookAt(glm::vec3(0.0f, 25.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // setup the physics world
-    // - Bullet seems to be designed around creating objects with new/delete, which sucks a bit
-    this->broadphase = new btDbvtBroadphase();
-    this->collisionConfiguration = new btDefaultCollisionConfiguration();
-    this->dispatcher = new btCollisionDispatcher(this->collisionConfiguration);
-    this->solver = new btSequentialImpulseConstraintSolver();
-    this->dynamicsWorld = new btDiscreteDynamicsWorld(this->dispatcher,
-        this->broadphase, this->solver, this->collisionConfiguration);
+    Physics::Setup();
 
     this->groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
     this->groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
     btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0, this->groundMotionState, this->groundShape, btVector3(0, 0, 0));
     groundRigidBodyCI.m_restitution = 0.5f;
     this->groundRigidBody = new btRigidBody(groundRigidBodyCI);
-    this->dynamicsWorld->addRigidBody(this->groundRigidBody);
+    Physics::World()->addRigidBody(this->groundRigidBody);
 
     this->fallShape = new btSphereShape(1);
     this->fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 50, 0)));
@@ -91,7 +79,7 @@ BulletPhysicsBasicApp::OnInit() {
     btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, this->fallMotionState, this->fallShape, fallInertia);
     fallRigidBodyCI.m_restitution = 1.0f;
     this->fallRigidBody = new btRigidBody(fallRigidBodyCI);
-    this->dynamicsWorld->addRigidBody(this->fallRigidBody);
+    Physics::World()->addRigidBody(this->fallRigidBody);
 
     return App::OnInit();
 }
@@ -100,7 +88,7 @@ BulletPhysicsBasicApp::OnInit() {
 AppState::Code
 BulletPhysicsBasicApp::OnRunning() {
 
-    this->dynamicsWorld->stepSimulation(1.0f / 60.0f, 10);
+    Physics::Update(1.0f/60.0f); 
 
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.7f, 0.7f, 0.7f, 1.0f), 1.0f, 0));
     Gfx::ApplyDrawState(this->drawState);
@@ -141,22 +129,17 @@ AppState::Code
 BulletPhysicsBasicApp::OnCleanup() {
 
 
-    this->dynamicsWorld->removeRigidBody(this->fallRigidBody);
+    Physics::World()->removeRigidBody(this->fallRigidBody);
     delete this->fallMotionState;
     delete this->fallRigidBody;
     delete this->fallShape;
 
-    this->dynamicsWorld->removeRigidBody(this->groundRigidBody);
+    Physics::World()->removeRigidBody(this->groundRigidBody);
     delete this->groundMotionState;
     delete this->groundRigidBody;
     delete this->groundShape;
 
-    delete this->dynamicsWorld;
-    delete this->solver;
-    delete this->dispatcher;
-    delete this->collisionConfiguration;
-    delete this->broadphase;
-
+    Physics::Discard();
     IMUI::Discard();
     Gfx::Discard();
     return App::OnCleanup();
