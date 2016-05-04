@@ -48,3 +48,8 @@
   type: emscripten
   image: /Users/floh/projects/oryol-samples/src/SoundTest/SoundTest.jpg
   src: SoundTest/SoundTest.cc
+- name: BulletPhysicsBasic
+  desc: Simplet Bullet physics integration
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/BulletPhysicsBasic/BulletPhysicsBasic.jpg
+  src: BulletPhysicsBasic/BulletPhysicsBasic.cc
