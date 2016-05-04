@@ -27,14 +27,18 @@ public:
     /// create a physics object
     static Id Create(const RigidBodySetup& setup);
     /// destroy object
-    static void Destroy(Id obj);
+    static void Destroy(Id id);
     /// add object to world
-    static void Add(Id obj);
+    static void Add(Id id);
     /// remove object from world
-    static void Remove(Id obj);
+    static void Remove(Id id);
 
     /// get world-space transform of a rigid body object
-    static glm::mat4 Transform(Id obj);
+    static glm::mat4 Transform(Id id);
+    /// get rigid body pointer by id
+    static btRigidBody* Body(Id id);
+    /// get type of rigid body object
+    static RigidBodySetup::ShapeType ShapeType(Id id);
 
     /// get pointer to Bullet dynamics world
     static btDynamicsWorld* World() {
@@ -53,5 +57,29 @@ private:
     };
     static _state* state;
 };
+
+//------------------------------------------------------------------------------
+inline btRigidBody*
+Physics::Body(Id id) {
+    _priv::rigidBody* body = state->rigidBodyPool.Get(id);
+    if (body) {
+        return body->body;
+    }
+    else {
+        return nullptr;
+    }
+}
+
+//------------------------------------------------------------------------------
+inline RigidBodySetup::ShapeType
+Physics::ShapeType(Id id) {
+    _priv::rigidBody* body = state->rigidBodyPool.Get(id);
+    if (body) {
+        return body->Setup.Type;
+    }
+    else {
+        return RigidBodySetup::None;
+    }
+}
 
 } // namespace Oryol
