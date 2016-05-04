@@ -11,7 +11,7 @@
 namespace Oryol {
 namespace _priv {
 
-class rigidBody : resourceBase<RigidBodySetup> {
+class rigidBody : public resourceBase<RigidBodySetup> {
 public:
     /// destructor
     ~rigidBody();

@@ -19,14 +19,8 @@ public:
     AppState::Code OnInit();
     AppState::Code OnCleanup();
 
-    btCollisionShape* groundShape = nullptr;
-    btDefaultMotionState* groundMotionState = nullptr;
-    btRigidBody* groundRigidBody = nullptr;
-
-    btCollisionShape* fallShape = nullptr;
-    btDefaultMotionState* fallMotionState = nullptr;
-    btRigidBody* fallRigidBody = nullptr;
-
+    Id ground;
+    Id ball;
     DrawState drawState;
     glm::mat4 proj;
     glm::mat4 view;
@@ -63,23 +57,10 @@ BulletPhysicsBasicApp::OnInit() {
 
     // setup the physics world
     Physics::Setup();
-
-    this->groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
-    this->groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
-    btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0, this->groundMotionState, this->groundShape, btVector3(0, 0, 0));
-    groundRigidBodyCI.m_restitution = 0.5f;
-    this->groundRigidBody = new btRigidBody(groundRigidBodyCI);
-    Physics::World()->addRigidBody(this->groundRigidBody);
-
-    this->fallShape = new btSphereShape(1);
-    this->fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 50, 0)));
-    btScalar mass = 1;
-    btVector3 fallInertia(0, 0, 0);
-    this->fallShape->calculateLocalInertia(mass, fallInertia);
-    btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, this->fallMotionState, this->fallShape, fallInertia);
-    fallRigidBodyCI.m_restitution = 1.0f;
-    this->fallRigidBody = new btRigidBody(fallRigidBodyCI);
-    Physics::World()->addRigidBody(this->fallRigidBody);
+    this->ground = Physics::Create(RigidBodySetup::Plane(glm::vec4(0, 1, 0, 0), 0.5f));
+    this->ball = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 50, 0)), 1.0f, 1.0f, 1.0f));
+    Physics::Add(this->ground);
+    Physics::Add(this->ball);
 
     return App::OnInit();
 }
@@ -94,28 +75,22 @@ BulletPhysicsBasicApp::OnRunning() {
     Gfx::ApplyDrawState(this->drawState);
 
     // draw ground
-    btTransform groundTrans;
-    this->groundMotionState->getWorldTransform(groundTrans);
-    const btVector3& groundPos = groundTrans.getOrigin();
-    glm::mat4 model = glm::translate(glm::mat4(), glm::vec3(groundPos.getX(), groundPos.getY(), groundPos.getZ()));
-    this->vsParams.ModelViewProjection = this->proj * this->view * model;
+    glm::mat4 groundTransform = Physics::Transform(this->ground);
+    this->vsParams.ModelViewProjection = this->proj * this->view * groundTransform;
     this->vsParams.Color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
     Gfx::ApplyUniformBlock(this->vsParams);
     Gfx::Draw(0);
 
     // draw ball
-    btTransform ballTrans;
-    this->fallMotionState->getWorldTransform(ballTrans);
-    const btVector3& ballPos = ballTrans.getOrigin();
-    model = glm::translate(glm::mat4(), glm::vec3(ballPos.getX(), ballPos.getY(), ballPos.getZ()));
-    this->vsParams.ModelViewProjection = this->proj * this->view * model;
+    glm::mat4 ballTransform = Physics::Transform(this->ball);
+    this->vsParams.ModelViewProjection = this->proj * this->view * ballTransform;
     this->vsParams.Color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
     Gfx::ApplyUniformBlock(this->vsParams);
     Gfx::Draw(1);
 
     IMUI::NewFrame();
     if (ImGui::Begin("Physics")) {
-        ImGui::Text("Ball Height: %f", ballPos.getY());
+        ImGui::Text("Ball Height: %f", ballTransform[3].y);
     }
     ImGui::End();
 
@@ -128,17 +103,8 @@ BulletPhysicsBasicApp::OnRunning() {
 AppState::Code
 BulletPhysicsBasicApp::OnCleanup() {
 
-
-    Physics::World()->removeRigidBody(this->fallRigidBody);
-    delete this->fallMotionState;
-    delete this->fallRigidBody;
-    delete this->fallShape;
-
-    Physics::World()->removeRigidBody(this->groundRigidBody);
-    delete this->groundMotionState;
-    delete this->groundRigidBody;
-    delete this->groundShape;
-
+    Physics::Destroy(this->ground);
+    Physics::Destroy(this->ball);
     Physics::Discard();
     IMUI::Discard();
     Gfx::Discard();
