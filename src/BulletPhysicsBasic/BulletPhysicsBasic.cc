@@ -131,7 +131,7 @@ BulletPhysicsBasicApp::OnRunning() {
     }
 
     TimePoint physStartTime = Clock::Now();
-    Physics::Update(1.0f/60.0f);
+    Physics::Update(frameTime.AsSeconds());
     Duration physTime = Clock::Since(physStartTime);
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
 
