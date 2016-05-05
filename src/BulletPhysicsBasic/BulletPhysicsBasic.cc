@@ -15,6 +15,9 @@
 
 using namespace Oryol;
 
+static const float SphereRadius = 1.0f;
+static const float BoxSize = 1.5f;
+
 class BulletPhysicsBasicApp : public App {
 public:
     AppState::Code OnRunning();
@@ -101,13 +104,14 @@ BulletPhysicsBasicApp::setupGraphics() {
 
     // setup rigid body shapes
     ShapeBuilder shapeBuilder;
-    shapeBuilder.Layout.Add(VertexAttr::Position, VertexFormat::Float3);
-    shapeBuilder.Layout.Add(VertexAttr::Normal, VertexFormat::Byte4N);
-    shapeBuilder.Layout.Add(VertexAttr::TexCoord0, VertexFormat::Float2);
+    shapeBuilder.Layout
+        .Add(VertexAttr::Position, VertexFormat::Float3)
+        .Add(VertexAttr::Normal, VertexFormat::Byte4N)
+        .Add(VertexAttr::TexCoord0, VertexFormat::Float2);
     shapeBuilder
         .Plane(100, 100, 1)
-        .Sphere(1, 13, 7)
-        .Box(1.5f, 1.5f, 1.5f, 1);
+        .Sphere(SphereRadius, 13, 7)
+        .Box(BoxSize, BoxSize, BoxSize, 1);
     this->colorDrawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
 
     // create color pass pipeline state
@@ -158,8 +162,7 @@ BulletPhysicsBasicApp::discardGraphics() {
 void
 BulletPhysicsBasicApp::drawShadowPass() {
 
-    auto clearState = ClearState::ClearAll(glm::vec4(0.0f), 1.0f, 0);
-    Gfx::ApplyRenderTarget(this->shadowMap, clearState);
+    Gfx::ApplyRenderTarget(this->shadowMap, ClearState::ClearAll(glm::vec4(0.0f), 1.0f, 0));
     Gfx::ApplyDrawState(this->shadowDrawState);
 
     glm::mat4 projView = this->lightProj * this->lightView;
@@ -228,16 +231,16 @@ BulletPhysicsBasicApp::updatePhysics(Duration frameTime) {
         if (this->numBodies < MaxNumBodies) {
             Id newObj;
             if (this->numBodies & 1) {
-                newObj = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), 1.0f, 1.0f, 0.5f));
+                newObj = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), SphereRadius, 1.0f, 0.5f));
             }
             else {
-                newObj = Physics::Create(RigidBodySetup::Box(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), glm::vec3(1.5f), 1.0f, 0.5f));
+                newObj = Physics::Create(RigidBodySetup::Box(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), glm::vec3(BoxSize), 1.0f, 0.5f));
             }
             Physics::Add(newObj);
             this->bodies[this->numBodies++] = newObj;
             btRigidBody* body = Physics::Body(newObj);
             glm::vec3 ang = glm::ballRand(10.0f);
-            glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(5.0f, 15.0f, 5.0f);
+            glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(2.5f, 20.0f, 2.5f);
             body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
             body->setLinearVelocity(btVector3(lin.x, lin.y, lin.z));
             body->setDamping(0.1f, 0.1f);
