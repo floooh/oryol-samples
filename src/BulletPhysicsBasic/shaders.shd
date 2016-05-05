@@ -26,7 +26,7 @@ _func float sampleShadow(sampler2D shadowMap, vec2 uv, float compare) {
 }
 
 //------------------------------------------------------------------------------
-//  perform linearly interpolated shadow map lookup
+//  perform percentage-closer shadow map lookup
 //
 _func float sampleShadowPCF(sampler2D shadowMap, vec2 uv, vec2 smSize, float compare) {
     float result = 0.0;
@@ -140,7 +140,7 @@ _func vec4 gamma(vec4 c) {
         // shadow factor (0..1)
         vec3 lightPos = lightProjPos.xyz / lightProjPos.w;
         vec2 smUV = (lightPos.xy+1.0)*0.5;
-        float s = max(0.25, sampleShadowPCF(shadowMap, smUV, shadowMapSize, -lightPos.z));
+        float s = sampleShadowPCF(shadowMap, smUV, shadowMapSize, -lightPos.z);
         float diffIntensity = max(n_dot_l * s, 0.0) + ambient;
 
         // specular lighting

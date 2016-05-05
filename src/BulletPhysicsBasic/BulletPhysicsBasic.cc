@@ -115,7 +115,7 @@ BulletPhysicsBasicApp::setupGraphics() {
         .Add(VertexAttr::TexCoord0, VertexFormat::Float2);
     shapeBuilder
         .Plane(100, 100, 1)
-        .Sphere(SphereRadius, 13, 7)
+        .Sphere(SphereRadius, 15, 11)
         .Box(BoxSize, BoxSize, BoxSize, 1);
     this->colorDrawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
 
