@@ -44,7 +44,7 @@ public:
     ShadowShader::ShadowVSParams shadowVSParams;
 
     int frameIndex = 0;
-    static const int MaxNumBodies = 128;
+    static const int MaxNumBodies = 512;
     int numBodies = 0;
     StaticArray<Id, MaxNumBodies> bodies;
 
@@ -119,11 +119,10 @@ BulletPhysicsBasicApp::setupGraphics() {
     ps.RasterizerState.SampleCount = gfxSetup.SampleCount;
     this->colorDrawState.Pipeline = Gfx::CreateResource(ps);
 
-    // create shadow map
-    // FIXME: use RGBA8 and encode depth in pixel shader
+    // create shadow map, use RGBA8 format and encode/decode depth in pixel shader
     auto smSetup = TextureSetup::RenderTarget(ShadowMapSize, ShadowMapSize);
-    smSetup.ColorFormat = PixelFormat::RGBA32F;
-    smSetup.DepthFormat = PixelFormat::DEPTHSTENCIL;
+    smSetup.ColorFormat = PixelFormat::RGBA8;
+    smSetup.DepthFormat = PixelFormat::DEPTH;
     this->shadowMap = Gfx::CreateResource(smSetup);
     this->colorDrawState.FSTexture[0] = this->shadowMap;
 
@@ -146,7 +145,7 @@ BulletPhysicsBasicApp::setupGraphics() {
     this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 200.0f);
     this->view = glm::lookAt(glm::vec3(0.0f, 25.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     this->lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    this->lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 200.0f);
+    this->lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
 }
 
 //------------------------------------------------------------------------------
@@ -159,11 +158,11 @@ BulletPhysicsBasicApp::discardGraphics() {
 void
 BulletPhysicsBasicApp::drawShadowPass() {
 
-    auto clearState = ClearState::ClearAll(glm::vec4(1024.0f), 1.0f, 0);
+    auto clearState = ClearState::ClearAll(glm::vec4(0.0f), 1.0f, 0);
     Gfx::ApplyRenderTarget(this->shadowMap, clearState);
     Gfx::ApplyDrawState(this->shadowDrawState);
-    glm::mat4 projView = this->lightProj * this->lightView;
 
+    glm::mat4 projView = this->lightProj * this->lightView;
     for (int i = 0; i < this->numBodies; i++) {
         glm::mat4 model = Physics::Transform(this->bodies[i]);
         this->shadowVSParams.MVP = projView * model;
@@ -176,7 +175,6 @@ BulletPhysicsBasicApp::drawShadowPass() {
 //------------------------------------------------------------------------------
 void
 BulletPhysicsBasicApp::drawColorPass() {
-
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
 
     Gfx::ApplyDrawState(this->colorDrawState);
