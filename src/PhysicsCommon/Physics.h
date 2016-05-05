@@ -11,7 +11,7 @@
 #include "btBulletDynamicsCommon.h"
 #include "Resource/Core/ResourcePool.h"
 #include "PhysicsCommon/RigidBodySetup.h"
-#include "PhysicsCommon/RigidBody.h"
+#include "PhysicsCommon/rigidBody.h"
 
 namespace Oryol {
 
