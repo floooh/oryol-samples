@@ -23,19 +23,25 @@ public:
 
     void setupGraphics();
     void discardGraphics();
-    void drawGround();
-    void drawRigidBodies();
+    void drawShadowPass();
+    void drawColorPass();
 
     void setupPhysics();
     void discardPhysics();
     Duration updatePhysics(Duration frameTime);
 
-    Id ground;
-    DrawState drawState;
+    Id groundRigidBody;
 
+    static const int ShadowMapSize = 2048;
+    Id shadowMap;
+    DrawState colorDrawState;
+    DrawState shadowDrawState;
     glm::mat4 proj;
     glm::mat4 view;
-    Shader::Params vsParams;
+    glm::mat4 lightView;
+    glm::mat4 lightProj;
+    ColorShader::ColorVSParams colorVSParams;
+    ShadowShader::ShadowVSParams shadowVSParams;
 
     int frameIndex = 0;
     static const int MaxNumBodies = 128;
@@ -63,11 +69,8 @@ BulletPhysicsBasicApp::OnRunning() {
     this->frameIndex++;
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics(frameTime);
-
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
-    this->drawGround();
-    this->drawRigidBodies();
-
+    this->drawShadowPass();
+    this->drawColorPass();
     Dbg::PrintF("\n\r"
                 "  Frame time:   %.4f ms\n\r"
                 "  Physics time: %.4f ms\n\r"
@@ -96,7 +99,7 @@ BulletPhysicsBasicApp::setupGraphics() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
     Gfx::Setup(gfxSetup);
 
-    // setup graphics shapes
+    // setup rigid body shapes
     ShapeBuilder shapeBuilder;
     shapeBuilder.Layout.Add(VertexAttr::Position, VertexFormat::Float3);
     shapeBuilder.Layout.Add(VertexAttr::Normal, VertexFormat::Byte4N);
@@ -105,20 +108,45 @@ BulletPhysicsBasicApp::setupGraphics() {
         .Plane(100, 100, 1)
         .Sphere(1, 13, 7)
         .Box(1.5f, 1.5f, 1.5f, 1);
-    this->drawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
+    this->colorDrawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
 
-    // create pipeline state
-    Id shd = Gfx::CreateResource(Shader::Setup());
+    // create color pass pipeline state
+    Id shd = Gfx::CreateResource(ColorShader::Setup());
     auto ps = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
     ps.DepthStencilState.DepthWriteEnabled = true;
     ps.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
+    ps.RasterizerState.CullFaceEnabled = true;
     ps.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    this->drawState.Pipeline = Gfx::CreateResource(ps);
+    this->colorDrawState.Pipeline = Gfx::CreateResource(ps);
 
+    // create shadow map
+    // FIXME: use RGBA8 and encode depth in pixel shader
+    auto smSetup = TextureSetup::RenderTarget(ShadowMapSize, ShadowMapSize);
+    smSetup.ColorFormat = PixelFormat::RGBA32F;
+    smSetup.DepthFormat = PixelFormat::DEPTHSTENCIL;
+    this->shadowMap = Gfx::CreateResource(smSetup);
+    this->colorDrawState.FSTexture[0] = this->shadowMap;
+
+    // create shadow pass pipeline state
+    shd = Gfx::CreateResource(ShadowShader::Setup());
+    ps = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
+    ps.DepthStencilState.DepthWriteEnabled = true;
+    ps.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
+    ps.RasterizerState.CullFaceEnabled = true;
+    ps.RasterizerState.CullFace = Face::Front;
+    ps.RasterizerState.SampleCount = 1;
+    ps.BlendState.ColorFormat = smSetup.ColorFormat;
+    ps.BlendState.DepthFormat = smSetup.DepthFormat;
+    this->shadowDrawState.Pipeline = Gfx::CreateResource(ps);
+    this->shadowDrawState.Mesh[0]  = this->colorDrawState.Mesh[0];
+
+    // setup view and projection matrices
     const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
     const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
     this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 200.0f);
     this->view = glm::lookAt(glm::vec3(0.0f, 25.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    this->lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 200.0f);
 }
 
 //------------------------------------------------------------------------------
@@ -129,31 +157,48 @@ BulletPhysicsBasicApp::discardGraphics() {
 
 //------------------------------------------------------------------------------
 void
-BulletPhysicsBasicApp::drawGround() {
-    Gfx::ApplyDrawState(this->drawState);
-    glm::mat4 groundTransform = Physics::Transform(this->ground);
-    this->vsParams.ModelViewProjection = this->proj * this->view * groundTransform;
-    Gfx::ApplyUniformBlock(this->vsParams);
-    Gfx::Draw(0);
+BulletPhysicsBasicApp::drawShadowPass() {
+
+    auto clearState = ClearState::ClearAll(glm::vec4(1024.0f), 1.0f, 0);
+    Gfx::ApplyRenderTarget(this->shadowMap, clearState);
+    Gfx::ApplyDrawState(this->shadowDrawState);
+    glm::mat4 projView = this->lightProj * this->lightView;
+
+    for (int i = 0; i < this->numBodies; i++) {
+        glm::mat4 model = Physics::Transform(this->bodies[i]);
+        this->shadowVSParams.MVP = projView * model;
+        Gfx::ApplyUniformBlock(this->shadowVSParams);
+        int primGroup = (Physics::ShapeType(this->bodies[i]) == RigidBodySetup::SphereShape) ? 1 : 2;
+        Gfx::Draw(primGroup);
+    }
 }
 
 //------------------------------------------------------------------------------
 void
-BulletPhysicsBasicApp::drawRigidBodies() {
+BulletPhysicsBasicApp::drawColorPass() {
+
+    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
+
+    Gfx::ApplyDrawState(this->colorDrawState);
+    glm::mat4 projView = this->proj * this->view;
+    glm::mat4 lightProjView = this->lightProj * this->lightView;
+
+    // draw ground
+    glm::mat4 model = Physics::Transform(this->groundRigidBody);
+    this->colorVSParams.MVP = projView * model;
+    this->colorVSParams.LightMVP = lightProjView * model;
+    Gfx::ApplyUniformBlock(this->colorVSParams);
+    Gfx::Draw(0);
+
+    // draw rigid bodies
     // FIXME: use instancing
-    Gfx::ApplyDrawState(this->drawState);
     for (int i = 0; i < this->numBodies; i++) {
-        glm::mat4 ballTransform = Physics::Transform(this->bodies[i]);
-        this->vsParams.ModelViewProjection = this->proj * this->view * ballTransform;
-        Gfx::ApplyUniformBlock(this->vsParams);
-        if (Physics::ShapeType(this->bodies[i]) == RigidBodySetup::SphereShape) {
-            // a sphere
-            Gfx::Draw(1);
-        }
-        else {
-            // a box
-            Gfx::Draw(2);
-        }
+        model = Physics::Transform(this->bodies[i]);
+        this->colorVSParams.MVP = projView * model;
+        this->colorVSParams.LightMVP = lightProjView * model;
+        Gfx::ApplyUniformBlock(this->colorVSParams);
+        int primGroup = (Physics::ShapeType(this->bodies[i]) == RigidBodySetup::SphereShape) ? 1 : 2;
+        Gfx::Draw(primGroup);
     }
 }
 
@@ -161,14 +206,14 @@ BulletPhysicsBasicApp::drawRigidBodies() {
 void
 BulletPhysicsBasicApp::setupPhysics() {
     Physics::Setup();
-    this->ground = Physics::Create(RigidBodySetup::Plane(glm::vec4(0, 1, 0, 0), 0.25f));
-    Physics::Add(this->ground);
+    this->groundRigidBody = Physics::Create(RigidBodySetup::Plane(glm::vec4(0, 1, 0, 0), 0.25f));
+    Physics::Add(this->groundRigidBody);
 }
 
 //------------------------------------------------------------------------------
 void
 BulletPhysicsBasicApp::discardPhysics() {
-    Physics::Destroy(this->ground);
+    Physics::Destroy(this->groundRigidBody);
     for (int i = 0; i < this->numBodies; i++) {
         Physics::Destroy(this->bodies[i]);
     }

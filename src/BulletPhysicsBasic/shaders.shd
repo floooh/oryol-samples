@@ -1,27 +1,77 @@
-@uniform_block params Params
-mat4 mvp ModelViewProjection
+//------------------------------------------------------------------------------
+//  Shadowmap pass shaders
+//
+@uniform_block shadowVSParams ShadowVSParams
+    mat4 mvp MVP
 @end
 
-@vs vs
-@use_uniform_block params
+@vs shadowVS
+@use_uniform_block shadowVSParams
+@in vec4 position
+@out vec2 projZW
+{
+    _position = mul(mvp, position);
+    projZW = _position.zw;
+}
+@end
+
+@fs shadowFS
+@in vec2 projZW
+{
+    float depth = projZW.x / projZW.y;
+    _color = vec4(depth);
+}
+@end
+
+@program ShadowShader shadowVS shadowFS
+
+//------------------------------------------------------------------------------
+//  Color pass shaders
+//
+@uniform_block colorVSParams ColorVSParams
+    mat4 mvp MVP
+    mat4 lightMVP LightMVP
+@end
+
+@texture_block colorTextures ColorTextures
+    sampler2D shadowMap ShadowMap
+@end
+
+@vs colorVS
+@use_uniform_block colorVSParams
 @in vec4 position
 @in vec4 normal
 @in vec2 texcoord0
 @out vec2 uv
 @out vec4 nrm
 @out vec4 color
+@out vec4 lightProjPos
+{
     _position = mul(mvp, position);
+    lightProjPos = mul(lightMVP, position);
     uv = texcoord0;
     nrm = normalize(mul(mvp, normal));
     color = vec4((normal.xyz + vec3(1.0)) * vec3(0.5), 1.0);
+}
 @end
 
-@fs fs
+@fs colorFS
+@use_texture_block colorTextures
 @in vec2 uv
 @in vec4 nrm
 @in vec4 color
-    _color = color;
+@in vec4 lightProjPos
+{
+    vec3 lightPos = lightProjPos.xyz / lightProjPos.w;
+    float smDepth = tex2D(shadowMap, (lightPos.xy+1.0)*0.5).x;
+    if (smDepth < lightPos.z) {
+        _color = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    else {
+        _color = color;
+    }
+}
 @end
 
-@program Shader vs fs
+@program ColorShader colorVS colorFS
 
