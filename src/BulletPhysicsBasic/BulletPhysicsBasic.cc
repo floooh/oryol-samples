@@ -32,7 +32,7 @@ public:
 
     void setupPhysics();
     void discardPhysics();
-    Duration updatePhysics(Duration frameTime);
+    Duration updatePhysics();
 
     Id groundRigidBody;
 
@@ -76,7 +76,7 @@ BulletPhysicsBasicApp::OnRunning() {
 
     this->frameIndex++;
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
-    Duration physicsTime = this->updatePhysics(frameTime);
+    Duration physicsTime = this->updatePhysics();
     this->drawShadowPass();
     this->drawColorPass();
     Dbg::PrintF("\n\r"
@@ -236,7 +236,7 @@ BulletPhysicsBasicApp::discardPhysics() {
 
 //------------------------------------------------------------------------------
 Duration
-BulletPhysicsBasicApp::updatePhysics(Duration frameTime) {
+BulletPhysicsBasicApp::updatePhysics() {
     TimePoint physStartTime = Clock::Now();
 
     // emit new rigid bodies
@@ -264,6 +264,6 @@ BulletPhysicsBasicApp::updatePhysics(Duration frameTime) {
     }
 
     // step the physics world
-    Physics::Update(frameTime.AsSeconds());
+    Physics::Update(1.0f / 60.0f);
     return Clock::Since(physStartTime);
 }
