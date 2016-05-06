@@ -34,12 +34,16 @@ public:
     void discardPhysics();
     Duration updatePhysics();
 
+    void updateInstanceData();
+
     Id groundRigidBody;
 
     static const int ShadowMapSize = 2048;
     Id shadowMap;
     DrawState colorDrawState;
     DrawState shadowDrawState;
+    DrawState colorInstancedDrawState;
+    DrawState shadowInstancedDrawState;
     glm::mat4 proj;
     glm::mat4 view;
     glm::mat4 lightProjView;
@@ -56,7 +60,22 @@ public:
     int numBodies = 0;
     StaticArray<body, MaxNumBodies> bodies;
 
+    static const int MaxNumInstances = (MaxNumBodies/2)+1;
     TimePoint lapTimePoint;
+
+    // instancing stuff
+    int numSpheres = 0;
+    int numBoxes = 0;
+    Id sphereInstMesh;
+    Id boxInstMesh;
+    struct instData {
+        glm::vec4 xxxx;
+        glm::vec4 yyyy;
+        glm::vec4 zzzz;
+        glm::vec4 color;
+    };
+    instData sphereInstData[MaxNumInstances];
+    instData boxInstData[MaxNumInstances];
 };
 OryolMain(BulletPhysicsBasicApp);
 
@@ -77,6 +96,7 @@ BulletPhysicsBasicApp::OnRunning() {
     this->frameIndex++;
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics();
+    this->updateInstanceData();
     this->drawShadowPass();
     this->drawColorPass();
     Dbg::PrintF("\n\r"
@@ -107,19 +127,41 @@ BulletPhysicsBasicApp::setupGraphics() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
     Gfx::Setup(gfxSetup);
 
-    // setup rigid body shapes
+    // create 2 instance-data buffers, one for the spheres, one for the boxes,
+    // per-instance data is a 4x3 transposed model matrix, and vec4 color
+    auto instSetup = MeshSetup::Empty(MaxNumInstances, Usage::Stream);
+    instSetup.Layout
+        .EnableInstancing()
+        .Add(VertexAttr::Instance0, VertexFormat::Float4)
+        .Add(VertexAttr::Instance1, VertexFormat::Float4)
+        .Add(VertexAttr::Instance2, VertexFormat::Float4)
+        .Add(VertexAttr::Color0, VertexFormat::Float4);
+    this->sphereInstMesh = Gfx::CreateResource(instSetup);
+    this->boxInstMesh    = Gfx::CreateResource(instSetup);
+
+    // pre-initialize the instance data with random colors
+    for (int i = 0; i < MaxNumInstances; i++) {
+        this->sphereInstData[i].color = glm::linearRand(glm::vec4(0.0f), glm::vec4(1.0f));
+    }
+    for (int i = 0; i < MaxNumInstances; i++) {
+        this->boxInstData[i].color = glm::linearRand(glm::vec4(0.0f), glm::vec4(1.0f));
+    }
+
+    // setup a mesh with a sphere and box submesh, which is used by all draw states
     ShapeBuilder shapeBuilder;
     shapeBuilder.Layout
         .Add(VertexAttr::Position, VertexFormat::Float3)
-        .Add(VertexAttr::Normal, VertexFormat::Byte4N)
-        .Add(VertexAttr::TexCoord0, VertexFormat::Float2);
+        .Add(VertexAttr::Normal, VertexFormat::Byte4N);
     shapeBuilder
         .Plane(100, 100, 1)
         .Sphere(SphereRadius, 15, 11)
         .Box(BoxSize, BoxSize, BoxSize, 1);
     this->colorDrawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
+    this->colorInstancedDrawState.Mesh[0] = this->colorDrawState.Mesh[0];
+    this->shadowDrawState.Mesh[0] = this->colorDrawState.Mesh[0];
+    this->shadowInstancedDrawState.Mesh[0] = this->colorDrawState.Mesh[0];
 
-    // create color pass pipeline state
+    // create color pass pipeline states (one for non-instanced, one for instanced rendering)
     Id shd = Gfx::CreateResource(ColorShader::Setup());
     auto ps = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
     ps.DepthStencilState.DepthWriteEnabled = true;
@@ -127,6 +169,9 @@ BulletPhysicsBasicApp::setupGraphics() {
     ps.RasterizerState.CullFaceEnabled = true;
     ps.RasterizerState.SampleCount = gfxSetup.SampleCount;
     this->colorDrawState.Pipeline = Gfx::CreateResource(ps);
+    ps.Shader = Gfx::CreateResource(ColorShaderInstanced::Setup());
+    ps.Layouts[1] = instSetup.Layout;
+    this->colorInstancedDrawState.Pipeline = Gfx::CreateResource(ps);
 
     // create shadow map, use RGBA8 format and encode/decode depth in pixel shader
     auto smSetup = TextureSetup::RenderTarget(ShadowMapSize, ShadowMapSize);
@@ -136,7 +181,7 @@ BulletPhysicsBasicApp::setupGraphics() {
     this->colorDrawState.FSTexture[0] = this->shadowMap;
     this->colorFSParams.ShadowMapSize = glm::vec2(float(ShadowMapSize));
 
-    // create shadow pass pipeline state
+    // create shadow pass pipeline states (one for non-instanced, one for instanced rendering)
     shd = Gfx::CreateResource(ShadowShader::Setup());
     ps = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
     ps.DepthStencilState.DepthWriteEnabled = true;
@@ -147,7 +192,9 @@ BulletPhysicsBasicApp::setupGraphics() {
     ps.BlendState.ColorFormat = smSetup.ColorFormat;
     ps.BlendState.DepthFormat = smSetup.DepthFormat;
     this->shadowDrawState.Pipeline = Gfx::CreateResource(ps);
-    this->shadowDrawState.Mesh[0]  = this->colorDrawState.Mesh[0];
+    ps.Shader = Gfx::CreateResource(ShadowShaderInstanced::Setup());
+    ps.Layouts[1] = instSetup.Layout;
+    this->shadowInstancedDrawState.Pipeline = Gfx::CreateResource(ps);
 
     // setup view and projection matrices
     const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
@@ -158,7 +205,7 @@ BulletPhysicsBasicApp::setupGraphics() {
     glm::mat4 lightView = glm::lookAt(glm::vec3(25.0f, 50.0f, -25.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
     this->lightProjView = lightProj * lightView;
-    this->colorFSParams.LightDir = glm::vec3(glm::row(lightView, 2));
+    this->colorFSParams.LightDir = glm::vec3(glm::row(lightView, 2)); // NOTE this is a bug!, should be column!
     this->colorFSParams.EyePos = eyePos;
 }
 
@@ -172,15 +219,21 @@ BulletPhysicsBasicApp::discardGraphics() {
 void
 BulletPhysicsBasicApp::drawShadowPass() {
 
+    this->shadowVSParams.MVP = this->lightProjView;
     Gfx::ApplyRenderTarget(this->shadowMap, ClearState::ClearAll(glm::vec4(0.0f), 1.0f, 0));
-    Gfx::ApplyDrawState(this->shadowDrawState);
 
-    for (int i = 0; i < this->numBodies; i++) {
-        glm::mat4 model = Physics::Transform(this->bodies[i].id);
-        this->shadowVSParams.MVP = this->lightProjView * model;
+    // one instanced drawcall for all sphere, and one for all boxes
+    if (this->numSpheres > 0) {
+        this->shadowInstancedDrawState.Mesh[1] = this->sphereInstMesh;
+        Gfx::ApplyDrawState(this->shadowInstancedDrawState);
         Gfx::ApplyUniformBlock(this->shadowVSParams);
-        int primGroup = (Physics::ShapeType(this->bodies[i].id) == RigidBodySetup::SphereShape) ? 1 : 2;
-        Gfx::Draw(primGroup);
+        Gfx::DrawInstanced(1, this->numSpheres);
+    }
+    if (this->numBoxes > 0) {
+        this->shadowInstancedDrawState.Mesh[1] = this->boxInstMesh;
+        Gfx::ApplyDrawState(this->shadowInstancedDrawState);
+        Gfx::ApplyUniformBlock(this->shadowVSParams);
+        Gfx::DrawInstanced(2, this->numBoxes);
     }
 }
 
@@ -189,10 +242,10 @@ void
 BulletPhysicsBasicApp::drawColorPass() {
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
 
-    Gfx::ApplyDrawState(this->colorDrawState);
     glm::mat4 projView = this->proj * this->view;
 
     // draw ground
+    Gfx::ApplyDrawState(this->colorDrawState);
     glm::mat4 model = Physics::Transform(this->groundRigidBody);
     this->colorVSParams.Model = model;
     this->colorVSParams.MVP = projView * model;
@@ -202,17 +255,27 @@ BulletPhysicsBasicApp::drawColorPass() {
     Gfx::ApplyUniformBlock(this->colorFSParams);
     Gfx::Draw(0);
 
-    // draw rigid bodies
-    // FIXME: use instancing
-    for (int i = 0; i < this->numBodies; i++) {
-        model = Physics::Transform(this->bodies[i].id);
-        this->colorVSParams.Model = model;
-        this->colorVSParams.MVP = projView * model;
-        this->colorVSParams.LightMVP = this->lightProjView * model;
-        this->colorVSParams.DiffColor = this->bodies[i].diffColor;
+    // draw rigid bodies using instancing
+    this->colorVSParams.Model = glm::mat4();
+    this->colorVSParams.MVP = projView;
+    this->colorVSParams.LightMVP = lightProjView;
+    this->colorVSParams.DiffColor = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    if (this->numSpheres > 0) {
+        // draw all spheres in one instanced drawcall
+        this->colorInstancedDrawState.Mesh[1] = this->sphereInstMesh;
+        Gfx::ApplyDrawState(this->colorInstancedDrawState);
         Gfx::ApplyUniformBlock(this->colorVSParams);
-        int primGroup = (Physics::ShapeType(this->bodies[i].id) == RigidBodySetup::SphereShape) ? 1 : 2;
-        Gfx::Draw(primGroup);
+        Gfx::ApplyUniformBlock(this->colorFSParams);
+        Gfx::DrawInstanced(1, this->numSpheres);
+    }
+    if (this->numBoxes > 0) {
+        // ...and one instanced drawcall for all boxes
+        this->colorInstancedDrawState.Mesh[1] = this->boxInstMesh;
+        Gfx::ApplyDrawState(this->colorInstancedDrawState);
+        Gfx::ApplyUniformBlock(this->colorVSParams);
+        Gfx::ApplyUniformBlock(this->colorFSParams);
+        Gfx::DrawInstanced(2, this->numBoxes);
     }
 }
 
@@ -266,4 +329,35 @@ BulletPhysicsBasicApp::updatePhysics() {
     // step the physics world
     Physics::Update(1.0f / 60.0f);
     return Clock::Since(physStartTime);
+}
+
+//------------------------------------------------------------------------------
+void
+BulletPhysicsBasicApp::updateInstanceData() {
+
+    // this transfers the current rigid body world space transforms into the instance buffers
+    this->numBoxes = 0;
+    this->numSpheres = 0;
+    glm::mat4 model;
+    instData* item = nullptr;
+    int i;
+    for (i = 0; i < numBodies; i++) {
+        RigidBodySetup::ShapeType type = Physics::ShapeType(this->bodies[i].id);
+        if (RigidBodySetup::SphereShape == type) {
+            item = &this->sphereInstData[this->numSpheres++];
+        }
+        else {
+            item = &this->boxInstData[this->numBoxes++];
+        }
+        model = Physics::Transform(this->bodies[i].id);
+        item->xxxx = glm::row(model, 0);
+        item->yyyy = glm::row(model, 1);
+        item->zzzz = glm::row(model, 2);
+    }
+    if (this->numSpheres > 0) {
+        Gfx::UpdateVertices(this->sphereInstMesh, this->sphereInstData, sizeof(instData) * this->numSpheres);
+    }
+    if (this->numBoxes > 0) {
+        Gfx::UpdateVertices(this->boxInstMesh, this->boxInstData, sizeof(instData) * this->numBoxes);
+    }
 }

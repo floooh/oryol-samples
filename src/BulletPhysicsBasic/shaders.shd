@@ -65,6 +65,24 @@ _func vec4 gamma(vec4 c) {
 }
 @end
 
+@vs shadowVSInstanced
+@use_uniform_block shadowVSParams
+@in vec4 position
+@in vec4 instance0      // instance transform xxxx
+@in vec4 instance1      // instance transform yyyy
+@in vec4 instance2      // instance transform zzzz
+@out vec2 projZW
+{
+    vec4 pos = position;
+    vec4 xxxx = instance0;
+    vec4 yyyy = instance1;
+    vec4 zzzz = instance2;
+    vec4 instPos = vec4(dot(pos, xxxx), dot(pos, yyyy), dot(pos, zzzz), 1.0);
+    _position = mul(mvp, instPos);
+    projZW = _position.zw;
+}
+@end
+
 @fs shadowFS
 @highp float
 @use_code_block util
@@ -76,6 +94,7 @@ _func vec4 gamma(vec4 c) {
 @end
 
 @program ShadowShader shadowVS shadowFS
+@program ShadowShaderInstanced shadowVSInstanced shadowFS
 
 //------------------------------------------------------------------------------
 //  Color pass shaders
@@ -101,8 +120,6 @@ _func vec4 gamma(vec4 c) {
 @use_uniform_block colorVSParams
 @in vec4 position
 @in vec3 normal
-@in vec2 texcoord0
-@out vec2 uv
 @out vec3 color
 @out vec4 lightProjPos
 @out vec3 P
@@ -110,10 +127,40 @@ _func vec4 gamma(vec4 c) {
 {
     _position = mul(mvp, position);
     lightProjPos = mul(lightMVP, position);
-    uv = texcoord0;
     P = mul(model, position).xyz;
     N = mul(model, vec4(normal, 0.0)).xyz;
     color = diffColor;
+}
+@end
+
+@vs colorVSInstanced
+@use_uniform_block colorVSParams
+@in vec4 position
+@in vec3 normal
+@in vec4 instance0      // instance transform xxxx
+@in vec4 instance1      // instance transform yyyy
+@in vec4 instance2      // instance transform zzzz
+@in vec4 color0         // instance color
+@out vec3 color
+@out vec4 lightProjPos
+@out vec3 P
+@out vec3 N
+{
+    vec4 pos = position;
+    vec4 nrm = vec4(normal, 0.0);
+    vec4 xxxx = instance0;
+    vec4 yyyy = instance1;
+    vec4 zzzz = instance2;
+
+    // instPos and instNrm are in world space, the model part of
+    // ModelViewProj is usually identity when rendering instanced
+    vec4 instPos = vec4(dot(pos, xxxx), dot(pos, yyyy), dot(pos, zzzz), 1.0);
+    vec4 instNrm = vec4(dot(nrm, xxxx), dot(nrm, yyyy), dot(nrm, zzzz), 0.0);
+    _position = mul(mvp, instPos);
+    lightProjPos = mul(lightMVP, instPos);
+    P = instPos.xyz;
+    N = instNrm.xyz;
+    color = color0.xyz * diffColor;
 }
 @end
 
@@ -122,7 +169,6 @@ _func vec4 gamma(vec4 c) {
 @use_uniform_block colorFSParams
 @use_texture_block colorTextures
 @highp float
-@in vec2 uv
 @in vec3 color
 @in vec4 lightProjPos
 @in vec3 P
@@ -161,4 +207,5 @@ _func vec4 gamma(vec4 c) {
 @end
 
 @program ColorShader colorVS colorFS
+@program ColorShaderInstanced colorVSInstanced colorFS
 
