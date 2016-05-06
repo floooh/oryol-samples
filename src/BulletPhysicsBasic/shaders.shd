@@ -196,7 +196,7 @@ _func vec4 gamma(vec4 c) {
         float specIntensity = pow(r_dot_v, specPower) * n_dot_l * s;
 
         // put everything together
-        _color = vec4(vec3(specIntensity) + (diffIntensity+ambientIntensity)*color, 1.0);
+        _color = vec4(vec3(specIntensity, specIntensity, specIntensity) + (diffIntensity+ambientIntensity)*color, 1.0);
     }
     else {
         // surface points away from light

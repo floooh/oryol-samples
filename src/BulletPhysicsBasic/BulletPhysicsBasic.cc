@@ -309,8 +309,10 @@ BulletPhysicsBasicApp::setupPhysics() {
 //------------------------------------------------------------------------------
 void
 BulletPhysicsBasicApp::discardPhysics() {
+    Physics::Remove(this->groundRigidBody);
     Physics::Destroy(this->groundRigidBody);
     for (int i = 0; i < this->numBodies; i++) {
+        Physics::Remove(this->bodies[i].id);
         Physics::Destroy(this->bodies[i].id);
     }
     Physics::Discard();
