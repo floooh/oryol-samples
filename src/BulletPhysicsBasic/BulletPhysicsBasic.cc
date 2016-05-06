@@ -7,17 +7,23 @@
 #include "PhysicsCommon/Physics.h"
 #include "Gfx/Gfx.h"
 #include "Dbg/Dbg.h"
+#include "Input/Input.h"
 #include "Assets/Gfx/ShapeBuilder.h"
 #include "shaders.h"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/matrix_access.hpp"
 #include "glm/gtc/random.hpp"
+#include "glm/gtx/polar_coordinates.hpp"
 
 using namespace Oryol;
 
 static const float SphereRadius = 1.0f;
 static const float BoxSize = 1.5f;
+const float MinCamDist = 5.0f;
+const float MaxCamDist = 100.0f;
+const float MinLatitude = -85.0f;
+const float MaxLatitude = 85.0f;
 
 class BulletPhysicsBasicApp : public App {
 public:
@@ -26,44 +32,54 @@ public:
     AppState::Code OnCleanup();
 
     void setupGraphics();
-    void discardGraphics();
     void drawShadowPass();
     void drawColorPass();
-
     void setupPhysics();
     void discardPhysics();
     Duration updatePhysics();
-
+    void setupInput();
+    void handleInput();
+    void updateCamera();
     void updateInstanceData();
 
-    Id groundRigidBody;
+    int frameIndex = 0;
+    TimePoint lapTimePoint;
 
+    // rendering state
     static const int ShadowMapSize = 2048;
     Id shadowMap;
     DrawState colorDrawState;
     DrawState shadowDrawState;
     DrawState colorInstancedDrawState;
     DrawState shadowInstancedDrawState;
-    glm::mat4 proj;
-    glm::mat4 view;
-    glm::mat4 lightProjView;
     ColorShader::ColorVSParams colorVSParams;
     ColorShader::ColorFSParams colorFSParams;
     ShadowShader::ShadowVSParams shadowVSParams;
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 viewProj;
+    glm::mat4 lightProjView;
 
+    // physics rigid body state
+    Id groundRigidBody;
+    static const int MaxNumBodies = 512;
+    int numBodies = 0;
     struct body {
         Id id;
         glm::vec3 diffColor;
     };
-    int frameIndex = 0;
-    static const int MaxNumBodies = 512;
-    int numBodies = 0;
     StaticArray<body, MaxNumBodies> bodies;
 
-    static const int MaxNumInstances = (MaxNumBodies/2)+1;
-    TimePoint lapTimePoint;
+    // camera state
+    struct {
+        float dist = 60.0f;
+        glm::vec2 orbital = glm::vec2(glm::radians(25.0f), glm::radians(180.0f));
+        bool dragging = false;
+        glm::vec3 eyePos;
+    } camera;
 
     // instancing stuff
+    static const int MaxNumInstances = (MaxNumBodies/2)+1;
     int numSpheres = 0;
     int numBoxes = 0;
     Id sphereInstMesh;
@@ -84,6 +100,8 @@ AppState::Code
 BulletPhysicsBasicApp::OnInit() {
     this->setupGraphics();
     this->setupPhysics();
+    this->setupInput();
+
     Dbg::Setup();
     this->lapTimePoint = Clock::Now();
     return App::OnInit();
@@ -96,10 +114,14 @@ BulletPhysicsBasicApp::OnRunning() {
     this->frameIndex++;
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics();
+    this->handleInput();
+    this->updateCamera();
     this->updateInstanceData();
     this->drawShadowPass();
     this->drawColorPass();
     Dbg::PrintF("\n\r"
+                "  Mouse left click + drag: rotate camera\n\r"
+                "  Mouse wheel: zoom camera\n\n\r"
                 "  Frame time:   %.4f ms\n\r"
                 "  Physics time: %.4f ms\n\r"
                 "  Num Bodies:   %d\n\r",
@@ -116,7 +138,8 @@ AppState::Code
 BulletPhysicsBasicApp::OnCleanup() {
     this->discardPhysics();
     Dbg::Discard();
-    this->discardGraphics();
+    Input::Discard();
+    Gfx::Discard();
     return App::OnCleanup();
 }
 
@@ -200,20 +223,13 @@ BulletPhysicsBasicApp::setupGraphics() {
     const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
     const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
     this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 200.0f);
-    const glm::vec3 eyePos(0.0f, 25.0f, -50.0f);
-    this->view = glm::lookAt(eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->updateCamera();
+
+    // setup directional light (for lighting and shadow rendering)
     glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
-
     this->lightProjView = lightProj * lightView;
     this->colorFSParams.LightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
-    this->colorFSParams.EyePos = eyePos;
-}
-
-//------------------------------------------------------------------------------
-void
-BulletPhysicsBasicApp::discardGraphics() {
-    Gfx::Discard();
 }
 
 //------------------------------------------------------------------------------
@@ -252,6 +268,7 @@ BulletPhysicsBasicApp::drawColorPass() {
     this->colorVSParams.MVP = projView * model;
     this->colorVSParams.LightMVP = lightProjView * model;
     this->colorVSParams.DiffColor = glm::vec3(0.5, 0.5, 0.5);
+    this->colorFSParams.EyePos = this->camera.eyePos;
     Gfx::ApplyUniformBlock(this->colorVSParams);
     Gfx::ApplyUniformBlock(this->colorFSParams);
     Gfx::Draw(0);
@@ -362,3 +379,48 @@ BulletPhysicsBasicApp::updateInstanceData() {
         Gfx::UpdateVertices(this->boxInstMesh, this->boxInstData, sizeof(instData) * this->numBoxes);
     }
 }
+
+//------------------------------------------------------------------------------
+void
+BulletPhysicsBasicApp::setupInput() {
+    Input::Setup();
+    Input::SetMousePointerLockHandler([this] (const Mouse::Event& event) -> Mouse::PointerLockMode {
+        if (event.Button == Mouse::LMB) {
+            if (event.Type == Mouse::Event::ButtonDown) {
+                this->camera.dragging = true;
+                return Mouse::PointerLockModeEnable;
+            }
+            else if (event.Type == Mouse::Event::ButtonUp) {
+                if (this->camera.dragging) {
+                    this->camera.dragging = false;
+                    return Mouse::PointerLockModeDisable;
+                }
+            }
+        }
+        return Mouse::PointerLockModeDontCare;
+    });
+}
+
+//------------------------------------------------------------------------------
+void
+BulletPhysicsBasicApp::handleInput() {
+    const Mouse& mouse = Input::Mouse();
+    if (mouse.Attached) {
+        if (this->camera.dragging) {
+            if (mouse.ButtonPressed(Mouse::LMB)) {
+                this->camera.orbital.y -= mouse.Movement.x * 0.01f;
+                this->camera.orbital.x = glm::clamp(this->camera.orbital.x + mouse.Movement.y * 0.01f, glm::radians(MinLatitude), glm::radians(MaxLatitude));
+            }
+        }
+        this->camera.dist = glm::clamp(this->camera.dist + mouse.Scroll.y * 0.1f, MinCamDist, MaxCamDist);
+    }
+}
+
+//------------------------------------------------------------------------------
+void
+BulletPhysicsBasicApp::updateCamera() {
+    this->camera.eyePos = glm::euclidean(this->camera.orbital) * this->camera.dist;
+    this->view = glm::lookAt(this->camera.eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->viewProj = this->proj * this->view;
+}
+
