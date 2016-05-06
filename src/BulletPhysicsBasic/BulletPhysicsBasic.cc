@@ -202,10 +202,11 @@ BulletPhysicsBasicApp::setupGraphics() {
     this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 200.0f);
     const glm::vec3 eyePos(0.0f, 25.0f, -50.0f);
     this->view = glm::lookAt(eyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 lightView = glm::lookAt(glm::vec3(25.0f, 50.0f, -25.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
+
     this->lightProjView = lightProj * lightView;
-    this->colorFSParams.LightDir = glm::vec3(glm::row(lightView, 2)); // NOTE this is a bug!, should be column!
+    this->colorFSParams.LightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
     this->colorFSParams.EyePos = eyePos;
 }
 
