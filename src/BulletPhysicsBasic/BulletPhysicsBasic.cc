@@ -44,6 +44,7 @@ public:
 
     int frameIndex = 0;
     TimePoint lapTimePoint;
+    bool paused = false;
 
     // rendering state
     static const int ShadowMapSize = 2048;
@@ -111,7 +112,6 @@ BulletPhysicsBasicApp::OnInit() {
 AppState::Code
 BulletPhysicsBasicApp::OnRunning() {
 
-    this->frameIndex++;
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics();
     this->handleInput();
@@ -121,7 +121,8 @@ BulletPhysicsBasicApp::OnRunning() {
     this->drawColorPass();
     Dbg::PrintF("\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
-                "  Mouse wheel: zoom camera\n\n\r"
+                "  Mouse wheel: zoom camera\n\r"
+                "  P: pause/continue\n\n\r"
                 "  Frame time:   %.4f ms\n\r"
                 "  Physics time: %.4f ms\n\r"
                 "  Num Bodies:   %d\n\r",
@@ -320,32 +321,34 @@ Duration
 BulletPhysicsBasicApp::updatePhysics() {
     TimePoint physStartTime = Clock::Now();
 
-    // emit new rigid bodies
-    if ((this->frameIndex % 10) == 0) {
-        if (this->numBodies < MaxNumBodies) {
-            Id newObj;
-            if (this->numBodies & 1) {
-                newObj = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), SphereRadius, 1.0f, 0.5f));
-            }
-            else {
-                newObj = Physics::Create(RigidBodySetup::Box(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), glm::vec3(BoxSize), 1.0f, 0.5f));
-            }
-            Physics::Add(newObj);
-            this->bodies[this->numBodies].id = newObj;
-            this->bodies[this->numBodies].diffColor = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
-            this->numBodies++;
+    if (!this->paused) {
+        // emit new rigid bodies
+        this->frameIndex++;
+        if ((this->frameIndex % 10) == 0) {
+            if (this->numBodies < MaxNumBodies) {
+                Id newObj;
+                if (this->numBodies & 1) {
+                    newObj = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), SphereRadius, 1.0f, 0.5f));
+                }
+                else {
+                    newObj = Physics::Create(RigidBodySetup::Box(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), glm::vec3(BoxSize), 1.0f, 0.5f));
+                }
+                Physics::Add(newObj);
+                this->bodies[this->numBodies].id = newObj;
+                this->bodies[this->numBodies].diffColor = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+                this->numBodies++;
 
-            btRigidBody* body = Physics::Body(newObj);
-            glm::vec3 ang = glm::ballRand(10.0f);
-            glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(2.5f, 20.0f, 2.5f);
-            body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
-            body->setLinearVelocity(btVector3(lin.x, lin.y, lin.z));
-            body->setDamping(0.1f, 0.1f);
+                btRigidBody* body = Physics::Body(newObj);
+                glm::vec3 ang = glm::ballRand(10.0f);
+                glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(2.5f, 20.0f, 2.5f);
+                body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
+                body->setLinearVelocity(btVector3(lin.x, lin.y, lin.z));
+                body->setDamping(0.1f, 0.1f);
+            }
         }
+        // step the physics world
+        Physics::Update(1.0f / 60.0f);
     }
-
-    // step the physics world
-    Physics::Update(1.0f / 60.0f);
     return Clock::Since(physStartTime);
 }
 
@@ -404,7 +407,13 @@ BulletPhysicsBasicApp::setupInput() {
 //------------------------------------------------------------------------------
 void
 BulletPhysicsBasicApp::handleInput() {
+    const Keyboard& kbd = Input::Keyboard();
     const Mouse& mouse = Input::Mouse();
+    if (kbd.Attached) {
+        if (kbd.KeyDown(Key::P)) {
+            this->paused = !this->paused;
+        }
+    }
     if (mouse.Attached) {
         if (this->camera.dragging) {
             if (mouse.ButtonPressed(Mouse::LMB)) {

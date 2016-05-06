@@ -175,7 +175,7 @@ _func vec4 gamma(vec4 c) {
 @in vec3 N
 {
     float specPower = 16.0;
-    float ambient   = 0.25;
+    float ambientIntensity = 0.25;
 
     // diffuse lighting
     vec3 l = lightDir;
@@ -187,20 +187,20 @@ _func vec4 gamma(vec4 c) {
         vec3 lightPos = lightProjPos.xyz / lightProjPos.w;
         vec2 smUV = (lightPos.xy+1.0)*0.5;
         float s = sampleShadowPCF(shadowMap, smUV, shadowMapSize, -lightPos.z);
-        float diffIntensity = max(n_dot_l * s, 0.0) + ambient;
+        float diffIntensity = max(n_dot_l * s, 0.0);
 
         // specular lighting
         vec3 v = normalize(eyePos - P);
         vec3 r = reflect(-l, n);
         float r_dot_v = max(dot(r, v), 0.0);
-        float specIntensity = pow(r_dot_v, specPower) * n_dot_l;
+        float specIntensity = pow(r_dot_v, specPower) * n_dot_l * s;
 
         // put everything together
-        _color = vec4(diffIntensity * (vec3(specIntensity) + color), 1.0);
+        _color = vec4(vec3(specIntensity) + (diffIntensity+ambientIntensity)*color, 1.0);
     }
     else {
         // surface points away from light
-        _color = vec4(color * ambient, 1.0);
+        _color = vec4(color * ambientIntensity, 1.0);
     }
     _color = gamma(_color);
 }
