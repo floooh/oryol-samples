@@ -21,8 +21,11 @@ _func float decodeDepth(vec4 rgba) {
 //  perform simple shadow map lookup returns 0.0 (unlit) or 1.0 (lit)
 //
 _func float sampleShadow(sampler2D shadowMap, vec2 uv, float compare) {
-    float depth = decodeDepth(tex2D(shadowMap, uv));
-    return step(depth, compare);
+    #if !ORYOL_GLSL
+    uv.y = 1.0-uv.y;
+    #endif
+    float depth = decodeDepth(tex2D(shadowMap, vec2(uv.x, uv.y)));
+    return step(compare, depth);
 }
 
 //------------------------------------------------------------------------------
@@ -89,7 +92,7 @@ _func vec4 gamma(vec4 c) {
 @in vec2 projZW
 {
     float depth = projZW.x / projZW.y;
-    _color = encodeDepth(-depth);
+    _color = encodeDepth(depth);
 }
 @end
 
@@ -186,7 +189,8 @@ _func vec4 gamma(vec4 c) {
         // shadow factor (0..1)
         vec3 lightPos = lightProjPos.xyz / lightProjPos.w;
         vec2 smUV = (lightPos.xy+1.0)*0.5;
-        float s = sampleShadowPCF(shadowMap, smUV, shadowMapSize, -lightPos.z);
+        float depth = lightPos.z;
+        float s = sampleShadowPCF(shadowMap, smUV, shadowMapSize, depth);
         float diffIntensity = max(n_dot_l * s, 0.0);
 
         // specular lighting

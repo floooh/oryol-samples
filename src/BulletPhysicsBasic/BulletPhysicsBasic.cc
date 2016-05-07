@@ -223,12 +223,20 @@ BulletPhysicsBasicApp::setupGraphics() {
     // setup view and projection matrices
     const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
     const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
-    this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 200.0f);
+    this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 400.0f);
     this->updateCamera();
 
     // setup directional light (for lighting and shadow rendering)
     glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 lightProj = glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
+
+    // this shifts the post-projection Z coordinate into the range 0..1 (like D3D), 
+    // instead of -1..+1 (like OpenGL), which makes sure that objects in the
+    // range -1.0 to +1.0 are not clipped away in D3D, the shadow map lookup in D3D
+    // also needs to invert the Y coordinate (that's handled in the pixel shader
+    // where the lookup happens)
+    glm::mat4 lightProj = glm::translate(glm::mat4(), glm::vec3(0.0f, 0.0f, 1.0f));
+    lightProj = glm::scale(lightProj, glm::vec3(1.0f, 1.0f, 0.5f));
+    lightProj = lightProj * glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
     this->lightProjView = lightProj * lightView;
     this->colorFSParams.LightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
 }
@@ -238,7 +246,7 @@ void
 BulletPhysicsBasicApp::drawShadowPass() {
 
     this->shadowVSParams.MVP = this->lightProjView;
-    Gfx::ApplyRenderTarget(this->shadowMap, ClearState::ClearAll(glm::vec4(0.0f), 1.0f, 0));
+    Gfx::ApplyRenderTarget(this->shadowMap, ClearState::ClearAll(glm::vec4(1.0f), 1.0f, 0));
 
     // one instanced drawcall for all sphere, and one for all boxes
     if (this->numSpheres > 0) {
