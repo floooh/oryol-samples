@@ -25,7 +25,8 @@ Physics::Setup() {
     state->dynamicsWorld = new btDiscreteDynamicsWorld(state->dispatcher,
         state->broadphase, state->solver, state->collisionConfiguration);
 
-    state->rigidBodyPool.Setup(0, 1024);
+    state->shapePool.Setup(CollideShapeType, 128);
+    state->rigidBodyPool.Setup(RigidBodyType, 1024);
 }
 
 //------------------------------------------------------------------------------
@@ -34,6 +35,7 @@ Physics::Discard() {
     o_assert(nullptr != state);
 
     state->rigidBodyPool.Discard();
+    state->shapePool.Discard();
 
     delete state->dynamicsWorld;
     delete state->solver;
@@ -49,6 +51,17 @@ Physics::Update(float frameDuration) {
     o_assert_dbg(nullptr != state);
     state->dynamicsWorld->stepSimulation(frameDuration, 10);
     state->rigidBodyPool.Update();
+    state->shapePool.Update();
+}
+
+//------------------------------------------------------------------------------
+Id
+Physics::Create(const CollideShapeSetup& setup) {
+    o_assert_dbg(nullptr != state);
+    Id id = state->shapePool.AllocId();
+    collideShape& shape = state->shapePool.Assign(id, setup, ResourceState::Valid);
+    shape.setup(setup);
+    return id;
 }
 
 //------------------------------------------------------------------------------
@@ -57,7 +70,9 @@ Physics::Create(const RigidBodySetup& setup) {
     o_assert_dbg(nullptr != state);
     Id id = state->rigidBodyPool.AllocId();
     rigidBody& body = state->rigidBodyPool.Assign(id, setup, ResourceState::Valid);
-    body.setup(setup);
+    collideShape* shape = state->shapePool.Get(setup.Shape);
+    o_assert(shape);
+    body.setup(setup, shape);
     return id;
 }
 
@@ -65,10 +80,26 @@ Physics::Create(const RigidBodySetup& setup) {
 void
 Physics::Destroy(Id id) {
     o_assert_dbg(nullptr != state);
-    rigidBody* body = state->rigidBodyPool.Get(id);
-    if (body) {
-        body->discard();
-        state->rigidBodyPool.Unassign(id);
+    switch (id.Type) {
+        case RigidBodyType:
+            {
+                rigidBody* body = state->rigidBodyPool.Get(id);
+                if (body) {
+                    body->discard();
+                    state->rigidBodyPool.Unassign(id);
+                }
+            }
+            break;
+
+        case CollideShapeType:
+            {
+                collideShape* shape = state->shapePool.Get(id);
+                if (shape) {
+                    shape->discard();
+                    state->shapePool.Unassign(id);
+                }
+            }
+            break;
     }
 }
 

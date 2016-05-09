@@ -10,6 +10,8 @@
 #include "Core/Assertion.h"
 #include "btBulletDynamicsCommon.h"
 #include "Resource/Core/ResourcePool.h"
+#include "PhysicsCommon/CollideShapeSetup.h"
+#include "PhysicsCommon/collideShape.h"
 #include "PhysicsCommon/RigidBodySetup.h"
 #include "PhysicsCommon/rigidBody.h"
 
@@ -24,7 +26,9 @@ public:
     /// update the physics world
     static void Update(float frameDuration);
 
-    /// create a physics object
+    /// create a collision shape object
+    static Id Create(const CollideShapeSetup& setup);
+    /// create a rigid body object
     static Id Create(const RigidBodySetup& setup);
     /// destroy object
     static void Destroy(Id id);
@@ -35,10 +39,12 @@ public:
 
     /// get world-space transform of a rigid body object
     static glm::mat4 Transform(Id id);
+    /// get collide shape pointer by id
+    static btCollisionShape* Shape(Id id);
     /// get rigid body pointer by id
     static btRigidBody* Body(Id id);
-    /// get type of rigid body object
-    static RigidBodySetup::ShapeType ShapeType(Id id);
+    /// get a rigid body's collide shape type
+    static CollideShapeSetup::ShapeType RigidBodyShapeType(Id rigidBodyId);
 
     /// get pointer to Bullet dynamics world
     static btDynamicsWorld* World() {
@@ -47,12 +53,15 @@ public:
     };
 
 private:
+    static const Id::TypeT RigidBodyType = 1;
+    static const Id::TypeT CollideShapeType = 2;
     struct _state {
         btBroadphaseInterface* broadphase = nullptr;
         btDefaultCollisionConfiguration* collisionConfiguration = nullptr;
         btCollisionDispatcher* dispatcher = nullptr;
         btSequentialImpulseConstraintSolver* solver = nullptr;
         btDiscreteDynamicsWorld* dynamicsWorld = nullptr;
+        ResourcePool<_priv::collideShape, CollideShapeSetup> shapePool;
         ResourcePool<_priv::rigidBody, RigidBodySetup> rigidBodyPool;
     };
     static _state* state;
@@ -61,6 +70,7 @@ private:
 //------------------------------------------------------------------------------
 inline btRigidBody*
 Physics::Body(Id id) {
+    o_assert_dbg(RigidBodyType == id.Type);
     _priv::rigidBody* body = state->rigidBodyPool.Get(id);
     if (body) {
         return body->body;
@@ -71,15 +81,17 @@ Physics::Body(Id id) {
 }
 
 //------------------------------------------------------------------------------
-inline RigidBodySetup::ShapeType
-Physics::ShapeType(Id id) {
+inline CollideShapeSetup::ShapeType
+Physics::RigidBodyShapeType(Id id) {
+    o_assert_dbg(RigidBodyType == id.Type);
     _priv::rigidBody* body = state->rigidBodyPool.Get(id);
     if (body) {
-        return body->Setup.Type;
+        _priv::collideShape* shape = state->shapePool.Get(body->Setup.Shape);
+        if (shape) {
+            return shape->Setup.Type;
+        }
     }
-    else {
-        return RigidBodySetup::None;
-    }
+    return CollideShapeSetup::None;
 }
 
 } // namespace Oryol

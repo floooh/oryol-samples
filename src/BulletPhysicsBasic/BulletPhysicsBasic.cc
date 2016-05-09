@@ -61,7 +61,10 @@ public:
     glm::mat4 viewProj;
     glm::mat4 lightProjView;
 
-    // physics rigid body state
+    // physics collide shape and rigid body state
+    Id planeShape;
+    Id boxShape;
+    Id sphereShape;
     Id groundRigidBody;
     static const int MaxNumBodies = 512;
     int numBodies = 0;
@@ -310,7 +313,10 @@ BulletPhysicsBasicApp::drawColorPass() {
 void
 BulletPhysicsBasicApp::setupPhysics() {
     Physics::Setup();
-    this->groundRigidBody = Physics::Create(RigidBodySetup::Plane(glm::vec4(0, 1, 0, 0), 0.25f));
+    this->boxShape = Physics::Create(CollideShapeSetup::Box(glm::vec3(BoxSize)));
+    this->sphereShape = Physics::Create(CollideShapeSetup::Sphere(SphereRadius));
+    this->planeShape = Physics::Create(CollideShapeSetup::Plane(glm::vec4(0, 1, 0, 0)));
+    this->groundRigidBody = Physics::Create(RigidBodySetup::FromShape(this->planeShape, glm::mat4(1.0f), 0.0f, 0.25f));
     Physics::Add(this->groundRigidBody);
 }
 
@@ -323,6 +329,9 @@ BulletPhysicsBasicApp::discardPhysics() {
         Physics::Remove(this->bodies[i].id);
         Physics::Destroy(this->bodies[i].id);
     }
+    Physics::Destroy(this->sphereShape);
+    Physics::Destroy(this->boxShape);
+    Physics::Destroy(this->planeShape);
     Physics::Discard();
 }
 
@@ -336,12 +345,13 @@ BulletPhysicsBasicApp::updatePhysics() {
         this->frameIndex++;
         if ((this->frameIndex % 10) == 0) {
             if (this->numBodies < MaxNumBodies) {
+                static const glm::mat4 tform = glm::translate(glm::mat4(), glm::vec3(0, 3, 0));
                 Id newObj;
                 if (this->numBodies & 1) {
-                    newObj = Physics::Create(RigidBodySetup::Sphere(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), SphereRadius, 1.0f, 0.5f));
+                    newObj = Physics::Create(RigidBodySetup::FromShape(this->sphereShape, tform, 1.0f, 0.5f));
                 }
                 else {
-                    newObj = Physics::Create(RigidBodySetup::Box(glm::translate(glm::mat4(), glm::vec3(0, 3, 0)), glm::vec3(BoxSize), 1.0f, 0.5f));
+                    newObj = Physics::Create(RigidBodySetup::FromShape(this->boxShape, tform, 1.0f, 0.5f));
                 }
                 Physics::Add(newObj);
                 this->bodies[this->numBodies].id = newObj;
@@ -373,8 +383,8 @@ BulletPhysicsBasicApp::updateInstanceData() {
     instData* item = nullptr;
     int i;
     for (i = 0; i < numBodies; i++) {
-        RigidBodySetup::ShapeType type = Physics::ShapeType(this->bodies[i].id);
-        if (RigidBodySetup::SphereShape == type) {
+        CollideShapeSetup::ShapeType type = Physics::RigidBodyShapeType(this->bodies[i].id);
+        if (CollideShapeSetup::SphereShape == type) {
             item = &this->sphereInstData[this->numSpheres++];
         }
         else {

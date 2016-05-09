@@ -11,16 +11,17 @@
 namespace Oryol {
 namespace _priv {
 
+class collideShape;
+
 class rigidBody : public resourceBase<RigidBodySetup> {
 public:
     /// destructor
     ~rigidBody();
     /// setup the rigid body object
-    void setup(const RigidBodySetup& setup);
+    void setup(const RigidBodySetup& setup, collideShape* shape);
     /// discard the rigid body object
     void discard();
 
-    btCollisionShape* shape = nullptr;
     btRigidBody* body = nullptr;
     btDefaultMotionState* motionState = nullptr;
 };
