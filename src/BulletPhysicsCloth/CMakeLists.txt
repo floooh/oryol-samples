@@ -1,0 +1,7 @@
+fips_begin_app(BulletPhysicsCloth windowed)
+    fips_vs_warning_level(3)
+    fips_files(BulletPhysicsCloth.cc)
+    oryol_shader(shaders.shd)
+    fips_deps(Gfx Assets Input Dbg PhysicsCommon Bullet)
+    oryol_add_web_sample(BulletPhysicsCloth "Bullet cloth demo" "emscripten,pnacl" none "BulletPhysicsCloth/BulletPhysicsCloth.cc")
+fips_end_app()

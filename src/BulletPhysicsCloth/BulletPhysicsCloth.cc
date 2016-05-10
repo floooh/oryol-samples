@@ -1,26 +1,24 @@
 //------------------------------------------------------------------------------
-//  BulletPhysicsBasic.cc
+//  BulletPhysicsCloth.cc
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "Core/Main.h"
+#include "Gfx/Gfx.h"
+#include "Dbg/Dbg.h"
+#include "Input/Input.h"
 #include "Core/Time/Clock.h"
 #include "PhysicsCommon/Physics.h"
 #include "PhysicsCommon/CameraHelper.h"
 #include "PhysicsCommon/ShapeRenderer.h"
-#include "Gfx/Gfx.h"
-#include "Dbg/Dbg.h"
-#include "Input/Input.h"
 #include "shaders.h"
-#include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/random.hpp"
 
 using namespace Oryol;
 
 static const float SphereRadius = 1.0f;
 static const float BoxSize = 1.5f;
 
-class BulletPhysicsBasicApp : public App {
+class BulletPhysicsClothApp : public App {
 public:
     AppState::Code OnInit();
     AppState::Code OnRunning();
@@ -42,16 +40,15 @@ public:
     Id boxShape;
     Id sphereShape;
     Id groundRigidBody;
-    static const int MaxNumBodies = 512;
+    static const int MaxNumBodies = 256;
     int numBodies = 0;
     StaticArray<Id, MaxNumBodies> bodies;
 };
-OryolMain(BulletPhysicsBasicApp);
+OryolMain(BulletPhysicsClothApp);
 
 //------------------------------------------------------------------------------
 AppState::Code
-BulletPhysicsBasicApp::OnInit() {
-
+BulletPhysicsClothApp::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
     Gfx::Setup(gfxSetup);
     this->colorFSParams.ShadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
@@ -78,10 +75,6 @@ BulletPhysicsBasicApp::OnInit() {
     this->lightProjView = lightProj * lightView;
     this->colorFSParams.LightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
 
-    Input::Setup();
-    Dbg::Setup();
-    this->camera.Setup();
-
     // setup the initial physics world
     Physics::Setup();
     this->boxShape = Physics::Create(CollideShapeSetup::Box(glm::vec3(BoxSize)));
@@ -90,14 +83,16 @@ BulletPhysicsBasicApp::OnInit() {
     this->groundRigidBody = Physics::Create(RigidBodySetup::FromShape(this->planeShape, glm::mat4(1.0f), 0.0f, 0.25f));
     Physics::Add(this->groundRigidBody);
 
+    Input::Setup();
+    Dbg::Setup();
+    this->camera.Setup();
     this->lapTimePoint = Clock::Now();
     return App::OnInit();
 }
 
 //------------------------------------------------------------------------------
 AppState::Code
-BulletPhysicsBasicApp::OnRunning() {
-
+BulletPhysicsClothApp::OnRunning() {
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics();
     Duration instUpdTime = this->updateInstanceData();
@@ -145,7 +140,7 @@ BulletPhysicsBasicApp::OnRunning() {
 
 //------------------------------------------------------------------------------
 AppState::Code
-BulletPhysicsBasicApp::OnCleanup() {
+BulletPhysicsClothApp::OnCleanup() {
     // FIXME: Physics should just cleanup this stuff on shutdown!
     Physics::Remove(this->groundRigidBody);
     Physics::Destroy(this->groundRigidBody);
@@ -165,42 +160,17 @@ BulletPhysicsBasicApp::OnCleanup() {
 
 //------------------------------------------------------------------------------
 Duration
-BulletPhysicsBasicApp::updatePhysics() {
-    TimePoint startTime = Clock::Now();
+BulletPhysicsClothApp::updatePhysics() {
+    TimePoint physStartTime = Clock::Now();
     if (!this->camera.Paused) {
-        // emit new rigid bodies
-        this->frameIndex++;
-        if ((this->frameIndex % 10) == 0) {
-            if (this->numBodies < MaxNumBodies) {
-                static const glm::mat4 tform = glm::translate(glm::mat4(), glm::vec3(0, 3, 0));
-                Id newObj;
-                if (this->numBodies & 1) {
-                    newObj = Physics::Create(RigidBodySetup::FromShape(this->sphereShape, tform, 1.0f, 0.5f));
-                }
-                else {
-                    newObj = Physics::Create(RigidBodySetup::FromShape(this->boxShape, tform, 1.0f, 0.5f));
-                }
-                Physics::Add(newObj);
-                this->bodies[this->numBodies] = newObj;
-                this->numBodies++;
-
-                btRigidBody* body = Physics::Body(newObj);
-                glm::vec3 ang = glm::ballRand(10.0f);
-                glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(2.5f, 20.0f, 2.5f);
-                body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
-                body->setLinearVelocity(btVector3(lin.x, lin.y, lin.z));
-                body->setDamping(0.1f, 0.1f);
-            }
-        }
-        // step the physics world
-        Physics::Update(1.0f / 60.0f);
+        Physics::Update(1.0f/60.0f);
     }
-    return Clock::Since(startTime);
+    return Clock::Since(physStartTime);
 }
 
 //------------------------------------------------------------------------------
 Duration
-BulletPhysicsBasicApp::updateInstanceData() {
+BulletPhysicsClothApp::updateInstanceData() {
     TimePoint startTime = Clock::Now();
     this->shapeRenderer.BeginTransforms();
     for (int i = 0; i < numBodies; i++) {
@@ -215,4 +185,3 @@ BulletPhysicsBasicApp::updateInstanceData() {
     this->shapeRenderer.EndTransforms();
     return Clock::Since(startTime);
 }
-
