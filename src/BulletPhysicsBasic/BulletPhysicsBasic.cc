@@ -68,11 +68,7 @@ public:
     Id groundRigidBody;
     static const int MaxNumBodies = 512;
     int numBodies = 0;
-    struct body {
-        Id id;
-        glm::vec3 diffColor;
-    };
-    StaticArray<body, MaxNumBodies> bodies;
+    StaticArray<Id, MaxNumBodies> bodies;
 
     // camera state
     struct {
@@ -326,8 +322,8 @@ BulletPhysicsBasicApp::discardPhysics() {
     Physics::Remove(this->groundRigidBody);
     Physics::Destroy(this->groundRigidBody);
     for (int i = 0; i < this->numBodies; i++) {
-        Physics::Remove(this->bodies[i].id);
-        Physics::Destroy(this->bodies[i].id);
+        Physics::Remove(this->bodies[i]);
+        Physics::Destroy(this->bodies[i]);
     }
     Physics::Destroy(this->sphereShape);
     Physics::Destroy(this->boxShape);
@@ -354,8 +350,7 @@ BulletPhysicsBasicApp::updatePhysics() {
                     newObj = Physics::Create(RigidBodySetup::FromShape(this->boxShape, tform, 1.0f, 0.5f));
                 }
                 Physics::Add(newObj);
-                this->bodies[this->numBodies].id = newObj;
-                this->bodies[this->numBodies].diffColor = glm::linearRand(glm::vec3(0.0f), glm::vec3(1.0f));
+                this->bodies[this->numBodies] = newObj;
                 this->numBodies++;
 
                 btRigidBody* body = Physics::Body(newObj);
@@ -383,14 +378,14 @@ BulletPhysicsBasicApp::updateInstanceData() {
     instData* item = nullptr;
     int i;
     for (i = 0; i < numBodies; i++) {
-        CollideShapeSetup::ShapeType type = Physics::RigidBodyShapeType(this->bodies[i].id);
+        CollideShapeSetup::ShapeType type = Physics::RigidBodyShapeType(this->bodies[i]);
         if (CollideShapeSetup::SphereShape == type) {
             item = &this->sphereInstData[this->numSpheres++];
         }
         else {
             item = &this->boxInstData[this->numBoxes++];
         }
-        model = Physics::Transform(this->bodies[i].id);
+        model = Physics::Transform(this->bodies[i]);
         item->xxxx = glm::row(model, 0);
         item->yyyy = glm::row(model, 1);
         item->zzzz = glm::row(model, 2);
