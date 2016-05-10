@@ -8,4 +8,5 @@ fips_begin_lib(PhysicsCommon)
         CameraHelper.cc CameraHelper.h
         ShapeRenderer.cc ShapeRenderer.h
     )
+    fips_deps(Gfx Input Assets Bullet)
 fips_end_lib()
