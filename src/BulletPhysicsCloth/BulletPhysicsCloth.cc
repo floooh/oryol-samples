@@ -12,6 +12,7 @@
 #include "PhysicsCommon/ShapeRenderer.h"
 #include "shaders.h"
 #include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/random.hpp"
 
 using namespace Oryol;
 
@@ -40,6 +41,7 @@ public:
     Id boxShape;
     Id sphereShape;
     Id groundRigidBody;
+    Id clothSoftBody;
     static const int MaxNumBodies = 256;
     int numBodies = 0;
     StaticArray<Id, MaxNumBodies> bodies;
@@ -80,8 +82,15 @@ BulletPhysicsClothApp::OnInit() {
     this->boxShape = Physics::Create(CollideShapeSetup::Box(glm::vec3(BoxSize)));
     this->sphereShape = Physics::Create(CollideShapeSetup::Sphere(SphereRadius));
     this->planeShape = Physics::Create(CollideShapeSetup::Plane(glm::vec4(0, 1, 0, 0)));
+
+    // create a fixed ground rigid body
     this->groundRigidBody = Physics::Create(RigidBodySetup::FromShape(this->planeShape, glm::mat4(1.0f), 0.0f, 0.25f));
     Physics::Add(this->groundRigidBody);
+
+    // create cloth shape
+    auto clothSetup = SoftBodySetup::Patch();
+    this->clothSoftBody = Physics::Create(clothSetup);
+    Physics::Add(this->clothSoftBody);
 
     Input::Setup();
     Dbg::Setup();
@@ -142,6 +151,8 @@ BulletPhysicsClothApp::OnRunning() {
 AppState::Code
 BulletPhysicsClothApp::OnCleanup() {
     // FIXME: Physics should just cleanup this stuff on shutdown!
+    Physics::Remove(this->clothSoftBody);
+    Physics::Destroy(this->clothSoftBody);
     Physics::Remove(this->groundRigidBody);
     Physics::Destroy(this->groundRigidBody);
     for (int i = 0; i < this->numBodies; i++) {
@@ -163,6 +174,28 @@ Duration
 BulletPhysicsClothApp::updatePhysics() {
     TimePoint physStartTime = Clock::Now();
     if (!this->camera.Paused) {
+        // emit new rigid bodies
+        this->frameIndex++;
+        if ((this->frameIndex % 100) == 0) {
+            if (this->numBodies < MaxNumBodies) {
+                static const glm::mat4 tform = glm::translate(glm::mat4(), glm::vec3(0, 20, 0));
+                Id newObj;
+                if (this->numBodies & 1) {
+                    newObj = Physics::Create(RigidBodySetup::FromShape(this->sphereShape, tform, 1.0f, 0.5f));
+                }
+                else {
+                    newObj = Physics::Create(RigidBodySetup::FromShape(this->boxShape, tform, 1.0f, 0.5f));
+                }
+                Physics::Add(newObj);
+                this->bodies[this->numBodies] = newObj;
+                this->numBodies++;
+
+                btRigidBody* body = Physics::RigidBody(newObj);
+                glm::vec3 ang = glm::ballRand(10.0f);
+                body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
+                body->setDamping(0.1f, 0.1f);
+            }
+        }
         Physics::Update(1.0f/60.0f);
     }
     return Clock::Since(physStartTime);

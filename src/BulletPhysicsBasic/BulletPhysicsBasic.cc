@@ -184,7 +184,7 @@ BulletPhysicsBasicApp::updatePhysics() {
                 this->bodies[this->numBodies] = newObj;
                 this->numBodies++;
 
-                btRigidBody* body = Physics::Body(newObj);
+                btRigidBody* body = Physics::RigidBody(newObj);
                 glm::vec3 ang = glm::ballRand(10.0f);
                 glm::vec3 lin = (glm::ballRand(1.0f) + glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec3(2.5f, 20.0f, 2.5f);
                 body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));

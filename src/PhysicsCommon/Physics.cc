@@ -19,14 +19,20 @@ Physics::Setup() {
     state = Memory::New<_state>();
 
     state->broadphase = new btDbvtBroadphase();
-    state->collisionConfiguration = new btDefaultCollisionConfiguration();
+    state->collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
     state->dispatcher = new btCollisionDispatcher(state->collisionConfiguration);
     state->solver = new btSequentialImpulseConstraintSolver();
-    state->dynamicsWorld = new btDiscreteDynamicsWorld(state->dispatcher,
-        state->broadphase, state->solver, state->collisionConfiguration);
+    state->softBodySolver = new btDefaultSoftBodySolver();
+    state->dynamicsWorld = new btSoftRigidDynamicsWorld(state->dispatcher,
+        state->broadphase, state->solver, state->collisionConfiguration,
+        state->softBodySolver);
+    state->softBodyWorldInfo.m_dispatcher = state->dispatcher;
+    state->softBodyWorldInfo.m_broadphase = state->broadphase;
+    state->softBodyWorldInfo.m_sparsesdf.Initialize();
 
     state->shapePool.Setup(CollideShapeType, 128);
     state->rigidBodyPool.Setup(RigidBodyType, 1024);
+    state->softBodyPool.Setup(SoftBodyType, 64);
 }
 
 //------------------------------------------------------------------------------
@@ -34,10 +40,12 @@ void
 Physics::Discard() {
     o_assert(nullptr != state);
 
+    state->softBodyPool.Discard();
     state->rigidBodyPool.Discard();
     state->shapePool.Discard();
 
     delete state->dynamicsWorld;
+    delete state->softBodySolver;
     delete state->solver;
     delete state->dispatcher;
     delete state->collisionConfiguration;
@@ -51,6 +59,7 @@ Physics::Update(float frameDuration) {
     o_assert_dbg(nullptr != state);
     state->dynamicsWorld->stepSimulation(frameDuration, 10);
     state->rigidBodyPool.Update();
+    state->softBodyPool.Update();
     state->shapePool.Update();
 }
 
@@ -77,6 +86,16 @@ Physics::Create(const RigidBodySetup& setup) {
 }
 
 //------------------------------------------------------------------------------
+Id
+Physics::Create(const SoftBodySetup& setup) {
+    o_assert_dbg(nullptr != state);
+    Id id = state->softBodyPool.AllocId();
+    softBody& body = state->softBodyPool.Assign(id, setup, ResourceState::Valid);
+    body.setup(setup, state->softBodyWorldInfo);
+    return id;
+}
+
+//------------------------------------------------------------------------------
 void
 Physics::Destroy(Id id) {
     o_assert_dbg(nullptr != state);
@@ -87,6 +106,16 @@ Physics::Destroy(Id id) {
                 if (body) {
                     body->discard();
                     state->rigidBodyPool.Unassign(id);
+                }
+            }
+            break;
+
+        case SoftBodyType:
+            {
+                softBody* body = state->softBodyPool.Get(id);
+                if (body) {
+                    body->discard();
+                    state->softBodyPool.Unassign(id);
                 }
             }
             break;
@@ -107,10 +136,19 @@ Physics::Destroy(Id id) {
 void
 Physics::Add(Id id) {
     o_assert_dbg(nullptr != state);
-    rigidBody* body = state->rigidBodyPool.Get(id);
-    if (body) {
-        o_assert_dbg(body->body);
-        state->dynamicsWorld->addRigidBody(body->body);
+    if (RigidBodyType == id.Type) {
+        rigidBody* body = state->rigidBodyPool.Get(id);
+        if (body) {
+            o_assert_dbg(body->body);
+            state->dynamicsWorld->addRigidBody(body->body);
+        }
+    }
+    else if (SoftBodyType == id.Type) {
+        softBody* body = state->softBodyPool.Get(id);
+        if (body) {
+            o_assert_dbg(body->body);
+            state->dynamicsWorld->addSoftBody(body->body);
+        }
     }
 }
 
@@ -118,10 +156,19 @@ Physics::Add(Id id) {
 void
 Physics::Remove(Id id) {
     o_assert_dbg(nullptr != state);
-    rigidBody* body = state->rigidBodyPool.Get(id);
-    if (body) {
-        o_assert_dbg(body->body);
-        state->dynamicsWorld->removeRigidBody(body->body);
+    if (RigidBodyType == id.Type) {
+        rigidBody* body = state->rigidBodyPool.Get(id);
+        if (body) {
+            o_assert_dbg(body->body);
+            state->dynamicsWorld->removeRigidBody(body->body);
+        }
+    }
+    else if (SoftBodyType == id.Type) {
+        softBody* body = state->softBodyPool.Get(id);
+        if (body) {
+            o_assert_dbg(body->body);
+            state->dynamicsWorld->removeSoftBody(body->body);
+        }
     }
 }
 
@@ -129,6 +176,7 @@ Physics::Remove(Id id) {
 glm::mat4
 Physics::Transform(Id id) {
     o_assert_dbg(nullptr != state);
+    o_assert_dbg(RigidBodyType == id.Type);
     glm::mat4 result;
     rigidBody* body = state->rigidBodyPool.Get(id);
     if (body) {

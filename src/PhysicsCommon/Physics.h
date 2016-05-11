@@ -9,11 +9,16 @@
 #include "Core/Time/Duration.h"
 #include "Core/Assertion.h"
 #include "btBulletDynamicsCommon.h"
+#include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
+#include "BulletSoftBody/btDefaultSoftBodySolver.h"
+#include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
 #include "Resource/Core/ResourcePool.h"
 #include "PhysicsCommon/CollideShapeSetup.h"
 #include "PhysicsCommon/collideShape.h"
 #include "PhysicsCommon/RigidBodySetup.h"
 #include "PhysicsCommon/rigidBody.h"
+#include "PhysicsCommon/SoftBodySetup.h"
+#include "PhysicsCommon/softBody.h"
 
 namespace Oryol {
 
@@ -30,6 +35,8 @@ public:
     static Id Create(const CollideShapeSetup& setup);
     /// create a rigid body object
     static Id Create(const RigidBodySetup& setup);
+    /// create a soft body object
+    static Id Create(const SoftBodySetup& setup);
     /// destroy object
     static void Destroy(Id id);
     /// add object to world
@@ -42,7 +49,9 @@ public:
     /// get collide shape pointer by id
     static btCollisionShape* Shape(Id id);
     /// get rigid body pointer by id
-    static btRigidBody* Body(Id id);
+    static btRigidBody* RigidBody(Id id);
+    /// get soft body pointer by id
+    static btSoftBody* SoftBody(Id id);
     /// get a rigid body's collide shape type
     static CollideShapeSetup::ShapeType RigidBodyShapeType(Id rigidBodyId);
 
@@ -54,24 +63,41 @@ public:
 
 private:
     static const Id::TypeT RigidBodyType = 1;
-    static const Id::TypeT CollideShapeType = 2;
+    static const Id::TypeT SoftBodyType = 2;
+    static const Id::TypeT CollideShapeType = 3;
     struct _state {
         btBroadphaseInterface* broadphase = nullptr;
-        btDefaultCollisionConfiguration* collisionConfiguration = nullptr;
+        btSoftBodyRigidBodyCollisionConfiguration* collisionConfiguration = nullptr;
         btCollisionDispatcher* dispatcher = nullptr;
         btSequentialImpulseConstraintSolver* solver = nullptr;
-        btDiscreteDynamicsWorld* dynamicsWorld = nullptr;
+        btDefaultSoftBodySolver* softBodySolver = nullptr;
+        btSoftRigidDynamicsWorld* dynamicsWorld = nullptr;
+        btSoftBodyWorldInfo softBodyWorldInfo;
         ResourcePool<_priv::collideShape, CollideShapeSetup> shapePool;
         ResourcePool<_priv::rigidBody, RigidBodySetup> rigidBodyPool;
+        ResourcePool<_priv::softBody, SoftBodySetup> softBodyPool;
     };
     static _state* state;
 };
 
 //------------------------------------------------------------------------------
 inline btRigidBody*
-Physics::Body(Id id) {
+Physics::RigidBody(Id id) {
     o_assert_dbg(RigidBodyType == id.Type);
     _priv::rigidBody* body = state->rigidBodyPool.Get(id);
+    if (body) {
+        return body->body;
+    }
+    else {
+        return nullptr;
+    }
+}
+
+//------------------------------------------------------------------------------
+inline btSoftBody*
+Physics::SoftBody(Id id) {
+    o_assert_dbg(SoftBodyType == id.Type);
+    _priv::softBody* body = state->softBodyPool.Get(id);
     if (body) {
         return body->body;
     }
