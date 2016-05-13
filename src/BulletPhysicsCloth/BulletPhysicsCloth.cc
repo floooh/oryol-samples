@@ -18,6 +18,10 @@ using namespace Oryol;
 
 static const float SphereRadius = 1.0f;
 static const float BoxSize = 1.5f;
+static const int NumClothSegments = 10;
+static const int NumClothQuads = NumClothSegments*NumClothSegments;
+static const int NumClothTriangles = NumClothQuads*2;
+static const int NumClothVertices = NumClothTriangles*3;
 
 class BulletPhysicsClothApp : public App {
 public:
@@ -27,11 +31,15 @@ public:
 
     Duration updatePhysics();
     Duration updateInstanceData();
+    Duration updateClothData();
 
     int frameIndex = 0;
     TimePoint lapTimePoint;
     CameraHelper camera;
     ShapeRenderer shapeRenderer;
+    Id clothMesh;
+    DrawState clothColorDrawState;
+    DrawState clothShadowDrawState;
     ColorShader::ColorVSParams colorVSParams;
     ColorShader::ColorFSParams colorFSParams;
     ShadowShader::ShadowVSParams shadowVSParams;
@@ -45,6 +53,11 @@ public:
     static const int MaxNumBodies = 256;
     int numBodies = 0;
     StaticArray<Id, MaxNumBodies> bodies;
+
+    struct {
+        float pos[3] = { 0, 0, 0 };
+        float nrm[3] = { 0, 0, 0 };
+    } clothVertices[NumClothVertices];
 };
 OryolMain(BulletPhysicsClothApp);
 
@@ -56,13 +69,43 @@ BulletPhysicsClothApp::OnInit() {
     this->colorFSParams.ShadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
     // instanced shape rendering helper class
-    this->shapeRenderer.ColorShader = Gfx::CreateResource(ColorShader::Setup());
+    const Id colorShader = Gfx::CreateResource(ColorShader::Setup());
+    const Id shadowShader = Gfx::CreateResource(ShadowShader::Setup());
+    this->shapeRenderer.ColorShader = colorShader;
     this->shapeRenderer.ColorShaderInstanced = Gfx::CreateResource(ColorShaderInstanced::Setup());
-    this->shapeRenderer.ShadowShader = Gfx::CreateResource(ShadowShader::Setup());
+    this->shapeRenderer.ShadowShader = shadowShader;
     this->shapeRenderer.ShadowShaderInstanced = Gfx::CreateResource(ShadowShaderInstanced::Setup());
     this->shapeRenderer.SphereRadius = SphereRadius;
     this->shapeRenderer.BoxSize = BoxSize;
     this->shapeRenderer.Setup(gfxSetup);
+
+    // setup a mesh with dynamic vertex buffer and no indices
+    // FIXME: use index rendering later
+    auto meshSetup = MeshSetup::Empty(NumClothVertices, Usage::Stream);
+    meshSetup.Layout
+        .Add(VertexAttr::Position, VertexFormat::Float3)
+        .Add(VertexAttr::Normal, VertexFormat::Float3);
+    meshSetup.AddPrimitiveGroup(PrimitiveGroup(0, NumClothTriangles*3));
+    this->clothMesh = Gfx::CreateResource(meshSetup);
+    this->clothColorDrawState.Mesh[0] = this->clothMesh;
+    this->clothShadowDrawState.Mesh[0] = this->clothMesh;
+
+    // setup pipeline states (color and shadow pass) for cloth rendering
+    auto pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, colorShader);
+    pipSetup.DepthStencilState.DepthWriteEnabled = true;
+    pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
+    pipSetup.RasterizerState.CullFaceEnabled = false;
+    pipSetup.RasterizerState.SampleCount = gfxSetup.SampleCount;
+    this->clothColorDrawState.Pipeline = Gfx::CreateResource(pipSetup);
+
+    pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, shadowShader);
+    pipSetup.DepthStencilState.DepthWriteEnabled = true;
+    pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
+    pipSetup.RasterizerState.CullFaceEnabled = false;
+    pipSetup.RasterizerState.SampleCount = 1;
+    pipSetup.BlendState.ColorFormat = PixelFormat::RGBA8;
+    pipSetup.BlendState.DepthFormat = PixelFormat::DEPTH;
+    this->clothShadowDrawState.Pipeline = Gfx::CreateResource(pipSetup);
 
     // setup directional light (for lighting and shadow rendering)
     glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -89,6 +132,11 @@ BulletPhysicsClothApp::OnInit() {
 
     // create cloth shape
     auto clothSetup = SoftBodySetup::Patch();
+    clothSetup.NumSegments = NumClothSegments;
+    clothSetup.Points[0] = glm::vec3(-10.0f, 10.0f, -10.0f);
+    clothSetup.Points[1] = glm::vec3(+10.0f, 10.0f, -10.0f);
+    clothSetup.Points[2] = glm::vec3(-10.0f, 10.0f, +10.0f);
+    clothSetup.Points[3] = glm::vec3(+10.0f, 10.0f, +10.0f);
     this->clothSoftBody = Physics::Create(clothSetup);
     Physics::Add(this->clothSoftBody);
 
@@ -105,11 +153,17 @@ BulletPhysicsClothApp::OnRunning() {
     Duration frameTime = Clock::LapTime(this->lapTimePoint);
     Duration physicsTime = this->updatePhysics();
     Duration instUpdTime = this->updateInstanceData();
+    Duration clothUpdTime = this->updateClothData();
     this->camera.Update();
 
     // the shadow pass
     this->shadowVSParams.MVP = this->lightProjView;
     this->shapeRenderer.DrawShadowPass(this->shadowVSParams);
+    /*
+    Gfx::ApplyDrawState(this->clothShadowDrawState);
+    Gfx::ApplyUniformBlock(this->shadowVSParams);
+    Gfx::Draw(0);
+    */
 
     // the color pass
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
@@ -127,8 +181,14 @@ BulletPhysicsClothApp::OnRunning() {
     this->colorVSParams.Model = glm::mat4();
     this->colorVSParams.MVP = this->camera.ViewProj;
     this->colorVSParams.LightMVP = lightProjView;
-    this->colorVSParams.DiffColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    this->colorVSParams.DiffColor = glm::vec3(1.0f, 0.8f, 0.6f);
     this->shapeRenderer.DrawShapes(this->colorVSParams, this->colorFSParams);
+
+    // draw the cloth
+    Gfx::ApplyDrawState(this->clothColorDrawState);
+    Gfx::ApplyUniformBlock(this->colorVSParams);
+    Gfx::ApplyUniformBlock(this->colorFSParams);
+    Gfx::Draw(0);
 
     Dbg::PrintF("\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
@@ -137,10 +197,12 @@ BulletPhysicsClothApp::OnRunning() {
                 "  Frame time:          %.4f ms\n\r"
                 "  Physics time:        %.4f ms\n\r"
                 "  Instance buffer upd: %.4f ms\n\r"
+                "  Cloth buffer upd:    %.4f ms\n\r"
                 "  Num Rigid Bodies:    %d\n\r",
                 frameTime.AsMilliSeconds(),
                 physicsTime.AsMilliSeconds(),
                 instUpdTime.AsMilliSeconds(),
+                clothUpdTime.AsMilliSeconds(),
                 this->numBodies);
     Dbg::DrawTextBuffer();
     Gfx::CommitFrame();
@@ -216,5 +278,33 @@ BulletPhysicsClothApp::updateInstanceData() {
         }
     }
     this->shapeRenderer.EndTransforms();
+    return Clock::Since(startTime);
+}
+
+//------------------------------------------------------------------------------
+Duration
+BulletPhysicsClothApp::updateClothData() {
+    TimePoint startTime = Clock::Now();
+    btSoftBody* body = Physics::SoftBody(this->clothSoftBody);
+    const int numTris = body->m_faces.size();
+    o_assert(numTris <= NumClothTriangles);
+    for (int triIndex = 0, vtxIndex=0; triIndex < numTris; triIndex++) {
+        const auto& face = body->m_faces[triIndex];
+        for (int i = 0; i < 3; i++, vtxIndex++) {
+            auto& vtx = this->clothVertices[vtxIndex];
+            vtx.pos[0] = face.m_n[i]->m_x.m_floats[0];
+            vtx.pos[1] = face.m_n[i]->m_x.m_floats[1];
+            vtx.pos[2] = face.m_n[i]->m_x.m_floats[2];
+vtx.nrm[0] = -face.m_normal.m_floats[0];
+vtx.nrm[1] = -face.m_normal.m_floats[1];
+vtx.nrm[2] = -face.m_normal.m_floats[2];
+            /*
+            vtx.nrm[0] = -face.m_n[i]->m_n.m_floats[0];
+            vtx.nrm[1] = -face.m_n[i]->m_n.m_floats[1];
+            vtx.nrm[2] = -face.m_n[i]->m_n.m_floats[2];
+            */
+        }
+    }
+    Gfx::UpdateVertices(this->clothMesh, this->clothVertices, sizeof(this->clothVertices));
     return Clock::Since(startTime);
 }
