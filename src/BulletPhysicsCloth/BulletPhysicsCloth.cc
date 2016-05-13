@@ -18,8 +18,8 @@ using namespace Oryol;
 
 static const float SphereRadius = 1.0f;
 static const float BoxSize = 1.5f;
-static const int NumClothSegments = 10;
-static const int NumClothQuads = NumClothSegments*NumClothSegments;
+static const int NumClothSegments = 25;
+static const int NumClothQuads = (NumClothSegments-1)*(NumClothSegments-1);
 static const int NumClothTriangles = NumClothQuads*2;
 static const int NumClothVertices = NumClothTriangles*3;
 
@@ -33,6 +33,7 @@ public:
     Duration updateInstanceData();
     Duration updateClothData();
 
+    bool clothFlatShading = false;
     int frameIndex = 0;
     TimePoint lapTimePoint;
     CameraHelper camera;
@@ -143,6 +144,8 @@ BulletPhysicsClothApp::OnInit() {
     Input::Setup();
     Dbg::Setup();
     this->camera.Setup();
+    camera.Orbital = glm::vec2(glm::radians(40.0f), glm::radians(180.0f));
+    camera.Center = glm::vec3(0.0f, 7.0f, 0.0f);
     this->lapTimePoint = Clock::Now();
     return App::OnInit();
 }
@@ -155,17 +158,20 @@ BulletPhysicsClothApp::OnRunning() {
     Duration instUpdTime = this->updateInstanceData();
     Duration clothUpdTime = this->updateClothData();
     this->camera.Update();
+    if (Input::Keyboard().Attached && Input::Keyboard().KeyDown(Key::F)) {
+        this->clothFlatShading = !this->clothFlatShading;
+    }
 
     // the shadow pass
     this->shadowVSParams.MVP = this->lightProjView;
     this->shapeRenderer.DrawShadowPass(this->shadowVSParams);
-    /*
+
+    // draw cloth shadow pass
     Gfx::ApplyDrawState(this->clothShadowDrawState);
     Gfx::ApplyUniformBlock(this->shadowVSParams);
     Gfx::Draw(0);
-    */
 
-    // the color pass
+    // begin color pass rendering
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
 
     // draw ground
@@ -175,16 +181,19 @@ BulletPhysicsClothApp::OnRunning() {
     this->colorVSParams.LightMVP = lightProjView * model;
     this->colorVSParams.DiffColor = glm::vec3(0.5, 0.5, 0.5);
     this->colorFSParams.EyePos = this->camera.EyePos;
+    this->colorFSParams.SpecIntensity = 1.0f;
     this->shapeRenderer.DrawGround(this->colorVSParams, this->colorFSParams);
 
     // draw the dynamic shapes
     this->colorVSParams.Model = glm::mat4();
     this->colorVSParams.MVP = this->camera.ViewProj;
     this->colorVSParams.LightMVP = lightProjView;
-    this->colorVSParams.DiffColor = glm::vec3(1.0f, 0.8f, 0.6f);
+    this->colorVSParams.DiffColor = glm::vec3(1.0f, 1.0f, 1.0f);
     this->shapeRenderer.DrawShapes(this->colorVSParams, this->colorFSParams);
 
-    // draw the cloth
+    // draw the cloth patch
+    this->colorVSParams.DiffColor = glm::vec3(0.6f, 0.0f, 0.05f);
+    this->colorFSParams.SpecIntensity = 0.15f;
     Gfx::ApplyDrawState(this->clothColorDrawState);
     Gfx::ApplyUniformBlock(this->colorVSParams);
     Gfx::ApplyUniformBlock(this->colorFSParams);
@@ -193,7 +202,8 @@ BulletPhysicsClothApp::OnRunning() {
     Dbg::PrintF("\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
                 "  Mouse wheel: zoom camera\n\r"
-                "  P: pause/continue\n\n\r"
+                "  P: pause/continue\n\r"
+                "  F: toggle cloth flat shading\n\n\r"
                 "  Frame time:          %.4f ms\n\r"
                 "  Physics time:        %.4f ms\n\r"
                 "  Instance buffer upd: %.4f ms\n\r"
@@ -238,22 +248,19 @@ BulletPhysicsClothApp::updatePhysics() {
     if (!this->camera.Paused) {
         // emit new rigid bodies
         this->frameIndex++;
-        if ((this->frameIndex % 100) == 0) {
+        if ((this->frameIndex % 60) == 0) {
             if (this->numBodies < MaxNumBodies) {
-                static const glm::mat4 tform = glm::translate(glm::mat4(), glm::vec3(0, 20, 0));
-                Id newObj;
-                if (this->numBodies & 1) {
-                    newObj = Physics::Create(RigidBodySetup::FromShape(this->sphereShape, tform, 1.0f, 0.5f));
-                }
-                else {
-                    newObj = Physics::Create(RigidBodySetup::FromShape(this->boxShape, tform, 1.0f, 0.5f));
-                }
+                float x = this->numBodies & 1 ? -1.0f : 1.0f;
+                const glm::mat4 tform = glm::translate(glm::mat4(), glm::vec3(20*x, 3, 0));
+                Id newObj = Physics::Create(RigidBodySetup::FromShape(this->sphereShape, tform, 25.0f, 0.5f));
                 Physics::Add(newObj);
                 this->bodies[this->numBodies] = newObj;
                 this->numBodies++;
 
                 btRigidBody* body = Physics::RigidBody(newObj);
+                glm::vec3 vel = glm::vec3(-6*x, 30, 0);
                 glm::vec3 ang = glm::ballRand(10.0f);
+                body->setLinearVelocity(btVector3(vel.x, vel.y, vel.z));
                 body->setAngularVelocity(btVector3(ang.x, ang.y, ang.z));
                 body->setDamping(0.1f, 0.1f);
             }
@@ -287,7 +294,7 @@ BulletPhysicsClothApp::updateClothData() {
     TimePoint startTime = Clock::Now();
     btSoftBody* body = Physics::SoftBody(this->clothSoftBody);
     const int numTris = body->m_faces.size();
-    o_assert(numTris <= NumClothTriangles);
+    o_assert(numTris == NumClothTriangles);
     for (int triIndex = 0, vtxIndex=0; triIndex < numTris; triIndex++) {
         const auto& face = body->m_faces[triIndex];
         for (int i = 0; i < 3; i++, vtxIndex++) {
@@ -295,14 +302,16 @@ BulletPhysicsClothApp::updateClothData() {
             vtx.pos[0] = face.m_n[i]->m_x.m_floats[0];
             vtx.pos[1] = face.m_n[i]->m_x.m_floats[1];
             vtx.pos[2] = face.m_n[i]->m_x.m_floats[2];
-vtx.nrm[0] = -face.m_normal.m_floats[0];
-vtx.nrm[1] = -face.m_normal.m_floats[1];
-vtx.nrm[2] = -face.m_normal.m_floats[2];
-            /*
-            vtx.nrm[0] = -face.m_n[i]->m_n.m_floats[0];
-            vtx.nrm[1] = -face.m_n[i]->m_n.m_floats[1];
-            vtx.nrm[2] = -face.m_n[i]->m_n.m_floats[2];
-            */
+            if (this->clothFlatShading) {
+                vtx.nrm[0] = -face.m_normal.m_floats[0];
+                vtx.nrm[1] = -face.m_normal.m_floats[1];
+                vtx.nrm[2] = -face.m_normal.m_floats[2];
+            }
+            else {
+                vtx.nrm[0] = -face.m_n[i]->m_n.m_floats[0];
+                vtx.nrm[1] = -face.m_n[i]->m_n.m_floats[1];
+                vtx.nrm[2] = -face.m_n[i]->m_n.m_floats[2];
+            }
         }
     }
     Gfx::UpdateVertices(this->clothMesh, this->clothVertices, sizeof(this->clothVertices));

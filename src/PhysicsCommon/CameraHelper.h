@@ -29,6 +29,7 @@ public:
     float Distance = 60.0f;
     glm::vec2 Orbital = glm::vec2(glm::radians(25.0f), glm::radians(180.0f));
     bool Dragging = false;
+    glm::vec3 Center;
     glm::vec3 EyePos;
     glm::mat4 View;
     glm::mat4 Proj;

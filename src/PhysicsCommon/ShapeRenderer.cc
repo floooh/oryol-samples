@@ -74,7 +74,6 @@ ShapeRenderer::Setup(const GfxSetup& gfxSetup) {
     ps.DepthStencilState.DepthWriteEnabled = true;
     ps.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
     ps.RasterizerState.CullFaceEnabled = true;
-    ps.RasterizerState.CullFace = Face::Front;
     ps.RasterizerState.SampleCount = 1;
     ps.BlendState.ColorFormat = smSetup.ColorFormat;
     ps.BlendState.DepthFormat = smSetup.DepthFormat;

@@ -66,7 +66,7 @@ CameraHelper::updateTransforms() {
     const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
     this->Proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 400.0f);
     this->EyePos = glm::euclidean(this->Orbital) * this->Distance;
-    this->View = glm::lookAt(this->EyePos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->View = glm::lookAt(this->EyePos, this->Center, glm::vec3(0.0f, 1.0f, 0.0f));
     this->ViewProj = this->Proj * this->View;
 }
 

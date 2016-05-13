@@ -25,6 +25,7 @@ _func float sampleShadow(sampler2D shadowMap, vec2 uv, float compare) {
     uv.y = 1.0-uv.y;
     #endif
     float depth = decodeDepth(tex2D(shadowMap, vec2(uv.x, uv.y)));
+    depth += 0.001;
     return step(compare, depth);
 }
 
@@ -88,6 +89,7 @@ _func vec4 gamma(vec4 c) {
 
 @fs shadowFS
 @highp float
+@highp sampler2D
 @use_code_block util
 @in vec2 projZW
 {
@@ -113,6 +115,7 @@ _func vec4 gamma(vec4 c) {
     vec2 shadowMapSize ShadowMapSize;
     vec3 lightDir LightDir;
     vec3 eyePos EyePos;
+    float specIntensity SpecIntensity;
 @end
 
 @texture_block colorTextures ColorTextures
@@ -168,10 +171,11 @@ _func vec4 gamma(vec4 c) {
 @end
 
 @fs colorFS
+@highp float
+@highp sampler2D
 @use_code_block util
 @use_uniform_block colorFSParams
 @use_texture_block colorTextures
-@highp float
 @in vec3 color
 @in vec4 lightProjPos
 @in vec3 P
@@ -197,10 +201,10 @@ _func vec4 gamma(vec4 c) {
         vec3 v = normalize(eyePos - P);
         vec3 r = reflect(-l, n);
         float r_dot_v = max(dot(r, v), 0.0);
-        float specIntensity = pow(r_dot_v, specPower) * n_dot_l * s;
+        float spec = specIntensity * pow(r_dot_v, specPower) * n_dot_l * s;
 
         // put everything together
-        _color = vec4(vec3(specIntensity, specIntensity, specIntensity) + (diffIntensity+ambientIntensity)*color, 1.0);
+        _color = vec4(vec3(spec, spec, spec) + (diffIntensity+ambientIntensity)*color, 1.0);
     }
     else {
         // surface points away from light

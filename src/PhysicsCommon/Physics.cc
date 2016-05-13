@@ -18,7 +18,9 @@ Physics::Setup() {
     o_assert(nullptr == state);
     state = Memory::New<_state>();
 
-    state->broadphase = new btDbvtBroadphase();
+    btVector3 min(-500.0f, -500.0, -500.0f);
+    btVector3 max(500.0f, 500.0, 500.0f);
+    state->broadphase = new btAxisSweep3(min, max, 32766);
     state->collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
     state->dispatcher = new btCollisionDispatcher(state->collisionConfiguration);
     state->solver = new btSequentialImpulseConstraintSolver();
@@ -32,7 +34,7 @@ Physics::Setup() {
 
     state->shapePool.Setup(CollideShapeType, 128);
     state->rigidBodyPool.Setup(RigidBodyType, 1024);
-    state->softBodyPool.Setup(SoftBodyType, 64);
+    state->softBodyPool.Setup(SoftBodyType, 16);
 }
 
 //------------------------------------------------------------------------------

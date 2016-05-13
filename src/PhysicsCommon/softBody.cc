@@ -29,6 +29,8 @@ softBody::setup(const SoftBodySetup& setup, const btSoftBodyWorldInfo& worldInfo
         setup.NumSegments, setup.NumSegments,
         setup.Fixed,
         false);
+    this->body->m_cfg.kDP = 0.01f;
+    this->body->m_cfg.piterations = 2;
 }
 
 //------------------------------------------------------------------------------
