@@ -1,0 +1,6 @@
+fips_begin_app(Emu windowed)
+    fips_vs_warning_level(3)
+    fips_files(Emu.cc)
+    fips_src(../Common GROUP Common)
+    fips_deps(Gfx) 
+fips_end_app()

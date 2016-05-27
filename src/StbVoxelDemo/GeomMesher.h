@@ -11,7 +11,7 @@
 
 #define STBVOX_CONFIG_MODE (30)
 #define STBVOX_CONFIG_PRECISION_Z (0)
-#include "stb_voxel_render.h"
+#include "Common/stb_voxel_render.h"
 
 class GeomMesher {
 public:
