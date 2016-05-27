@@ -2,11 +2,12 @@
 # Import MagicaVoxel VOX files into a more compact run-length-encoded
 # binary format.
 #
-# import genutil as util
+import genutil as util
 from collections import OrderedDict
-import struct 
+import struct
+import os
 
-Version = 1
+Version = 2 
 
 #-------------------------------------------------------------------------------
 class VoxImporter :
@@ -15,7 +16,7 @@ class VoxImporter :
         self.input = input
         self.out_src = out_src
         self.out_hdr = out_hdr
-        self.voxFile = None
+        self.vox_file = None
         self.size = [0, 0, 0]   # width, depth, height
         self.voxels = None
         self.palette = None
@@ -68,12 +69,12 @@ class VoxImporter :
         return True
         
     def load(self) :
-        with open(self.voxFile, 'rb') as f :
+        with open(self.vox_file, 'rb') as f :
             magic = f.read(4)
             if magic != 'VOX ':
-                print('{} is not a VOX file!'.format(self.voxFile))
+                util.fmtError('{} is not a VOX file!'.format(self.vox_file))
             version = struct.unpack('<I', f.read(4))[0]
-            print("VOX file '{}' version={}".format(self.voxFile, version))
+            print("VOX file '{}' version={}".format(self.vox_file, version))
             self.load_chunk(f)
 
     def reduce_palette(self) :
@@ -89,6 +90,7 @@ class VoxImporter :
                         self.set_voxel(x, y, z, pal.keys().index(c))
         self.palette = pal
         print('Palette reduced to {} entries'.format(len(self.palette)))
+        print(self.palette)
 
     def runlength_encode(self) :
         self.rle = []
@@ -126,20 +128,33 @@ class VoxImporter :
         f.write('#include "{}.h"\n'.format(hdrFile))
         f.write('namespace {} {{\n'.format(self.namespace))
         f.write('const uint8_t Vox::Palette[{}][4] = {{\n'.format(len(self.palette)))
-        for i,c in enumerate(self.palette) :
-            f.write('  {{ {}, {}, {}, {} }},\n'.format(c[0], c[1], c[2], c[3])
+        for k in self.palette :
+            c = self.palette[k]
+            f.write('  {{ {}, {}, {}, {} }},\n'.format(c[0], c[1], c[2], c[3]))
+        f.write('};\n')
+        f.write('const uint8_t Vox::VoxelsRLE[{}] = {{\n'.format(len(self.rle)))
+        for i,v in enumerate(self.rle) :
+            f.write('{},'.format(v))
+            if 0 == ((i+1) & 31):
+                f.write('\n')
+        f.write('};\n')
         f.write('}\n')
 
+
+    def gen_header(self, absHeaderPath) :
+        with open(absHeaderPath, 'w') as f:
+            self.write_header(f)
+   
+    def gen_source(self, absSourcePath) :
+        with open(absSourcePath, 'w') as f:
+            self.write_source(f, absSourcePath)
+
     def generate(self) :
-        if util.isDirty(Version, [self.input, self.voxFile], [self.out_src, self.out_hdr]) :
+        self.vox_file = os.path.dirname(self.input) + '/' + self.vox_file
+        if util.isDirty(Version, [self.input, self.vox_file], [self.out_src, self.out_hdr]) :
             self.load()
             self.reduce_palette()
-            self.runlength_encode(self)
+            self.runlength_encode()
+            self.gen_header(self.out_hdr)
+            self.gen_source(self.out_src)
 
-#-------------------------------------------------------------------------------
-if __name__ == '__main__' :
-    vox = VoxImporter('','','')
-    vox.voxFile = '/Users/floh/projects/voxel-data/junost.vox'
-    vox.load()
-    vox.reduce_palette()
-    vox.runlength_encode()
