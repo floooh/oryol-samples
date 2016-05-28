@@ -9,8 +9,7 @@ fips_begin_app(StbVoxelDemo windowed)
         VisTree.h VisTree.cc
         Camera.h Camera.cc)
     oryol_shader(shaders.shd)
-    fips_src(../Common GROUP Common)
-    fips_deps(Gfx Input Dbg)
+    fips_deps(Gfx Input Dbg Common)
     oryol_add_web_sample(StbVoxelDemo "Voxel Demo using stb_voxel_render.h" "emscripten,pnacl" StbVoxelDemo.jpg "StbVoxelDemo/")
 fips_end_app()
 

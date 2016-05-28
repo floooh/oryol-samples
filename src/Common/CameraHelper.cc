@@ -11,22 +11,27 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-CameraHelper::Setup() {
+CameraHelper::Setup(bool usePointerLock) {
     // on left mouse button, lock mouse pointer
-    Input::SetMousePointerLockHandler([this] (const Mouse::Event& event) -> Mouse::PointerLockMode {
+    Input::SetMousePointerLockHandler([this, usePointerLock] (const Mouse::Event& event) -> Mouse::PointerLockMode {
+        Mouse::PointerLockMode mode = Mouse::PointerLockModeDontCare;
         if (event.Button == Mouse::LMB) {
             if (event.Type == Mouse::Event::ButtonDown) {
                 this->Dragging = true;
-                return Mouse::PointerLockModeEnable;
+                if (usePointerLock) {
+                    mode = Mouse::PointerLockModeEnable;
+                }
             }
             else if (event.Type == Mouse::Event::ButtonUp) {
                 if (this->Dragging) {
                     this->Dragging = false;
-                    return Mouse::PointerLockModeDisable;
+                    if (usePointerLock) {
+                        mode = Mouse::PointerLockModeDisable;
+                    }
                 }
             }
         }
-        return Mouse::PointerLockModeDontCare;
+        return mode;
     });
     this->updateTransforms();
 }
@@ -66,7 +71,7 @@ CameraHelper::updateTransforms() {
     const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
     this->Proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 400.0f);
     this->EyePos = glm::euclidean(this->Orbital) * this->Distance;
-    this->View = glm::lookAt(this->EyePos, this->Center, glm::vec3(0.0f, 1.0f, 0.0f));
+    this->View = glm::lookAt(this->EyePos + this->Center, this->Center, glm::vec3(0.0f, 1.0f, 0.0f));
     this->ViewProj = this->Proj * this->View;
 }
 

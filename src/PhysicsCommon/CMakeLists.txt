@@ -7,7 +7,6 @@ fips_begin_lib(PhysicsCommon)
         collideShape.cc collideShape.h
         rigidBody.cc rigidBody.h
         softBody.cc softBody.h
-        CameraHelper.cc CameraHelper.h
         ShapeRenderer.cc ShapeRenderer.h
     )
     fips_deps(Gfx Input Assets Bullet)

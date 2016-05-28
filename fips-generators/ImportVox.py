@@ -84,13 +84,13 @@ class VoxImporter :
             for y in range(0, self.size[1]) :
                 for z in range(0, self.size[2]) :
                     c = self.get_voxel(x, y, z)
-                    if c != 0 :
+                    if c > 0 :
                         if c not in pal :
-                            pal[c] = self.palette[c]
+                            pal[c] = self.palette[c-1]
+                            print('{}: {}'.format(c, self.palette[c-1]))
                         self.set_voxel(x, y, z, pal.keys().index(c))
         self.palette = pal
         print('Palette reduced to {} entries'.format(len(self.palette)))
-        print(self.palette)
 
     def runlength_encode(self) :
         self.rle = []
@@ -103,7 +103,17 @@ class VoxImporter :
                 col = c
                 num = 0
             num += 1
-        print('RLE encoding reduced to {} bytes'.format(len(self.rle)))
+        if num != 1 :
+            self.rle.append(num)
+            self.rle.append(col)
+
+        verify = 0
+        for i,c in enumerate(self.rle) :
+            if (i&1) == 0 :
+                verify += c
+        print('verify: {} vs orig: {}'.format(verify, len(self.voxels)))
+            
+    
 
     def write_header(self, f) :
         f.write('#pragma once\n')
@@ -117,7 +127,7 @@ class VoxImporter :
         f.write('    static const int Z = {};\n'.format(self.size[2]))
         f.write('    static const uint8_t Palette[{}][4];\n'.format(len(self.palette)))
         f.write('    static const uint8_t VoxelsRLE[{}];\n'.format(len(self.rle)))
-        f.write('} VoxelData;\n')
+        f.write('};\n')
         f.write('}\n')
 
     def write_source(self, f, absSourcePath) :

@@ -12,7 +12,7 @@ namespace Oryol {
 class CameraHelper {
 public:
     /// setup the camera object
-    void Setup();
+    void Setup(bool usePointerLock=true);
     /// update the camera
     void Update();
 

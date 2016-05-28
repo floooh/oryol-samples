@@ -1,3 +1,4 @@
+fips_add_subdirectory(Common)
 fips_add_subdirectory(PhysicsCommon)
 fips_add_subdirectory(Paclone)
 fips_add_subdirectory(StbVoxelDemo)
