@@ -61,7 +61,7 @@ EmuApp::OnInit() {
     this->setupShaderParams();
 
     this->camera.Setup(false);
-    this->camera.Center = glm::vec3(Emu::Vox::X/2, Emu::Vox::Z/2, Emu::Vox::Y/2);
+    this->camera.Center = glm::vec3(Emu::Vox::X/2, Emu::Vox::Z/4, Emu::Vox::Y/2);
 
     return App::OnInit();
 }
@@ -128,7 +128,7 @@ EmuApp::setupShaderParams() {
         );
     }
 
-    this->vsParams.LightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
+    this->vsParams.LightDir = glm::normalize(glm::vec3(0.5f, 1.0f, -0.25f));
     this->vsParams.Scale = glm::vec3(1.0f);
 }
 
@@ -167,10 +167,8 @@ EmuApp::createVoxelMeshes(const VertexLayout& layout) {
     // allocate voxel buffer and decode the runlength-encoded voxel data
     const int bufSize = Emu::Vox::X*Emu::Vox::Y*Emu::Vox::Z;
     uint8_t* colorBuf = (uint8_t*) Memory::Alloc(bufSize);
-    uint8_t* dstPtr = colorBuf;
-    #if ORYOL_DEBUG
-    const uint8_t* dstEndPtr = colorBuf + bufSize;
-    #endif
+    uint8_t* lightBuf = (uint8_t*) Memory::Alloc(bufSize);
+    int dstIndex = 0;
     const uint8_t* srcPtr = Emu::Vox::VoxelsRLE;
     const int rleNum = sizeof(Emu::Vox::VoxelsRLE);
     for (int i = 0; i < rleNum; i += 2) {
@@ -178,11 +176,13 @@ EmuApp::createVoxelMeshes(const VertexLayout& layout) {
         o_assert_dbg(num > 0);
         const uint8_t c = srcPtr[i+1];
         for (uint8_t ii=0; ii<num; ii++) {
-            o_assert_dbg(dstPtr < dstEndPtr);
-            *dstPtr++ = c;
+            o_assert_dbg(dstIndex < bufSize);
+            colorBuf[dstIndex] = c;
+            lightBuf[dstIndex] = c == 0 ? 255 : 0;
+            dstIndex++;
         }
     }
-    o_assert_dbg(dstEndPtr == dstPtr);
+    o_assert_dbg(dstIndex == bufSize);
 
     // setup stb mesher
     stbvox_mesh_maker stbvox;
@@ -196,6 +196,7 @@ EmuApp::createVoxelMeshes(const VertexLayout& layout) {
     stbvox_input_description* desc = stbvox_get_input_description(&stbvox);
     desc->blocktype = colorBuf;
     desc->color = colorBuf;
+    desc->lighting = lightBuf;
 
     // meshify into Oryol meshes in a loop
     auto meshSetup = MeshSetup::FromData();
@@ -222,6 +223,8 @@ EmuApp::createVoxelMeshes(const VertexLayout& layout) {
     }
     while (0 == voxres);
     Memory::Free(vtxBuf);
+    Memory::Free(colorBuf);
+    Memory::Free(lightBuf);
 
     return result;
 }

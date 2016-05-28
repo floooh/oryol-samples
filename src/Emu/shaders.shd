@@ -38,7 +38,7 @@ vec3 tex_translate TexTranslate
     vec3 face_normal = mul(model, normal_table[normal_index]).xzy;
     float l = clamp(dot(face_normal, light_dir), 0.0, 1.0) + 0.4;
     int color_index = int(mod(facedata.z, 32.0));
-    color = color_table[color_index].xyz * l;
+    color = color_table[color_index].xyz * l * amb_occ;
 
     vec4 wp = vec4(voxelspace_pos + translate.xzy, 1.0);
     _position = mul(mvp, wp);
