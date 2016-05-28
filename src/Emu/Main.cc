@@ -1,13 +1,16 @@
 //------------------------------------------------------------------------------
-//  Emu.cc
+//  Emu/Main.cc
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "Core/Main.h"
+#include "Core/Time/Clock.h"
 #include "Gfx/Gfx.h"
 #include "Input/Input.h"
 #include "Common/CameraHelper.h"
+#include "KC85Emu.h"
 #include "voxels.h"
 #include "shaders.h"
+#include "glm/gtc/matrix_transform.hpp"
 #define STB_VOXEL_RENDER_IMPLEMENTATION
 #define STBVOX_CONFIG_MODE (30)
 #define STBVOX_CONFIG_PRECISION_Z (0)
@@ -35,10 +38,13 @@ public:
     void setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layout);
     void setupShaderParams();
 
+    TimePoint lapTime;
+    KC85Emu kc85Emu;
+    glm::mat4 kcModelMatrix;
     CameraHelper camera;
     ClearState clearState = ClearState::ClearAll(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f), 1.0f, 0);
     DrawState drawState;
-    Shader::VSParams vsParams;
+    VoxelShader::VoxelVSParams vsParams;
     Id indexMesh;
     Array<voxMesh> voxelMeshes;
 };
@@ -47,9 +53,10 @@ OryolMain(EmuApp);
 //------------------------------------------------------------------------------
 AppState::Code
 EmuApp::OnInit() {
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "Emu");
+    auto gfxSetup = GfxSetup::WindowMSAA4(1024, 600, "Emu");
     Gfx::Setup(gfxSetup);
     Input::Setup();
+    Input::BeginCaptureText();
 
     // setup graphics resources
     VertexLayout layout;
@@ -60,8 +67,22 @@ EmuApp::OnInit() {
     this->setupDrawState(gfxSetup, layout);
     this->setupShaderParams();
 
+    // setup the camera helper
     this->camera.Setup(false);
-    this->camera.Center = glm::vec3(Emu::Vox::X/2, Emu::Vox::Z/4, Emu::Vox::Y/2);
+    this->camera.Center = glm::vec3(63.0f, 25.0f, 40.0f);
+    this->camera.MaxCamDist = 200.0f;
+    this->camera.Distance = 80.0f;
+    this->camera.Orbital = glm::vec2(glm::radians(10.0f), glm::radians(160.0f));
+
+    // setup the KC emulator
+    this->kc85Emu.Setup(gfxSetup);
+    this->lapTime = Clock::Now();
+
+    glm::mat4 m = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    m = glm::rotate(m, -glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    m = glm::translate(m, glm::vec3(-63.0f, 39.0f, 25.0f));
+    m = glm::scale(m, glm::vec3(28.0f, 1.0f, 22.0f));
+    this->kcModelMatrix = m;
 
     return App::OnInit();
 }
@@ -70,6 +91,11 @@ EmuApp::OnInit() {
 AppState::Code
 EmuApp::OnRunning() {
     this->camera.Update();
+
+    // update KC85 emu and render to offscreen render target
+    this->kc85Emu.Update(Clock::LapTime(this->lapTime));
+
+    // draw the main render target
     Gfx::ApplyDefaultRenderTarget(this->clearState);
     for (int i = 0; i < voxelMeshes.Size(); i++) {
         this->drawState.Mesh[1] = this->voxelMeshes[i].mesh;
@@ -78,6 +104,7 @@ EmuApp::OnRunning() {
         Gfx::ApplyUniformBlock(this->vsParams);
         Gfx::Draw(PrimitiveGroup(0, this->voxelMeshes[i].numQuads*6));
     }
+    this->kc85Emu.Render(this->camera.ViewProj * this->kcModelMatrix);
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
@@ -94,7 +121,7 @@ EmuApp::OnCleanup() {
 void
 EmuApp::setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layout) {
     o_assert(this->indexMesh.IsValid());
-    Id shd = Gfx::CreateResource(Shader::Setup());
+    Id shd = Gfx::CreateResource(VoxelShader::Setup());
     auto pip = PipelineSetup::FromShader(shd);
     pip.Layouts[1] = layout;    // IMPORTANT: vertices are in mesh slot #1, not #0!
     pip.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
