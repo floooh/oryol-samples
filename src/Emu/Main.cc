@@ -92,10 +92,10 @@ AppState::Code
 EmuApp::OnRunning() {
     this->camera.Update();
 
-    // update KC85 emu and render to offscreen render target
+    // update KC85 emu
     this->kc85Emu.Update(Clock::LapTime(this->lapTime));
 
-    // draw the main render target
+    // render the voxel scene and emulator screen
     Gfx::ApplyDefaultRenderTarget(this->clearState);
     for (int i = 0; i < voxelMeshes.Size(); i++) {
         this->drawState.Mesh[1] = this->voxelMeshes[i].mesh;
