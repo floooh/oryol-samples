@@ -7,7 +7,7 @@ from collections import OrderedDict
 import struct
 import os
 
-Version = 2 
+Version = 1 
 
 #-------------------------------------------------------------------------------
 class VoxImporter :
@@ -53,6 +53,8 @@ class VoxImporter :
                 y = ord(data[off+1])
                 z = ord(data[off+2])
                 c = ord(data[off+3])
+                # mirror X
+                x = self.size[0] - x - 1
                 self.set_voxel(x,y,z,c)
         elif chunk_id == 'RGBA' :
             self.palette = []
