@@ -36,7 +36,7 @@ public:
     void setupShaderParams();
 
     CameraHelper camera;
-    ClearState clearState = ClearState::ClearAll(glm::vec4(0.2f, 0.5f, 0.8f, 1.0f), 1.0f, 0);
+    ClearState clearState = ClearState::ClearAll(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f), 1.0f, 0);
     DrawState drawState;
     Shader::VSParams vsParams;
     Id indexMesh;
