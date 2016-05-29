@@ -1,3 +1,18 @@
+- name: KC85-3
+  desc: Test
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/KC85-3/KC85-3.jpg
+  src: KC85-3/Main.cc
+- name: BulletPhysicsBasic
+  desc: Simplet Bullet physics integration
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/BulletPhysicsBasic/BulletPhysicsBasic.jpg
+  src: BulletPhysicsBasic/BulletPhysicsBasic.cc
+- name: BulletPhysicsCloth
+  desc: Bullet cloth demo
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/BulletPhysicsCloth/BulletPhysicsCloth.jpg
+  src: BulletPhysicsCloth/BulletPhysicsCloth.cc
 - name: Paclone
   desc: Simple Pacman clone (work in progress!
   type: emscripten,pnacl,android
@@ -48,13 +63,3 @@
   type: emscripten
   image: /Users/floh/projects/oryol-samples/src/SoundTest/SoundTest.jpg
   src: SoundTest/SoundTest.cc
-- name: BulletPhysicsBasic
-  desc: Simplet Bullet physics integration
-  type: emscripten,pnacl
-  image: /Users/floh/projects/oryol-samples/src/BulletPhysicsBasic/BulletPhysicsBasic.jpg
-  src: BulletPhysicsBasic/BulletPhysicsBasic.cc
-- name: BulletPhysicsCloth
-  desc: Bullet cloth demo
-  type: emscripten,pnacl
-  image: /Users/floh/projects/oryol-samples/src/BulletPhysicsCloth/BulletPhysicsCloth.jpg
-  src: BulletPhysicsCloth/BulletPhysicsCloth.cc
