@@ -149,7 +149,7 @@ def export_assets(fips_dir, proj_dir, webpage_dir) :
     data_dst_dir = '{}/data/'.format(webpage_dir)
     if not os.path.exists(data_dst_dir) :
         os.makedirs(data_dst_dir)
-    for ext in ['txt', 'dump'] :
+    for ext in ['txt', 'dump', 'kcc', 'tap'] :
         for data_file in glob.glob('{}/*.{}'.format(data_src_dir, ext)) :
             shutil.copy(data_file, data_dst_dir)
     tbui_from = '{}/tbui'.format(data_src_dir)

@@ -40,10 +40,11 @@ public:
     static const int MaxNumBoxes = 16;
     int numBoxes = 0;
     StaticArray<box, MaxNumBoxes> boxes;
-    glm::vec3 mouseRayPos;
-    glm::vec3 mouseRayVec;
 
     DrawState dbgDrawState;
+    int dbgIntersectId = -1;
+    glm::vec3 dbgMouseRayPos;
+    glm::vec3 dbgMouseRayVec;
 };
 
 } // namespace Oryol

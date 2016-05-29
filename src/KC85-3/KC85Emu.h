@@ -8,6 +8,7 @@
 #include "yakc/KC85Oryol.h"
 #include "yakc/Draw.h"
 #include "yakc/Audio.h"
+#include "ui/FileLoader.h"  // FIXME: this should not go under 'UI'
 #include "Core/Time/Duration.h"
 #include "glm/mat4x4.hpp"
 
@@ -24,6 +25,15 @@ public:
     /// render the emulator output
     void Render(const glm::mat4& mvp);
 
+    /// switch on/off
+    void TogglePower();
+    /// return true if switched on
+    bool SwitchedOn() const;
+    /// reset
+    void Reset();
+    /// load and start a game by name
+    void StartGame(const char* name);
+
     void handleInput();
 
     uint32_t frameIndex = 0;
@@ -32,6 +42,7 @@ public:
     yakc::emu emu;
     yakc::Draw draw;
     yakc::Audio audio;
+    yakc::FileLoader fileLoader;
     Id renderTarget;
 };
 

@@ -5,15 +5,15 @@ var Module = {
     preRun: [],
     postRun: [],
     print: (function() {
-        var element = document.getElementById('output');
-        if (element) element.value = '';
+        //var element = document.getElementById('output');
+        //if (element) element.value = '';
         return function(text) {
             text = Array.prototype.slice.call(arguments).join(' ');
             console.log(text);
-            if (element) {
-                element.value += text + '\n';
-                element.scrollTop = element.scrollHeight;
-            }
+            //if (element) {
+            //    element.value += text + '\n';
+            //    element.scrollTop = element.scrollHeight;
+            //}
         };
     })(),
     printErr: function(text) {
@@ -34,7 +34,7 @@ var Module = {
         if (0 == left) {
             document.getElementById('canvas').style.display = 'block';
             document.getElementById('canvas2d').style.display = 'none'; 
-            document.getElementById('output').style.display = 'block';
+            //document.getElementById('output').style.display = 'block';
             loaded = true;
         }
     },

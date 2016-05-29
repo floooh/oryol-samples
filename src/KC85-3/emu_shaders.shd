@@ -94,15 +94,23 @@ sampler2D irm IRM
 @program KCShader kc_vs kc_fs
 
 //------------------------------------------------------------------------------
+@uniform_block kcDbgVSParams KCDBGVSParams
+mat4 mvp ModelViewProjection
+vec4 color Color
+@end
+
 @vs dbg_vs
-@use_uniform_block kcVSParams
+@use_uniform_block kcDbgVSParams
 @in vec4 position
+@out vec4 dbgColor
     _position = mul(mvp, position);
+    dbgColor = color;
 @end
 
 @fs dbg_fs
+@in vec4 dbgColor
 {
-    _color = vec4(1.0, 0.0, 0.0, 1.0);
+    _color = dbgColor;
 }
 @end
 

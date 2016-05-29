@@ -22,8 +22,11 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     this->draw.Setup(gfxSetup, 5);
     this->audio.Setup(this->emu.board.clck);
     this->emu.kc85.audio.setup_callbacks(&this->audio, Audio::cb_sound, Audio::cb_volume, Audio::cb_stop);
+    this->fileLoader.Setup(this->emu);
 
-    // FIXME: insert a 16-KByte module
+    // register modules
+    this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
+    this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
 
     // setup a mesh and draw state to render a simple plane
     ShapeBuilder shapeBuilder;
@@ -46,6 +49,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
 //------------------------------------------------------------------------------
 void
 KC85Emu::Discard() {
+    this->fileLoader.Discard();
     this->emu.poweroff();
     this->audio.Discard();
     this->draw.Discard();
@@ -63,6 +67,50 @@ KC85Emu::Update(Duration frameTime) {
     const uint64_t max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
     this->emu.onframe(2, micro_secs, min_cycle_count, max_cycle_count);
     this->audio.Update(this->emu.board.clck);
+}
+
+//------------------------------------------------------------------------------
+void
+KC85Emu::TogglePower() {
+    if (this->SwitchedOn()) {
+        this->emu.poweroff();
+    }
+    else {
+        this->emu.poweron(device::kc85_3, os_rom::caos_3_1);
+        if (!this->emu.kc85.exp.slot_occupied(0x08)) {
+            this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
+        }
+        if (!this->emu.kc85.exp.slot_occupied(0x0C)) {
+            this->emu.kc85.exp.insert_module(0x0C, kc85_exp::none);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+bool
+KC85Emu::SwitchedOn() const {
+    return this->emu.kc85.on;
+}
+
+//------------------------------------------------------------------------------
+void
+KC85Emu::Reset() {
+    if (this->SwitchedOn()) {
+        this->emu.kc85.reset();
+    }
+}
+
+//------------------------------------------------------------------------------
+void
+KC85Emu::StartGame(const char* name) {
+    o_assert_dbg(name);
+    if (this->SwitchedOn()) {
+        for (const auto& item : this->fileLoader.Items) {
+            if ((int(item.Compat) & int(this->emu.model)) && (item.Name == name)) {
+                this->fileLoader.LoadAndStart(this->emu, item);
+            }
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -87,8 +135,10 @@ KC85Emu::Render(const glm::mat4& mvp) {
     }
     else {
         // switch KC on once after a little while
-        if (this->frameIndex == 10) {
-            this->emu.kc85.poweron(device::kc85_3, os_rom::caos_3_1);
+        if (this->frameIndex == 120) {
+            if (!this->SwitchedOn()) {
+                this->TogglePower();
+            }
         }
     }
 }
