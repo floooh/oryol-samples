@@ -92,3 +92,18 @@ sampler2D irm IRM
 @end
 
 @program KCShader kc_vs kc_fs
+
+//------------------------------------------------------------------------------
+@vs dbg_vs
+@use_uniform_block kcVSParams
+@in vec4 position
+    _position = mul(mvp, position);
+@end
+
+@fs dbg_fs
+{
+    _color = vec4(1.0, 0.0, 0.0, 1.0);
+}
+@end
+
+@program DbgShader dbg_vs dbg_fs

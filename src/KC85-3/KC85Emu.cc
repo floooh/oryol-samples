@@ -87,7 +87,7 @@ KC85Emu::Render(const glm::mat4& mvp) {
     }
     else {
         // switch KC on once after a little while
-        if (this->frameIndex == 180) {
+        if (this->frameIndex == 10) {
             this->emu.kc85.poweron(device::kc85_3, os_rom::caos_3_1);
         }
     }

@@ -9,11 +9,12 @@
 #include "Common/CameraHelper.h"
 #include "KC85Emu.h"
 #include "SceneRenderer.h"
+#include "RayCheck.h"
 #include "glm/gtc/matrix_transform.hpp"
 
 using namespace Oryol;
 
-class EmuApp : public App {
+class KC853App : public App {
 public:
     AppState::Code OnInit();
     AppState::Code OnRunning();
@@ -23,19 +24,22 @@ public:
     TimePoint lapTime;
     KC85Emu kc85Emu;
     SceneRenderer scene;
+    RayCheck rayChecker;
     glm::mat4 kcModelMatrix;
     CameraHelper camera;
+    glm::mat4 invProj;
 };
-OryolMain(EmuApp);
+OryolMain(KC853App);
 
 //------------------------------------------------------------------------------
 AppState::Code
-EmuApp::OnInit() {
+KC853App::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::BeginCaptureText();
     this->scene.Setup(gfxSetup);
+    this->rayChecker.Setup(gfxSetup);
 
     // setup the camera helper
     this->camera.Setup(false);
@@ -43,6 +47,7 @@ EmuApp::OnInit() {
     this->camera.MaxCamDist = 200.0f;
     this->camera.Distance = 80.0f;
     this->camera.Orbital = glm::vec2(glm::radians(10.0f), glm::radians(160.0f));
+    this->invProj = glm::inverse(this->camera.Proj);
 
     // setup the KC emulator
     this->kc85Emu.Setup(gfxSetup);
@@ -59,8 +64,17 @@ EmuApp::OnInit() {
 
 //------------------------------------------------------------------------------
 AppState::Code
-EmuApp::OnRunning() {
+KC853App::OnRunning() {
     this->camera.Update();
+
+    if (Input::Mouse().Attached) {
+        glm::vec2 screenSpaceMousePos = Input::Mouse().Position;
+        const DisplayAttrs& disp = Gfx::DisplayAttrs();
+        screenSpaceMousePos.x /= float(disp.FramebufferWidth);
+        screenSpaceMousePos.y /= float(disp.FramebufferHeight);
+        glm::mat4 invView = glm::inverse(this->camera.View);
+        int hit = this->rayChecker.Test(screenSpaceMousePos, invView, this->invProj);
+    }
 
     // update KC85 emu
     this->kc85Emu.Update(Clock::LapTime(this->lapTime));
@@ -69,13 +83,14 @@ EmuApp::OnRunning() {
     Gfx::ApplyDefaultRenderTarget(this->clearState);
     this->scene.Render(this->camera.ViewProj);
     this->kc85Emu.Render(this->camera.ViewProj * this->kcModelMatrix);
+    this->rayChecker.RenderDebug(this->camera.ViewProj);
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
 
 //------------------------------------------------------------------------------
 AppState::Code
-EmuApp::OnCleanup() {
+KC853App::OnCleanup() {
     Input::Discard();
     Gfx::Discard();
     return App::OnCleanup();
