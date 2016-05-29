@@ -1,6 +1,9 @@
 fips_begin_app(Emu windowed)
     fips_vs_warning_level(3)
-    fips_files(Main.cc KC85Emu.cc KC85Emu.h)
+    fips_files(Main.cc 
+        KC85Emu.cc KC85Emu.h 
+        SceneRenderer.cc SceneRenderer.h 
+    )
     fips_generate(FROM voxels.py OUT_OF_SOURCE)
     oryol_shader(emu_shaders.shd)
     fips_deps(Gfx Input Common yakc)
