@@ -5,7 +5,7 @@
 #include "KC85Emu.h"
 #include "Assets/Gfx/ShapeBuilder.h"
 #include "Input/Input.h"
-#include "shaders.h"
+#include "emu_shaders.h"
 
 using namespace yakc;
 

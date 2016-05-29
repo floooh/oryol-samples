@@ -29,8 +29,8 @@ public:
     DrawState drawState;
     uint8_t last_ascii;
     yakc::emu emu;
-    Draw draw;            // FIXME: should be behind yakc namespace!
-    Audio audio;          // FIXME: ditto!
+    yakc::Draw draw;
+    yakc::Audio audio;
     Id renderTarget;
 };
 

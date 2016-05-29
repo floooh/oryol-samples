@@ -9,9 +9,17 @@ mat4 model Model
 vec4[6] normal_table NormalTable
 vec4[32] color_table ColorTable
 vec3 light_dir LightDir
+float light_intensity LightIntensity
 vec3 scale Scale
 vec3 translate Translate
 vec3 tex_translate TexTranslate
+@end
+
+@code_block gamma
+_func vec4 gamma(vec4 c) {
+    float p = 1.0/2.2;
+    return vec4(pow(c.xyz, vec3(p, p, p)), c.w);
+}
 @end
 
 @vs voxel_vs
@@ -38,18 +46,20 @@ vec3 tex_translate TexTranslate
     vec3 face_normal = mul(model, normal_table[normal_index]).xzy;
     float l = clamp(dot(face_normal, light_dir), 0.0, 1.0) + 0.4;
     int color_index = int(mod(facedata.z, 32.0));
-    color = color_table[color_index].xyz * l * amb_occ;
+    color = color_table[color_index].xyz * l * light_intensity;
 
     vec4 wp = vec4(voxelspace_pos + translate.xzy, 1.0);
     _position = mul(mvp, wp);
 @end
 
 @fs voxel_fs
+@use_code_block gamma
 @in vec4 facedata
 @in vec3 voxelspace_pos
 @in vec3 color
 @in float amb_occ
-    _color = vec4(color, 1.0);
+    vec3 c = color * (amb_occ * amb_occ);
+    _color = gamma(vec4(c, 1.0));
 @end
 
 @program VoxelShader voxel_vs voxel_fs
@@ -74,9 +84,10 @@ sampler2D irm IRM
 
 @fs kc_fs
 @use_texture_block kcTextures
+@use_code_block gamma
 @in vec2 uv
 {
-    _color = tex2D(irm, uv);
+    _color = gamma(tex2D(irm, uv));
 }
 @end
 

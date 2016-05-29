@@ -9,7 +9,7 @@
 #include "Common/CameraHelper.h"
 #include "KC85Emu.h"
 #include "voxels.h"
-#include "shaders.h"
+#include "emu_shaders.h"
 #include "glm/gtc/matrix_transform.hpp"
 #define STB_VOXEL_RENDER_IMPLEMENTATION
 #define STBVOX_CONFIG_MODE (30)
@@ -156,6 +156,7 @@ EmuApp::setupShaderParams() {
     }
 
     this->vsParams.LightDir = glm::normalize(glm::vec3(0.5f, 1.0f, -0.25f));
+    this->vsParams.LightIntensity = 0.75f;
     this->vsParams.Scale = glm::vec3(1.0f);
 }
 
