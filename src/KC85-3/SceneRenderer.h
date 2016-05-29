@@ -28,7 +28,6 @@ public:
         int numQuads = 0;
     };
 
-
     Id createIndexMesh();
     Array<voxMesh> createVoxelMeshes(const VertexLayout& layout);
     void setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layout);

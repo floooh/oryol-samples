@@ -26,6 +26,7 @@ public:
 
     void handleInput();
 
+    uint32_t frameIndex = 0;
     DrawState drawState;
     uint8_t last_ascii;
     yakc::emu emu;

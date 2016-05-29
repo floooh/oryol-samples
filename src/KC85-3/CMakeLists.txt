@@ -1,4 +1,4 @@
-fips_begin_app(Emu windowed)
+fips_begin_app(KC85-3 windowed)
     fips_vs_warning_level(3)
     fips_files(Main.cc 
         KC85Emu.cc KC85Emu.h 
@@ -7,5 +7,5 @@ fips_begin_app(Emu windowed)
     fips_generate(FROM voxels.py OUT_OF_SOURCE)
     oryol_shader(emu_shaders.shd)
     fips_deps(Gfx Input Common yakc)
-    oryol_add_web_sample(Emu "Test" "emscripten,pnacl" none "Emu/Emu.cc")
+    oryol_add_web_sample(KC85-3 "Test" "emscripten,pnacl" none "KC85-3/Main.cc")
 fips_end_app()

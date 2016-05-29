@@ -19,7 +19,6 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
     this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     this->emu.init();
-    this->emu.poweron(device::kc85_3, os_rom::caos_3_1);
     this->draw.Setup(gfxSetup, 5);
     this->audio.Setup(this->emu.board.clck);
     this->emu.kc85.audio.setup_callbacks(&this->audio, Audio::cb_sound, Audio::cb_volume, Audio::cb_stop);
@@ -70,19 +69,28 @@ KC85Emu::Update(Duration frameTime) {
 void
 KC85Emu::Render(const glm::mat4& mvp) {
 
-    // update the offscreen texture
-    const int width = 320;
-    const int height = 256;
-    const Id tex = this->draw.irmTexture320x256;
-    this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-    Gfx::UpdateTexture(tex, this->emu.kc85.video.LinearBuffer, this->draw.texUpdateAttrs);
+    this->frameIndex++;
+    if (this->emu.kc85.on) {
+        // update the offscreen texture
+        const int width = 320;
+        const int height = 256;
+        const Id tex = this->draw.irmTexture320x256;
+        this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
+        Gfx::UpdateTexture(tex, this->emu.kc85.video.LinearBuffer, this->draw.texUpdateAttrs);
 
-    KCShader::KCVSParams vsParams;
-    vsParams.ModelViewProjection = mvp;
-    this->drawState.FSTexture[KCTextures::IRM] = tex;
-    Gfx::ApplyDrawState(this->drawState);
-    Gfx::ApplyUniformBlock(vsParams);
-    Gfx::Draw(0);
+        KCShader::KCVSParams vsParams;
+        vsParams.ModelViewProjection = mvp;
+        this->drawState.FSTexture[KCTextures::IRM] = tex;
+        Gfx::ApplyDrawState(this->drawState);
+        Gfx::ApplyUniformBlock(vsParams);
+        Gfx::Draw(0);
+    }
+    else {
+        // switch KC on once after a little while
+        if (this->frameIndex == 180) {
+            this->emu.kc85.poweron(device::kc85_3, os_rom::caos_3_1);
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
