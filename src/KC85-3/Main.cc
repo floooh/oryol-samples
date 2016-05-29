@@ -31,7 +31,7 @@ OryolMain(EmuApp);
 //------------------------------------------------------------------------------
 AppState::Code
 EmuApp::OnInit() {
-    auto gfxSetup = GfxSetup::WindowMSAA4(1024, 600, "Emu");
+    auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::BeginCaptureText();
