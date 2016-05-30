@@ -16,8 +16,6 @@ The Extension Samples webpage is here: http://floooh.github.com/oryol-samples
 
 ### How to build
 
-Make sure you have [git-lfs](https://git-lfs.github.com/) installed! 
-
 You need a recent cmake, python 2.7.x (3.x should work too), and a
 working C/C++ development environment:
 
