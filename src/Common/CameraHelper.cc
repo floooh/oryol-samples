@@ -67,9 +67,15 @@ CameraHelper::handleInput() {
 //------------------------------------------------------------------------------
 void
 CameraHelper::updateTransforms() {
-    const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
-    this->Proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 400.0f);
+    // recompute projection matrix if framebuffer size has changed
+    int w = Gfx::DisplayAttrs().FramebufferWidth;
+    int h = Gfx::DisplayAttrs().FramebufferHeight;
+    if ((w != this->fbWidth) || (h != this->fbHeight)) {
+        this->fbWidth = w;
+        this->fbHeight = h;
+        this->Proj = glm::perspectiveFov(glm::radians(45.0f), float(w), float(h), this->NearZ, this->FarZ);
+        this->InvProj = glm::inverse(this->Proj);
+    }
     this->EyePos = (glm::euclidean(this->Orbital) * this->Distance) + this->Center;
     this->View = glm::lookAt(this->EyePos, this->Center, glm::vec3(0.0f, 1.0f, 0.0f));
     this->ViewProj = this->Proj * this->View;

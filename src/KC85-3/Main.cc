@@ -43,7 +43,6 @@ public:
     RayCheck rayChecker;
     glm::mat4 kcModelMatrix;
     CameraHelper camera;
-    glm::mat4 invProj;
 };
 OryolMain(KC853App);
 
@@ -81,7 +80,6 @@ KC853App::OnInit() {
     this->camera.MaxCamDist = 200.0f;
     this->camera.Distance = 80.0f;
     this->camera.Orbital = glm::vec2(glm::radians(10.0f), glm::radians(160.0f));
-    this->invProj = glm::inverse(this->camera.Proj);
 
     // setup the KC emulator
     this->kc85Emu.Setup(gfxSetup);
@@ -134,7 +132,7 @@ KC853App::handleInput() {
         screenSpaceMousePos.x /= float(disp.FramebufferWidth);
         screenSpaceMousePos.y /= float(disp.FramebufferHeight);
         glm::mat4 invView = glm::inverse(this->camera.View);
-        int hit = this->rayChecker.Test(screenSpaceMousePos, invView, this->invProj);
+        int hit = this->rayChecker.Test(screenSpaceMousePos, invView, this->camera.InvProj);
         switch (hit) {
             case PowerOnButton:
                 if (mouse.ButtonDown(Mouse::LMB)) {
