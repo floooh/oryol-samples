@@ -9,6 +9,10 @@
 #define STB_VOXEL_RENDER_IMPLEMENTATION
 #define STBVOX_CONFIG_MODE (30)
 #define STBVOX_CONFIG_PRECISION_Z (0)
+#ifdef _MSC_VER
+#pragma warning(disable:4267) // size_t to int conversion
+#pragma warning(disable:4244) // __in64 to int conversion
+#endif
 #include "Common/stb_voxel_render.h"
 
 namespace Oryol {

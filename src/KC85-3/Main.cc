@@ -190,7 +190,7 @@ KC853App::tooltip(const DisplayAttrs& disp, const char* str) {
     
     // center the text
     int center = (disp.FramebufferWidth / 16) / 2;
-    int len = std::strlen(str);
+    int len = int(std::strlen(str));
     int posX = center - (len/2);
     if (posX < 0) {
         posX = 0;
