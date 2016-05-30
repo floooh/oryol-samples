@@ -88,7 +88,7 @@ SceneRenderer::setupShaderParams() {
     }
 
     this->vsParams.LightDir = glm::normalize(glm::vec3(0.5f, 1.0f, -0.25f));
-    this->vsParams.LightIntensity = 0.75f;
+    this->vsParams.LightIntensity = 1.0f;
     this->vsParams.Scale = glm::vec3(1.0f);
 }
 
