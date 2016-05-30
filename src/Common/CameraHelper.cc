@@ -60,7 +60,7 @@ CameraHelper::handleInput() {
                 this->Orbital.x = glm::clamp(this->Orbital.x + mouse.Movement.y * 0.01f, glm::radians(this->MinLatitude), glm::radians(this->MaxLatitude));
             }
         }
-        this->Distance = glm::clamp(this->Distance + mouse.Scroll.y * 0.1f, this->MinCamDist, this->MaxCamDist);
+        this->Distance = glm::clamp(this->Distance + mouse.Scroll.y * 0.5f, this->MinCamDist, this->MaxCamDist);
     }
 }
 
