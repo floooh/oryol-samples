@@ -108,6 +108,7 @@ KC85Emu::StartGame(const char* name) {
         for (const auto& item : this->fileLoader.Items) {
             if ((int(item.Compat) & int(this->emu.model)) && (item.Name == name)) {
                 this->fileLoader.LoadAndStart(this->emu, item);
+                break;
             }
         }
     }
