@@ -36,7 +36,11 @@ public:
 
     void handleInput();
 
+    static const uint32_t InvalidFrameIndex = 0xFFFFFFFF;
     uint32_t frameIndex = 0;
+    uint32_t startGameFrameIndex = InvalidFrameIndex;
+    const char* startGameName = nullptr;
+    
     DrawState drawState;
     uint8_t last_ascii;
     yakc::emu emu;

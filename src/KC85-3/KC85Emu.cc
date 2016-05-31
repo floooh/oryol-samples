@@ -58,15 +58,37 @@ KC85Emu::Discard() {
 //------------------------------------------------------------------------------
 void
 KC85Emu::Update(Duration frameTime) {
-    this->handleInput();
-    int micro_secs = (int) frameTime.AsMicroSeconds();
-    const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
-    const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
-    const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
-    const uint64_t min_cycle_count = audio_cycle_count + cpu_min_ahead_cycles;
-    const uint64_t max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
-    this->emu.onframe(2, micro_secs, min_cycle_count, max_cycle_count);
-    this->audio.Update(this->emu.board.clck);
+    this->frameIndex++;
+    if (this->SwitchedOn()) {
+        // need to start a game?
+        if (this->startGameFrameIndex == this->frameIndex) {
+            for (const auto& item : this->fileLoader.Items) {
+                if ((int(item.Compat) & int(this->emu.model)) && (item.Name == this->startGameName)) {
+                    this->fileLoader.LoadAndStart(this->emu, item);
+                    break;
+                }
+            }
+        }
+
+        // handle the normal emulator per-frame update
+        this->handleInput();
+        int micro_secs = (int) frameTime.AsMicroSeconds();
+        const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
+        const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
+        const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
+        const uint64_t min_cycle_count = audio_cycle_count + cpu_min_ahead_cycles;
+        const uint64_t max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
+        this->emu.onframe(2, micro_secs, min_cycle_count, max_cycle_count);
+        this->audio.Update(this->emu.board.clck);
+    }
+    else {
+        // switch KC on once after a little while
+        if (this->frameIndex == 120) {
+            if (!this->SwitchedOn()) {
+                this->TogglePower();
+            }
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -104,22 +126,21 @@ KC85Emu::Reset() {
 void
 KC85Emu::StartGame(const char* name) {
     o_assert_dbg(name);
+
+    // switch KC off and on, and start game after it has booted
     if (this->SwitchedOn()) {
-        for (const auto& item : this->fileLoader.Items) {
-            if ((int(item.Compat) & int(this->emu.model)) && (item.Name == name)) {
-                this->fileLoader.LoadAndStart(this->emu, item);
-                break;
-            }
-        }
+        this->TogglePower();
     }
+    this->TogglePower();
+    this->startGameFrameIndex = this->frameIndex + 5 * 60;
+    this->startGameName = name;
 }
 
 //------------------------------------------------------------------------------
 void
 KC85Emu::Render(const glm::mat4& mvp) {
 
-    this->frameIndex++;
-    if (this->emu.kc85.on) {
+    if (this->SwitchedOn()) {
         // update the offscreen texture
         const int width = 320;
         const int height = 256;
@@ -133,14 +154,6 @@ KC85Emu::Render(const glm::mat4& mvp) {
         Gfx::ApplyDrawState(this->drawState);
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::Draw(0);
-    }
-    else {
-        // switch KC on once after a little while
-        if (this->frameIndex == 120) {
-            if (!this->SwitchedOn()) {
-                this->TogglePower();
-            }
-        }
     }
 }
 

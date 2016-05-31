@@ -24,14 +24,20 @@ public:
     AppState::Code OnCleanup();
 
     // interactive elements
-    static const int PowerOnButton = 0;
-    static const int ResetButton   = 1;
-    static const int BaseDevice    = 2;
-    static const int Screen        = 3;
-    static const int Junost        = 4;
-    static const int Keyboard      = 5;
-    static const int TapeDeck      = 6;
-    static const int StartJungle   = 10;
+    enum {
+        PowerOnButton,
+        ResetButton,
+        BaseDevice,
+        Screen,
+        Junost,
+        Keyboard,
+        TapeDeck,
+        Jungle,
+        Digger,
+        Pengo,
+        Boulderdash,
+        Cave
+    };
 
     void handleInput();
     void tooltip(const DisplayAttrs& disp, const char* str);
@@ -70,8 +76,12 @@ KC853App::OnInit() {
     this->rayChecker.Add(PowerOnButton, glm::vec3(44, 1, 37), glm::vec3(49, 5, 41));
     this->rayChecker.Add(ResetButton,   glm::vec3(51, 1, 37), glm::vec3(56, 5, 41));
     this->rayChecker.Add(BaseDevice,    glm::vec3(40, 1, 39), glm::vec3(79, 8, 65));
-    this->rayChecker.Add(StartJungle,   glm::vec3(14, 0, 28), glm::vec3(33, 6, 40));
     this->rayChecker.Add(Keyboard,      glm::vec3(44, 1, 18), glm::vec3(75, 2, 33));
+    this->rayChecker.Add(Jungle,        glm::vec3(26, 1, 17), glm::vec3(34, 2, 22));
+    this->rayChecker.Add(Digger,        glm::vec3(19, 7, 46), glm::vec3(27, 8, 51));
+    this->rayChecker.Add(Pengo,         glm::vec3(15, 1, 13), glm::vec3(23, 2, 18));
+    this->rayChecker.Add(Boulderdash,   glm::vec3(21, 1, 4),  glm::vec3(29, 2, 9));
+    this->rayChecker.Add(Cave,          glm::vec3(14, 0, 28), glm::vec3(33, 6, 40));
     this->rayChecker.Add(TapeDeck,      glm::vec3(14, 0, 41), glm::vec3(33, 6, 54));
 
     // setup the camera helper
@@ -166,11 +176,35 @@ KC853App::handleInput() {
             case TapeDeck:
                 this->tooltip(disp, "AN 'LCR-C DATA' TAPE DECK");
                 break;
-            case StartJungle:
+            case Jungle:
                 if (mouse.ButtonDown(Mouse::LMB)) {
                     this->kc85Emu.StartGame("Jungle");
                 }
                 this->tooltip(disp, "PLAY JUNGLE!");
+                break;
+            case Digger:
+                if (mouse.ButtonDown(Mouse::LMB)) {
+                    this->kc85Emu.StartGame("Digger");
+                }
+                this->tooltip(disp, "PLAY DIGGER!");
+                break;
+            case Pengo:
+                if (mouse.ButtonDown(Mouse::LMB)) {
+                    this->kc85Emu.StartGame("Pengo");
+                }
+                this->tooltip(disp, "PLAY PENGO!");
+                break;
+            case Boulderdash:
+                if (mouse.ButtonDown(Mouse::LMB)) {
+                    this->kc85Emu.StartGame("Boulderdash");
+                }
+                this->tooltip(disp, "PLAY BOULDERDASH!");
+                break;
+            case Cave:
+                if (mouse.ButtonDown(Mouse::LMB)) {
+                    this->kc85Emu.StartGame("Cave");
+                }
+                this->tooltip(disp, "PLAY CAVE!");
                 break;
             default:
                 if (!this->kc85Emu.SwitchedOn()) {
