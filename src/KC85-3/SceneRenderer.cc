@@ -162,7 +162,7 @@ SceneRenderer::createVoxelMeshes(const VertexLayout& layout) {
     auto meshSetup = MeshSetup::FromData();
     meshSetup.Layout = layout;
     const int vtxBufSize = MaxNumVertices * layout.ByteSize();
-    void* vtxBuf = Memory::Alloc((1<<16)*8);
+    void* vtxBuf = Memory::Alloc(vtxBufSize);
 
     Array<voxMesh> result;
     stbvox_set_buffer(&stbvox, 0, 0, vtxBuf, vtxBufSize);
