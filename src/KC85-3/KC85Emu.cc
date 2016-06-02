@@ -7,7 +7,7 @@
 #include "Input/Input.h"
 #include "emu_shaders.h"
 
-using namespace yakc;
+using namespace YAKC;
 
 namespace Oryol {
 
@@ -18,7 +18,11 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     // initialize the emulator as KC85/3
     this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
     this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
-    this->emu.init();
+    ext_funcs funcs;
+    funcs.assertmsg_func = Log::AssertMsg;
+    funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(s); };
+    funcs.free_func   = [] (void* p) { Memory::Free(p); };
+    this->emu.init(funcs);
     this->draw.Setup(gfxSetup, 5);
     this->audio.Setup(this->emu.board.clck);
     this->emu.kc85.audio.setup_callbacks(&this->audio, Audio::cb_sound, Audio::cb_volume, Audio::cb_stop);

@@ -5,10 +5,10 @@
     @brief emulator wrapper class
 */
 #include "Core/Types.h"
-#include "yakc/KC85Oryol.h"
-#include "yakc/Draw.h"
-#include "yakc/Audio.h"
-#include "ui/FileLoader.h"  // FIXME: this should not go under 'UI'
+#include "yakc/yakc.h"
+#include "yakc_oryol/Draw.h"
+#include "yakc_oryol/Audio.h"
+#include "yakc_oryol/FileLoader.h"
 #include "Core/Time/Duration.h"
 #include "glm/mat4x4.hpp"
 
@@ -43,10 +43,10 @@ public:
     
     DrawState drawState;
     uint8_t last_ascii;
-    yakc::emu emu;
-    yakc::Draw draw;
-    yakc::Audio audio;
-    yakc::FileLoader fileLoader;
+    YAKC::yakc emu;
+    YAKC::Draw draw;
+    YAKC::Audio audio;
+    YAKC::FileLoader fileLoader;
     Id renderTarget;
 };
 
