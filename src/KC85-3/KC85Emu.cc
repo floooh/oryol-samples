@@ -20,7 +20,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     ext_funcs funcs;
     funcs.assertmsg_func = Log::AssertMsg;
-    funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(s); };
+    funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
     funcs.free_func   = [] (void* p) { Memory::Free(p); };
     this->emu.init(funcs);
     this->draw.Setup(gfxSetup, 5);
