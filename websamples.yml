@@ -1,6 +1,6 @@
 - name: KC85-3
   desc: Test
-  type: emscripten
+  type: emscripten,pnacl
   image: /Users/floh/projects/oryol-samples/src/KC85-3/KC85-3.jpg
   src: KC85-3/Main.cc
 - name: BulletPhysicsBasic
