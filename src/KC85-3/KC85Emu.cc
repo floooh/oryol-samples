@@ -80,9 +80,15 @@ KC85Emu::Update(Duration frameTime) {
         const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
         const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
         const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
-        const uint64_t min_cycle_count = audio_cycle_count + cpu_min_ahead_cycles;
-        const uint64_t max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
-        this->emu.onframe(2, micro_secs, min_cycle_count, max_cycle_count);
+        uint64_t min_cycle_count = 0;
+        uint64_t max_cycle_count = 0;
+        if (audio_cycle_count > 0) {
+            const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
+            const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
+            min_cycle_count = audio_cycle_count + cpu_min_ahead_cycles;
+            max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
+        }
+        this->emu.onframe(1, micro_secs, min_cycle_count, max_cycle_count);
         this->audio.Update(this->emu.board.clck);
     }
     else {
