@@ -194,7 +194,6 @@ DrawCallExplorerApp::OnInit() {
     gfxSetup.GlobalUniformBufferSize = 1024 * 1024 * 32;
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::BeginCaptureText();
     IMUI::Setup();
 
     // create resources

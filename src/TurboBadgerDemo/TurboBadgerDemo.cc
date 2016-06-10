@@ -68,7 +68,6 @@ TurboBadgerDemoApp::OnInit() {
     Gfx::Setup(GfxSetup::Window(1000, 650, "TurboBadger UI Demo"));
     Dbg::Setup();
     Input::Setup();
-    Input::BeginCaptureText();
     this->clearState.Color = glm::vec4(0.5f, 0.0f, 1.0f, 1.0f);
     
     // TBSelectList and TBSelectDropdown widgets have a default item source that are fed with any items

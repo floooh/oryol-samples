@@ -52,17 +52,17 @@ VoxelTest::OnInit() {
     gfxSetup.ClearHint = this->clearState;
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::SetMousePointerLockHandler([](const Mouse::Event& event) -> Mouse::PointerLockMode {
+    Input::SetMousePointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
         // switch pointer-lock on/off on left-mouse-button
-        if ((event.Button == Mouse::LMB) || (event.Button == Mouse::RMB)) {
-            if (event.Type == Mouse::Event::ButtonDown) {
-                return Mouse::PointerLockModeEnable;
+        if ((event.Button == MouseButton::Left) || (event.Button == MouseButton::Right)) {
+            if (event.Type == InputEvent::MouseButtonDown) {
+                return PointerLockMode::Enable;
             }
-            else if (event.Type == Mouse::Event::ButtonUp) {
-                return Mouse::PointerLockModeDisable;
+            else if (event.Type == InputEvent::MouseButtonUp) {
+                return PointerLockMode::Disable;
             }
         }
-        return Mouse::PointerLockModeDontCare;
+        return PointerLockMode::DontCare;
     });
     Dbg::Setup();
 
@@ -204,35 +204,32 @@ VoxelTest::handle_input() {
     glm::vec3 move;
     glm::vec2 rot;
     const float vel = 0.75f;
-    const Keyboard& kbd = Input::Keyboard();
-    if (kbd.Attached) {
-        if (kbd.KeyPressed(Key::W) || kbd.KeyPressed(Key::Up)) {
+    if (Input::KeyboardAttached()) {
+        if (Input::KeyPressed(Key::W) || Input::KeyPressed(Key::Up)) {
             move.z -= vel;
         }
-        if (kbd.KeyPressed(Key::S) || kbd.KeyPressed(Key::Down)) {
+        if (Input::KeyPressed(Key::S) || Input::KeyPressed(Key::Down)) {
             move.z += vel;
         }
-        if (kbd.KeyPressed(Key::A) || kbd.KeyPressed(Key::Left)) {
+        if (Input::KeyPressed(Key::A) || Input::KeyPressed(Key::Left)) {
             move.x -= vel;
         }
-        if (kbd.KeyPressed(Key::D) || kbd.KeyPressed(Key::Right)) {
+        if (Input::KeyPressed(Key::D) || Input::KeyPressed(Key::Right)) {
             move.x += vel;
         }
     }
-    const Mouse& mouse = Input::Mouse();
-    if (mouse.Attached) {
-        if (mouse.ButtonPressed(Mouse::Button::LMB)) {
+    if (Input::MouseAttached()) {
+        if (Input::MouseButtonPressed(MouseButton::Left)) {
             move.z -= vel;
         }
-        if (mouse.ButtonPressed(Mouse::Button::LMB) || mouse.ButtonPressed(Mouse::Button::RMB)) {
-            rot = mouse.Movement * glm::vec2(-0.01f, -0.007f);
+        if (Input::MouseButtonPressed(MouseButton::Left) || Input::MouseButtonPressed(MouseButton::Right)) {
+            rot = Input::MouseMovement() * glm::vec2(-0.01f, -0.007f);
         }
     }
-    const Touchpad& touch = Input::Touchpad();
-    if (touch.Attached) {
-        if (touch.Panning) {
+    if (Input::TouchpadAttached()) {
+        if (Input::TouchPanning()) {
             move.z -= vel;
-            rot = touch.Movement[0] * glm::vec2(-0.01f, 0.01f);
+            rot = Input::TouchMovement(0) * glm::vec2(-0.01f, 0.01f);
         }
     }
     this->camera.MoveRotate(move, rot);

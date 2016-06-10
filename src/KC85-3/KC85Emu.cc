@@ -170,22 +170,18 @@ KC85Emu::Render(const glm::mat4& mvp) {
 //------------------------------------------------------------------------------
 void
 KC85Emu::handleInput() {
-    // FIXME: this should go into the yakc emulator
-    const Keyboard& kbd = Input::Keyboard();
-
     #if YAKC_UI
-    const Touchpad& touch = Input::Touchpad();
     // don't handle KC input if IMGUI has the keyboard focus
     if (ImGui::GetIO().WantCaptureKeyboard) {
         return;
     }
     // toggle UI?
-    if (kbd.KeyDown(Key::Tab) || touch.DoubleTapped) {
+    if (Input::KeyDown(Key::Tab) || Input::TouchDoubleTapped()) {
         this->ui.Toggle();
     }
     #endif
 
-    const wchar_t* text = kbd.CapturedText();
+    const wchar_t* text = Input::CapturedText();
     ubyte ascii = 0;
 
     // alpha-numerics
@@ -199,7 +195,7 @@ KC85Emu::handleInput() {
             ascii = tolower(ascii);
         }
     }
-    if ((ascii == 0) && (kbd.AnyKeyPressed())) {
+    if ((ascii == 0) && (Input::AnyKeyPressed())) {
         ascii = this->last_ascii;
     }
     this->last_ascii = ascii;
@@ -233,12 +229,12 @@ KC85Emu::handleInput() {
         { Key::F12, 0xFC },
     };
     for (const auto& key : keyTable) {
-        if (kbd.KeyPressed(key.key)) {
+        if (Input::KeyPressed(key.key)) {
             // special case: shift-backspace clears screen shift-escape is STP
-            if (kbd.KeyPressed(Key::LeftShift) && (key.key == Key::BackSpace)) {
+            if (Input::KeyPressed(Key::LeftShift) && (key.key == Key::BackSpace)) {
                 ascii = 0x0C;
             }
-            else if (kbd.KeyPressed(Key::LeftShift) && (key.key == Key::Escape)) {
+            else if (Input::KeyPressed(Key::LeftShift) && (key.key == Key::Escape)) {
                 ascii = 0x13;
             }
             else {

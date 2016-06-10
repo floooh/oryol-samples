@@ -13,20 +13,20 @@ namespace Oryol {
 void
 CameraHelper::Setup(bool usePointerLock) {
     // on left mouse button, lock mouse pointer
-    Input::SetMousePointerLockHandler([this, usePointerLock] (const Mouse::Event& event) -> Mouse::PointerLockMode {
-        Mouse::PointerLockMode mode = Mouse::PointerLockModeDontCare;
-        if (event.Button == Mouse::LMB) {
-            if (event.Type == Mouse::Event::ButtonDown) {
+    Input::SetMousePointerLockHandler([this, usePointerLock] (const InputEvent& event) -> PointerLockMode::Code {
+        PointerLockMode::Code mode = PointerLockMode::DontCare;
+        if (event.Button == MouseButton::Left) {
+            if (event.Type == InputEvent::MouseButtonDown) {
                 this->Dragging = true;
                 if (usePointerLock) {
-                    mode = Mouse::PointerLockModeEnable;
+                    mode = PointerLockMode::Enable;
                 }
             }
-            else if (event.Type == Mouse::Event::ButtonUp) {
+            else if (event.Type == InputEvent::MouseButtonUp) {
                 if (this->Dragging) {
                     this->Dragging = false;
                     if (usePointerLock) {
-                        mode = Mouse::PointerLockModeDisable;
+                        mode = PointerLockMode::Disable;
                     }
                 }
             }
@@ -46,21 +46,21 @@ CameraHelper::Update() {
 //------------------------------------------------------------------------------
 void
 CameraHelper::handleInput() {
-    const Keyboard& kbd = Input::Keyboard();
-    const Mouse& mouse = Input::Mouse();
-    if (kbd.Attached) {
-        if (kbd.KeyDown(Key::P)) {
+    if (Input::KeyboardAttached()) {
+        if (Input::KeyDown(Key::P)) {
             this->Paused = !this->Paused;
         }
     }
-    if (mouse.Attached) {
+    if (Input::MouseAttached()) {
         if (this->Dragging) {
-            if (mouse.ButtonPressed(Mouse::LMB)) {
-                this->Orbital.y -= mouse.Movement.x * 0.01f;
-                this->Orbital.x = glm::clamp(this->Orbital.x + mouse.Movement.y * 0.01f, glm::radians(this->MinLatitude), glm::radians(this->MaxLatitude));
+            if (Input::MouseButtonPressed(MouseButton::Left)) {
+                this->Orbital.y -= Input::MouseMovement().x * 0.01f;
+                this->Orbital.x = glm::clamp(this->Orbital.x + Input::MouseMovement().y * 0.01f,
+                                             glm::radians(this->MinLatitude),
+                                             glm::radians(this->MaxLatitude));
             }
         }
-        this->Distance = glm::clamp(this->Distance + mouse.Scroll.y * 0.5f, this->MinCamDist, this->MaxCamDist);
+        this->Distance = glm::clamp(this->Distance + Input::MouseScroll().y * 0.5f, this->MinCamDist, this->MaxCamDist);
     }
 }
 

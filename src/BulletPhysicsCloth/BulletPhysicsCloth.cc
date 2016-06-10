@@ -158,7 +158,7 @@ BulletPhysicsClothApp::OnRunning() {
     Duration instUpdTime = this->updateInstanceData();
     Duration clothUpdTime = this->updateClothData();
     this->camera.Update();
-    if (Input::Keyboard().Attached && Input::Keyboard().KeyDown(Key::F)) {
+    if (Input::KeyboardAttached() && Input::KeyDown(Key::F)) {
         this->clothFlatShading = !this->clothFlatShading;
     }
 

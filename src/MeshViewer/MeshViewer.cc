@@ -127,22 +127,22 @@ MeshViewerApp::OnInit() {
     gfxSetup.ClearHint = this->clearState;
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::SetMousePointerLockHandler([this] (const Mouse::Event& event) -> Mouse::PointerLockMode {
-        if (event.Button == Mouse::LMB) {
-            if (event.Type == Mouse::Event::ButtonDown) {
+    Input::SetMousePointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
+        if (event.Button == MouseButton::Left) {
+            if (event.Type == InputEvent::MouseButtonDown) {
                 if (!ImGui::IsMouseHoveringAnyWindow()) {
                     this->dragging = true;
-                    return Mouse::PointerLockModeEnable;
+                    return PointerLockMode::Enable;
                 }
             }
-            else if (event.Type == Mouse::Event::ButtonUp) {
+            else if (event.Type == InputEvent::MouseButtonUp) {
                 if (this->dragging) {
                     this->dragging = false;
-                    return Mouse::PointerLockModeDisable;
+                    return PointerLockMode::Disable;
                 }
             }
         }
-        return Mouse::PointerLockModeDontCare;
+        return PointerLockMode::DontCare;
     });
 
     // setup IMUI ui system
@@ -223,36 +223,37 @@ void
 MeshViewerApp::handleInput() {
 
     // rotate camera with mouse if not UI-dragging
-    const Touchpad& tpad = Input::Touchpad();
-    if (tpad.Attached) {
+    if (Input::TouchpadAttached()) {
         if (!ImGui::IsMouseHoveringAnyWindow()) {
-            if (tpad.PanningStarted) {
+            if (Input::TouchPanningStarted()) {
                 this->camera.startOrbital = this->camera.orbital;
             }
-            if (tpad.Panning) {
-                glm::vec2 diff = (tpad.Position[0] - tpad.StartPosition[0]) * 0.01f;
+            if (Input::TouchPanning()) {
+                glm::vec2 diff = (Input::TouchPosition(0) - Input::TouchStartPosition(0)) * 0.01f;
                 this->camera.orbital.y = this->camera.startOrbital.y - diff.x;
                 this->camera.orbital.x = glm::clamp(this->camera.startOrbital.x + diff.y, glm::radians(minLatitude), glm::radians(maxLatitude));
             }
-            if (tpad.PinchingStarted) {
+            if (Input::TouchPinchingStarted()) {
                 this->camera.startDistance = this->camera.dist;
             }
-            if (tpad.Pinching) {
-                float startDist = glm::length(glm::vec2(tpad.StartPosition[1] - tpad.StartPosition[0]));
-                float curDist   = glm::length(glm::vec2(tpad.Position[1] - tpad.Position[0]));
+            if (Input::TouchPinching()) {
+                float startDist = glm::length(glm::vec2(Input::TouchStartPosition(1) - Input::TouchStartPosition(0)));
+                float curDist   = glm::length(glm::vec2(Input::TouchPosition(1) - Input::TouchPosition(0)));
                 this->camera.dist = glm::clamp(this->camera.startDistance - (curDist - startDist) * 0.01f, minCamDist, maxCamDist);
             }
         }
     }
-    const Mouse& mouse = Input::Mouse();
-    if (mouse.Attached) {
+    if (Input::MouseAttached()) {
         if (this->dragging) {
-            if (mouse.ButtonPressed(Mouse::LMB)) {
-                this->camera.orbital.y -= mouse.Movement.x * 0.01f;
-                this->camera.orbital.x = glm::clamp(this->camera.orbital.x + mouse.Movement.y * 0.01f, glm::radians(minLatitude), glm::radians(maxLatitude));
+            if (Input::MouseButtonPressed(MouseButton::Left)) {
+                this->camera.orbital.y -= Input::MouseMovement().x * 0.01f;
+                this->camera.orbital.x = glm::clamp(
+                    this->camera.orbital.x + Input::MouseMovement().y * 0.01f,
+                    glm::radians(minLatitude),
+                    glm::radians(maxLatitude));
             }
         }
-        this->camera.dist = glm::clamp(this->camera.dist + mouse.Scroll.y * 0.1f, minCamDist, maxCamDist);
+        this->camera.dist = glm::clamp(this->camera.dist + Input::MouseScroll().y * 0.1f, minCamDist, maxCamDist);
     }
 }
 
