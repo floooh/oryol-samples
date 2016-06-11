@@ -13,7 +13,7 @@ namespace Oryol {
 void
 CameraHelper::Setup(bool usePointerLock) {
     // on left mouse button, lock mouse pointer
-    Input::SetMousePointerLockHandler([this, usePointerLock] (const InputEvent& event) -> PointerLockMode::Code {
+    Input::SetPointerLockHandler([this, usePointerLock] (const InputEvent& event) -> PointerLockMode::Code {
         PointerLockMode::Code mode = PointerLockMode::DontCare;
         if (event.Button == MouseButton::Left) {
             if (event.Type == InputEvent::MouseButtonDown) {

@@ -127,7 +127,7 @@ MeshViewerApp::OnInit() {
     gfxSetup.ClearHint = this->clearState;
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::SetMousePointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
+    Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
         if (event.Button == MouseButton::Left) {
             if (event.Type == InputEvent::MouseButtonDown) {
                 if (!ImGui::IsMouseHoveringAnyWindow()) {

@@ -52,7 +52,7 @@ VoxelTest::OnInit() {
     gfxSetup.ClearHint = this->clearState;
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::SetMousePointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
+    Input::SetPointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
         // switch pointer-lock on/off on left-mouse-button
         if ((event.Button == MouseButton::Left) || (event.Button == MouseButton::Right)) {
             if (event.Type == InputEvent::MouseButtonDown) {

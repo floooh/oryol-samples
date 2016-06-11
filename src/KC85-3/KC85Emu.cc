@@ -181,7 +181,7 @@ KC85Emu::handleInput() {
     }
     #endif
 
-    const wchar_t* text = Input::CapturedText();
+    const wchar_t* text = Input::Text();
     ubyte ascii = 0;
 
     // alpha-numerics
