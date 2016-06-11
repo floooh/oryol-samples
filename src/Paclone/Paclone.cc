@@ -144,33 +144,28 @@ PacloneApp::OnCleanup() {
 //------------------------------------------------------------------------------
 Direction
 PacloneApp::getInput() {
-    const Keyboard& kbd = Input::Keyboard();
-    if (kbd.Attached) {
-        if (kbd.KeyPressed(Key::Left))       this->input = Left;
-        else if (kbd.KeyPressed(Key::Right)) this->input = Right;
-        else if (kbd.KeyPressed(Key::Up))    this->input = Up;
-        else if (kbd.KeyPressed(Key::Down))  this->input = Down;
+    if (Input::KeyboardAttached()) {
+        if (Input::KeyPressed(Key::Left))       this->input = Left;
+        else if (Input::KeyPressed(Key::Right)) this->input = Right;
+        else if (Input::KeyPressed(Key::Up))    this->input = Up;
+        else if (Input::KeyPressed(Key::Down))  this->input = Down;
     }
-    const Touchpad& tpad = Input::Touchpad();
-    const Mouse& mouse = Input::Mouse();
-    if (tpad.Attached || mouse.Attached) {
-        if (tpad.Tapped || tpad.Panning || mouse.ButtonPressed(Mouse::Button::LMB)) {
-            float x, y;
-            if (tpad.Tapped || tpad.Panning) {
-                x = tpad.Position[0].x;
-                y = tpad.Position[0].y;
+    if (Input::TouchpadAttached() || Input::MouseAttached()) {
+        if (Input::TouchTapped() || Input::TouchPanning() || Input::MouseButtonPressed(MouseButton::Left)) {
+            glm::vec2 pos;
+            if (Input::TouchTapped() || Input::TouchPanning()) {
+                pos = Input::TouchPosition(0);
             }
             else {
-                x = mouse.Position.x;
-                y = mouse.Position.y;
+                pos = Input::MousePosition();
             }
             const Int2 pacmanPos = this->gameState.PacmanPos();
             const float relX = float(pacmanPos.x) / float(this->spriteCanvas.CanvasWidth());
             const float relY = float(pacmanPos.y) / float(this->spriteCanvas.CanvasHeight());
             const float px = this->viewPortX + this->viewPortW * relX;
             const float py = this->viewPortY + this->viewPortH * relY;
-            const float dx = x - px;
-            const float dy = y - py;
+            const float dx = pos.x - px;
+            const float dy = pos.y - py;
             if (glm::abs(dx) > glm::abs(dy)) {
                 // it's a horizontal movement
                 this->input = dx < 0.0f ? Left : Right;

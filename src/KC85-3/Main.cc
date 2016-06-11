@@ -64,7 +64,6 @@ KC853App::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
     Gfx::Setup(gfxSetup);
     Input::Setup();
-    Input::BeginCaptureText();
     Dbg::Setup();
     Dbg::SetTextScale(glm::vec2(2.0f));
 
@@ -135,9 +134,9 @@ KC853App::OnCleanup() {
 //------------------------------------------------------------------------------
 void
 KC853App::handleInput() {
-    const Mouse& mouse = Input::Mouse();
-    if (mouse.Attached) {
-        glm::vec2 screenSpaceMousePos = mouse.Position;
+    if (Input::MouseAttached()) {
+        glm::vec2 screenSpaceMousePos = Input::MousePosition();
+        const bool lmb = Input::MouseButtonDown(MouseButton::Left);
         const DisplayAttrs& disp = Gfx::DisplayAttrs();
         screenSpaceMousePos.x /= float(disp.FramebufferWidth);
         screenSpaceMousePos.y /= float(disp.FramebufferHeight);
@@ -145,7 +144,7 @@ KC853App::handleInput() {
         int hit = this->rayChecker.Test(screenSpaceMousePos, invView, this->camera.InvProj);
         switch (hit) {
             case PowerOnButton:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.TogglePower();
                 }
                 if (this->kc85Emu.SwitchedOn()) {
@@ -156,7 +155,7 @@ KC853App::handleInput() {
                 }
                 break;
             case ResetButton:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.Reset();
                 }
                 this->tooltip(disp, "RESET KC85/3");
@@ -177,31 +176,31 @@ KC853App::handleInput() {
                 this->tooltip(disp, "AN 'LCR-C DATA' TAPE DECK");
                 break;
             case Jungle:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.StartGame("Jungle");
                 }
                 this->tooltip(disp, "PLAY JUNGLE!");
                 break;
             case Digger:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.StartGame("Digger");
                 }
                 this->tooltip(disp, "PLAY DIGGER!");
                 break;
             case Pengo:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.StartGame("Pengo");
                 }
                 this->tooltip(disp, "PLAY PENGO!");
                 break;
             case Boulderdash:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.StartGame("Boulderdash");
                 }
                 this->tooltip(disp, "PLAY BOULDERDASH!");
                 break;
             case Cave:
-                if (mouse.ButtonDown(Mouse::LMB)) {
+                if (lmb) {
                     this->kc85Emu.StartGame("Cave");
                 }
                 this->tooltip(disp, "PLAY CAVE!");

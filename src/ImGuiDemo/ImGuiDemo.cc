@@ -33,7 +33,6 @@ AppState::Code
 ImGuiDemoApp::OnInit() {
     Gfx::Setup(GfxSetup::Window(1024, 700, "Oryol ImGui Demo"));
     Input::Setup();
-    Input::BeginCaptureText();
     IMUI::Setup();
     this->lastTimePoint = Clock::Now();
 
