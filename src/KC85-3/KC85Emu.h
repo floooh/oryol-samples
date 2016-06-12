@@ -8,6 +8,7 @@
 #include "yakc/yakc.h"
 #include "yakc_oryol/Draw.h"
 #include "yakc_oryol/Audio.h"
+#include "yakc_oryol/Keyboard.h"
 #include "yakc_oryol/FileLoader.h"
 #include "Core/Time/Duration.h"
 #include "glm/mat4x4.hpp"
@@ -34,18 +35,16 @@ public:
     /// load and start a game by name
     void StartGame(const char* name);
 
-    void handleInput();
-
     static const uint32_t InvalidFrameIndex = 0xFFFFFFFF;
     uint32_t frameIndex = 0;
     uint32_t startGameFrameIndex = InvalidFrameIndex;
     const char* startGameName = nullptr;
     
     DrawState drawState;
-    uint8_t last_ascii;
     YAKC::yakc emu;
     YAKC::Draw draw;
     YAKC::Audio audio;
+    YAKC::Keyboard keyboard;
     YAKC::FileLoader fileLoader;
     Id renderTarget;
 };
