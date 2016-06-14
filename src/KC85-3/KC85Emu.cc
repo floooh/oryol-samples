@@ -18,15 +18,19 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     // initialize the emulator as KC85/3
     this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
     this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
-    ext_funcs funcs;
-    funcs.assertmsg_func = Log::AssertMsg;
-    funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
-    funcs.free_func   = [] (void* p) { Memory::Free(p); };
-    this->emu.init(funcs);
-    this->draw.Setup(gfxSetup, 5);
+    ext_funcs sys_funcs;
+    sys_funcs.assertmsg_func = Log::AssertMsg;
+    sys_funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
+    sys_funcs.free_func   = [] (void* p) { Memory::Free(p); };
+    sound_funcs snd_funcs;
+    snd_funcs.userdata = &this->audio;
+    snd_funcs.sound = Audio::cb_sound;
+    snd_funcs.volume = Audio::cb_volume;
+    snd_funcs.stop = Audio::cb_stop;
+    this->emu.init(sys_funcs, snd_funcs);
+    this->draw.Setup(gfxSetup, 5, 5);
     this->audio.Setup(this->emu.board.clck);
     this->keyboard.Setup(this->emu);
-    this->emu.kc85.audio.setup_callbacks(&this->audio, Audio::cb_sound, Audio::cb_volume, Audio::cb_stop);
     this->fileLoader.Setup(this->emu);
 
     // register modules
