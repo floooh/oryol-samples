@@ -11,6 +11,9 @@ include("${FIPS_ROOT_DIR}/cmake/fips.cmake")
 # sure that our overriden config.h is included
 include_directories(../oryol-tbui/src/TBUI/tb)
 
+# force ORYOL_SAMPLE_URL to location of oryol-samples webpage
+set(ORYOL_SAMPLE_URL "http://floooh.github.com/oryol-samples/data/" CACHE STRING "Samples URL" FORCE)
+
 fips_setup(PROJECT oryol-samples)
 include_directories(src)
 
