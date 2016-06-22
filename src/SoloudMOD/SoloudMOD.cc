@@ -105,11 +105,7 @@ SoloudMODApp::OnInit() {
 
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    #if ORYOL_DEBUG
-    ioSetup.Assigns.Add("snd:", "http://localhost:8000/");
-    #else
     ioSetup.Assigns.Add("snd:", ORYOL_SAMPLE_URL);
-    #endif
     IO::Setup(ioSetup);
 
     Gfx::Setup(GfxSetup::Window(800, 500, "SoLoud MOD Demo"));
