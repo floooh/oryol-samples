@@ -13,7 +13,7 @@ GitHubSamplesURL = 'https://github.com/floooh/oryol-samples/tree/master/src/'
 
 BuildEmscripten = True
 BuildPNaCl = True 
-BuildWasm = False
+BuildWasm = True
 ExportAssets = True
 
 #-------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
 
     # generate emscripten HTML pages
     if BuildEmscripten and emscripten.check_exists(fips_dir) :
-        emsc_deploy_dir = '{}/fips-deploy/oryol-samples/emsc-ninja-release'.format(ws_dir)
+        emsc_deploy_dir = '{}/fips-deploy/oryol-samples/emsc-make-release'.format(ws_dir)
         for sample in samples :
             name = sample['name']
             if name != '__end__' and 'emscripten' in sample['type'] :
@@ -96,7 +96,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
 
     # generate WebAssembly HTML pages
     if BuildWasm and emscripten.check_exists(fips_dir) :
-        wasm_deploy_dir = '{}/fips-deploy/oryol-samples/wasm-ninja-release'.format(ws_dir)
+        wasm_deploy_dir = '{}/fips-deploy/oryol-samples/wasm-make-release'.format(ws_dir)
         for sample in samples :
             name = sample['name']
             if name != '__end__' and 'emscripten' in sample['type'] :
@@ -118,7 +118,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
 
     # generate PNaCl HTML pages
     if BuildPNaCl and nacl.check_exists(fips_dir) :
-        pnacl_deploy_dir = '{}/fips-deploy/oryol-samples/pnacl-ninja-release'.format(ws_dir)
+        pnacl_deploy_dir = '{}/fips-deploy/oryol-samples/pnacl-make-release'.format(ws_dir)
         for sample in samples :
             name = sample['name']
             if name != '__end__' and 'pnacl' in sample['type'] :
@@ -167,14 +167,14 @@ def build_deploy_webpage(fips_dir, proj_dir) :
 
     # compile samples
     if BuildPNaCl and nacl.check_exists(fips_dir) :
-        project.gen(fips_dir, proj_dir, 'pnacl-ninja-release')
-        project.build(fips_dir, proj_dir, 'pnacl-ninja-release')
+        project.gen(fips_dir, proj_dir, 'pnacl-make-release')
+        project.build(fips_dir, proj_dir, 'pnacl-make-release')
     if BuildEmscripten and emscripten.check_exists(fips_dir) :
-        project.gen(fips_dir, proj_dir, 'emsc-ninja-release')
-        project.build(fips_dir, proj_dir, 'emsc-ninja-release')
+        project.gen(fips_dir, proj_dir, 'emsc-make-release')
+        project.build(fips_dir, proj_dir, 'emsc-make-release')
     if BuildWasm and emscripten.check_exists(fips_dir) :
-        project.gen(fips_dir, proj_dir, 'wasm-ninja-release')
-        project.build(fips_dir, proj_dir, 'wasm-ninja-release')
+        project.gen(fips_dir, proj_dir, 'wasm-make-release')
+        project.build(fips_dir, proj_dir, 'wasm-make-release')
     
     # export sample assets
     if ExportAssets :
