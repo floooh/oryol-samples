@@ -2,7 +2,6 @@
 "A": { "address": 152, "type": 1, "import": 0, "module": "(null)", "base": "(null)" }
 ,"B": { "address": 160, "type": 4, "import": 0, "module": "(null)", "base": "(null)" }
 ,"C": { "address": 168, "type": 1, "import": 0, "module": "(null)", "base": "(null)" }
-,"Hc": { "address": 176, "type": 4, "import": 0, "module": "(null)", "base": "(null)" }
 ,"i": { "address": 8, "type": 1, "import": 1, "module": "env", "base": "STACKTOP" }
 ,"j": { "address": 16, "type": 1, "import": 1, "module": "env", "base": "STACK_MAX" }
 ,"k": { "address": 24, "type": 1, "import": 1, "module": "env", "base": "tempDoublePtr" }
@@ -21,4 +20,5 @@
 ,"x": { "address": 128, "type": 4, "import": 0, "module": "(null)", "base": "(null)" }
 ,"y": { "address": 136, "type": 1, "import": 0, "module": "(null)", "base": "(null)" }
 ,"z": { "address": 144, "type": 1, "import": 0, "module": "(null)", "base": "(null)" }
+,"zc": { "address": 176, "type": 4, "import": 0, "module": "(null)", "base": "(null)" }
 }
