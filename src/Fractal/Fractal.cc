@@ -97,14 +97,14 @@ FractalApp::OnRunning() {
         Gfx::ApplyUniformBlock(this->julia.vsParams);
         Gfx::ApplyUniformBlock(this->julia.fsParams);
     }
-    Gfx::Draw(0);
+    Gfx::Draw();
 
     // map fractal state to display
     Gfx::ApplyDefaultRenderTarget(this->noClearState);
     this->dispDrawState.FSTexture[Textures::Texture] = curTarget;
     Gfx::ApplyDrawState(this->dispDrawState);
     Gfx::ApplyUniformBlock(this->dispFSParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
 
     this->drawUI();
     Gfx::CommitFrame();

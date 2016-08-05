@@ -69,13 +69,13 @@ ShapeRenderer::DrawShadowPass(const VSPARAMS& vsParams) {
         this->ShadowInstancedDrawState.Mesh[1] = this->SphereInstMesh;
         Gfx::ApplyDrawState(this->ShadowInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::DrawInstanced(1, this->NumSpheres);
+        Gfx::Draw(1, this->NumSpheres);
     }
     if (this->NumBoxes > 0) {
         this->ShadowInstancedDrawState.Mesh[1] = this->BoxInstMesh;
         Gfx::ApplyDrawState(this->ShadowInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::DrawInstanced(2, this->NumBoxes);
+        Gfx::Draw(2, this->NumBoxes);
     }
 }
 
@@ -85,7 +85,7 @@ ShapeRenderer::DrawGround(const VSPARAMS& vsParams, const FSPARAMS& fsParams) {
     Gfx::ApplyDrawState(this->ColorDrawState);
     Gfx::ApplyUniformBlock(vsParams);
     Gfx::ApplyUniformBlock(fsParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
 }
 
 //------------------------------------------------------------------------------
@@ -96,14 +96,14 @@ ShapeRenderer::DrawShapes(const VSPARAMS& vsParams, const FSPARAMS& fsParams) {
         Gfx::ApplyDrawState(this->ColorInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::ApplyUniformBlock(fsParams);
-        Gfx::DrawInstanced(1, this->NumSpheres);
+        Gfx::Draw(1, this->NumSpheres);
     }
     if (this->NumBoxes > 0) {
         this->ColorInstancedDrawState.Mesh[1] = this->BoxInstMesh;
         Gfx::ApplyDrawState(this->ColorInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::ApplyUniformBlock(fsParams);
-        Gfx::DrawInstanced(2, this->NumBoxes);
+        Gfx::Draw(2, this->NumBoxes);
     }
 }
 

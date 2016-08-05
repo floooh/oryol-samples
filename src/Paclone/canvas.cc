@@ -95,7 +95,7 @@ canvas::Render() {
     const void* data = this->updateVertices(numBytes);
     Gfx::UpdateVertices(this->drawState.Mesh[0], data, numBytes);
     Gfx::ApplyDrawState(this->drawState);
-    Gfx::Draw(0);
+    Gfx::Draw();
 }
 
 //------------------------------------------------------------------------------

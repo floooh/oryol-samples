@@ -106,7 +106,7 @@ RayCheck::RenderDebug(const glm::mat4& viewProj) {
     vsParams.Color = this->dbgIntersectId == -1 ? red : green;
     Gfx::ApplyDrawState(this->dbgDrawState);
     Gfx::ApplyUniformBlock(vsParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
 }
 
 } // namespace Oryol

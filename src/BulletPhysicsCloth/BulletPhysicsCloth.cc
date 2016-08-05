@@ -169,7 +169,7 @@ BulletPhysicsClothApp::OnRunning() {
     // draw cloth shadow pass
     Gfx::ApplyDrawState(this->clothShadowDrawState);
     Gfx::ApplyUniformBlock(this->shadowVSParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
 
     // begin color pass rendering
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
@@ -197,7 +197,7 @@ BulletPhysicsClothApp::OnRunning() {
     Gfx::ApplyDrawState(this->clothColorDrawState);
     Gfx::ApplyUniformBlock(this->colorVSParams);
     Gfx::ApplyUniformBlock(this->colorFSParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
 
     Dbg::PrintF("\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"

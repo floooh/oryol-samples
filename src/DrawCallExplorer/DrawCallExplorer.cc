@@ -109,7 +109,7 @@ DrawCallExplorerApp::OnRunning() {
         }
         this->perParticleParams.Translate = this->particles[i].pos;
         Gfx::ApplyUniformBlock(this->perParticleParams);
-        Gfx::Draw(0);
+        Gfx::Draw();
     }
     afterDraw = Clock::Now();
     this->frameInfoBeforeUI = Gfx::FrameInfo();

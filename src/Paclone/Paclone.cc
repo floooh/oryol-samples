@@ -121,7 +121,7 @@ PacloneApp::OnRunning() {
     this->applyViewPort();
     Gfx::ApplyDrawState(this->crtDrawState);
     Gfx::ApplyUniformBlock(this->crtParams);
-    Gfx::Draw(0);
+    Gfx::Draw();
     Gfx::CommitFrame();
     this->tick++;
 

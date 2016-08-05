@@ -169,7 +169,7 @@ KC85Emu::Render(const glm::mat4& mvp) {
         this->drawState.FSTexture[KCTextures::IRM] = tex;
         Gfx::ApplyDrawState(this->drawState);
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::Draw(0);
+        Gfx::Draw();
     }
 }
 
