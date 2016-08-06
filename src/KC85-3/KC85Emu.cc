@@ -83,8 +83,6 @@ KC85Emu::Update(Duration frameTime) {
         // handle the normal emulator per-frame update
         this->keyboard.HandleInput();
         int micro_secs = (int) frameTime.AsMicroSeconds();
-        const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
-        const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
         const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
         uint64_t min_cycle_count = 0;
         uint64_t max_cycle_count = 0;
