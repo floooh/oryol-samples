@@ -7,6 +7,7 @@
 #include "Input/Input.h"
 #include "NKUI/NKUI.h"
 #include <math.h>
+#include <limits.h>
 
 using namespace Oryol;
 
