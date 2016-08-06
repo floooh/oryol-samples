@@ -18,7 +18,7 @@ public:
     /// on cleanup frame method
     virtual AppState::Code OnCleanup();
 
-    int overview(nk_context* ctx);
+    static int drawDemoWindow(nk_context* ctx);
 
     ClearState clearState;
 };
@@ -37,10 +37,9 @@ NuklearUIDemoApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 NuklearUIDemoApp::OnRunning() {
-
     Gfx::ApplyDefaultRenderTarget(this->clearState);
     nk_context* ctx = NKUI::NewFrame();
-    this->overview(ctx);
+    drawDemoWindow(ctx);
     NKUI::Draw();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
@@ -55,13 +54,12 @@ NuklearUIDemoApp::OnCleanup() {
     return App::OnCleanup();
 }
 
-
 //------------------------------------------------------------------------------
 // this is copy pasted from the nuklear demo directory
 #define LEN(a) (sizeof(a)/sizeof(a)[0])
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
 int
-NuklearUIDemoApp::overview(nk_context *ctx)
+NuklearUIDemoApp::drawDemoWindow(nk_context *ctx)
 {
     struct nk_panel menu;
 
