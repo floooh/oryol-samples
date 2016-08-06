@@ -6,6 +6,7 @@
 #include "Gfx/Gfx.h"
 #include "Input/Input.h"
 #include "NKUI/NKUI.h"
+#include <math.h>
 
 using namespace Oryol;
 
@@ -388,7 +389,7 @@ NuklearUIDemoApp::drawDemoWindow(nk_context *ctx)
 
                 /* progressbar combobox */
                 sum = prog_a + prog_b + prog_c + prog_d;
-                sprintf(buffer, "%lu", sum);
+                sprintf(buffer, "%zu", sum);
                 if (nk_combo_begin_label(ctx, &combo, buffer, 200)) {
                     nk_layout_row_dynamic(ctx, 30, 1);
                     nk_progress(ctx, &prog_a, 100, NK_MODIFIABLE);
@@ -400,7 +401,7 @@ NuklearUIDemoApp::drawDemoWindow(nk_context *ctx)
 
                 /* checkbox combobox */
                 sum = (size_t)(check_values[0] + check_values[1] + check_values[2] + check_values[3] + check_values[4]);
-                sprintf(buffer, "%lu", sum);
+                sprintf(buffer, "%zu", sum);
                 if (nk_combo_begin_label(ctx, &combo, buffer, 200)) {
                     nk_layout_row_dynamic(ctx, 30, 1);
                     nk_checkbox_label(ctx, weapons[0], &check_values[0]);
