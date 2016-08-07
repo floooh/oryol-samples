@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//  NuklearUIDemo.cc
+//  NuklearUIBasic.cc
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "Core/Main.h"
@@ -11,7 +11,7 @@
 
 using namespace Oryol;
 
-class NuklearUIDemoApp : public App {
+class DemoApp : public App {
 public:
     /// on init frame method
     virtual AppState::Code OnInit();
@@ -20,28 +20,25 @@ public:
     /// on cleanup frame method
     virtual AppState::Code OnCleanup();
 
-    static int drawDemoWindow(nk_context* ctx);
-
-    ClearState clearState;
+    static int drawOverviewWindow(nk_context* ctx);
 };
-OryolMain(NuklearUIDemoApp);
+OryolMain(DemoApp);
 
 //------------------------------------------------------------------------------
 AppState::Code
-NuklearUIDemoApp::OnInit() {
+DemoApp::OnInit() {
     Gfx::Setup(GfxSetup::Window(1024, 700, "Oryol Nuklear UI Demo"));
     Input::Setup();
     NKUI::Setup();
-    this->clearState = ClearState::ClearAll(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f), 1.0f, 0);
     return AppState::Running;
 }
 
 //------------------------------------------------------------------------------
 AppState::Code
-NuklearUIDemoApp::OnRunning() {
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
+DemoApp::OnRunning() {
+    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f), 1.0f, 0));
     nk_context* ctx = NKUI::NewFrame();
-    drawDemoWindow(ctx);
+    drawOverviewWindow(ctx);
     NKUI::Draw();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
@@ -49,7 +46,7 @@ NuklearUIDemoApp::OnRunning() {
 
 //------------------------------------------------------------------------------
 AppState::Code
-NuklearUIDemoApp::OnCleanup() {
+DemoApp::OnCleanup() {
     NKUI::Discard();
     Input::Discard();
     Gfx::Discard();
@@ -61,7 +58,7 @@ NuklearUIDemoApp::OnCleanup() {
 #define LEN(a) (sizeof(a)/sizeof(a)[0])
 #define MAX(a,b) ((a) < (b) ? (b) : (a))
 int
-NuklearUIDemoApp::drawDemoWindow(nk_context *ctx)
+DemoApp::drawOverviewWindow(nk_context *ctx)
 {
     struct nk_panel menu;
 
