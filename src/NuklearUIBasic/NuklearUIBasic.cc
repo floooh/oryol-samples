@@ -27,7 +27,7 @@ OryolMain(DemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(1024, 700, "Oryol Nuklear UI Demo"));
+    Gfx::Setup(GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo"));
     Input::Setup();
     NKUI::Setup();
     return AppState::Running;

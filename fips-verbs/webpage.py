@@ -155,6 +155,9 @@ def export_assets(fips_dir, proj_dir, webpage_dir) :
     tbui_from = '{}/tbui'.format(data_src_dir)
     tbui_to   = '{}/tbui'.format(data_dst_dir)
     shutil.copytree(tbui_from, tbui_to)
+    nkui_from = '{}/nkui'.format(data_src_dir)
+    nkui_to   = '{}/nkui'.format(data_dst_dir)
+    shutil.copytree(nkui_from, nkui_to)
 
 #-------------------------------------------------------------------------------
 def build_deploy_webpage(fips_dir, proj_dir) :
