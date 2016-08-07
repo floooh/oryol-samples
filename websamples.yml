@@ -33,6 +33,16 @@
   type: emscripten,pnacl
   image: /Users/floh/projects/oryol-samples/src/ImGuiDemo/ImGuiDemo.jpg
   src: ImGuiDemo/ImGuiDemo.cc
+- name: NuklearUIBasic
+  desc: Nuklear UI basic demo
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/NuklearUIBasic/NuklearUIBasic.jpg
+  src: NuklearUIBasic/NuklearUIBasic.cc
+- name: NuklearUIAdvanced
+  desc: Nuklear UI advanced demo
+  type: emscripten,pnacl
+  image: /Users/floh/projects/oryol-samples/src/NuklearUIAdvanced/NuklearUIAdvanced.jpg
+  src: NuklearUIAdvanced/NuklearUIAdvanced.cc
 - name: Fractal
   desc: Simple fractal explorer
   type: emscripten,pnacl,android
