@@ -70,11 +70,9 @@ DemoApp::load_icon(const char* url, struct nk_image* img) {
     // grab an image handle before data is loaded
     *img = NKUI::AllocImage();
     IO::Load(url, [img](IO::LoadResult loadResult) {
-        const auto& imgBuf = loadResult.Data;
-
         // decode the PNG data via stb_image
-        int w, h, n;
-        uint8_t* imgData = stbi_load_from_memory(imgBuf.Data(), imgBuf.Size(), &w, &h, &n, 0);
+        int w = 0, h = 0, n = 0;
+        uint8_t* imgData = stbi_load_from_memory(loadResult.Data.Data(), loadResult.Data.Size(), &w, &h, &n, 0);
 
         // create an Oryol texture from the loaded data
         auto texSetup = TextureSetup::FromPixelData(w, h, 1, TextureType::Texture2D, PixelFormat::RGBA8);
