@@ -44,7 +44,7 @@ ImguiAdvancedApp::OnRunning() {
     Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.25f, 0.75f, 0.45f, 1.0f)));
     IMUI::NewFrame();
         static bool window1 = true;
-        ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(400,100), ImGuiSetCond_FirstUseEver);
         ImGui::PushFont(IMUI::Font(0));
         ImGui::Begin("Another Window", &window1);
         ImGui::PushFont(IMUI::Font(1));
