@@ -10,7 +10,7 @@
 #include "Dbg/Dbg.h"
 #include "Input/Input.h"
 #include "Common/CameraHelper.h"
-#include "KC85Emu.h"
+#include "EmuCommon/KC85Emu.h"
 #include "SceneRenderer.h"
 #include "RayCheck.h"
 #include "glm/gtc/matrix_transform.hpp"

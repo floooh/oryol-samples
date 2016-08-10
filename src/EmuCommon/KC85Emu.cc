@@ -13,11 +13,22 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-KC85Emu::Setup(const GfxSetup& gfxSetup) {
+KC85Emu::Setup(const GfxSetup& gfxSetup, device m, os_rom os) {
 
-    // initialize the emulator as KC85/3
-    this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
-    this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
+    this->model = m;
+    this->rom = os;
+
+    // initialize the emulator
+    if (this->model == device::kc85_3) {
+        this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
+        this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
+    }
+    else if (model == device::kc85_4) {
+        this->emu.kc85.roms.add(kc85_roms::caos42c, dump_caos42c, sizeof(dump_caos42c));
+        this->emu.kc85.roms.add(kc85_roms::caos42e, dump_caos42e, sizeof(dump_caos42e));
+        this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
+    }
+
     ext_funcs sys_funcs;
     sys_funcs.assertmsg_func = Log::AssertMsg;
     sys_funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
@@ -34,8 +45,10 @@ KC85Emu::Setup(const GfxSetup& gfxSetup) {
     this->fileLoader.Setup(this->emu);
 
     // register modules
-    this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
-    this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
+    if (int(this->model) & int(device::any_kc85)) {
+        this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
+        this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
+    }
 
     // setup a mesh and draw state to render a simple plane
     ShapeBuilder shapeBuilder;
@@ -97,7 +110,7 @@ KC85Emu::Update(Duration frameTime) {
     }
     else {
         // switch KC on once after a little while
-        if (this->frameIndex == 120) {
+        if (this->frameIndex == this->switchOnDelayFrames) {
             if (!this->SwitchedOn()) {
                 this->TogglePower();
             }
@@ -112,12 +125,14 @@ KC85Emu::TogglePower() {
         this->emu.poweroff();
     }
     else {
-        this->emu.poweron(device::kc85_3, os_rom::caos_3_1);
-        if (!this->emu.kc85.exp.slot_occupied(0x08)) {
-            this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
-        }
-        if (!this->emu.kc85.exp.slot_occupied(0x0C)) {
-            this->emu.kc85.exp.insert_module(0x0C, kc85_exp::none);
+        this->emu.poweron(this->model, this->rom);
+        if (int(this->model) & int(device::any_kc85)) {
+            if (!this->emu.kc85.exp.slot_occupied(0x08)) {
+                this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
+            }
+            if (!this->emu.kc85.exp.slot_occupied(0x0C)) {
+                this->emu.kc85.exp.insert_module(0x0C, kc85_exp::none);
+            }
         }
     }
 }
@@ -125,14 +140,14 @@ KC85Emu::TogglePower() {
 //------------------------------------------------------------------------------
 bool
 KC85Emu::SwitchedOn() const {
-    return this->emu.kc85.on;
+    return this->emu.switchedon();
 }
 
 //------------------------------------------------------------------------------
 void
 KC85Emu::Reset() {
     if (this->SwitchedOn()) {
-        this->emu.kc85.reset();
+        this->emu.reset();
     }
 }
 
@@ -152,22 +167,42 @@ KC85Emu::StartGame(const char* name) {
 
 //------------------------------------------------------------------------------
 void
-KC85Emu::Render(const glm::mat4& mvp) {
+KC85Emu::Render(const glm::mat4& mvp, bool onlyUpdateTexture) {
 
     if (this->SwitchedOn()) {
         // update the offscreen texture
-        const int width = 320;
-        const int height = 256;
-        const Id tex = this->draw.irmTexture320x256;
-        this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-        Gfx::UpdateTexture(tex, this->emu.kc85.video.LinearBuffer, this->draw.texUpdateAttrs);
+        Id tex;
+        if (int(this->model) & int(device::any_kc85)) {
+            const int width = 320;
+            const int height = 256;
+            tex = this->draw.irmTexture320x256;
+            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
+            Gfx::UpdateTexture(tex, this->emu.kc85.video.LinearBuffer, this->draw.texUpdateAttrs);
+        }
+        else if (int(this->model) & int(device::any_z9001)) {
+            const int width = 320;
+            const int height = 192;
+            tex = this->draw.irmTexture320x192;
+            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
+            Gfx::UpdateTexture(tex, this->emu.z9001.RGBA8Buffer, this->draw.texUpdateAttrs);
+        }
+        else if (int(this->model) & int(device::any_z1013)) {
+            const int width = 256;
+            const int height = 256;
+            tex = this->draw.irmTexture256x256;
+            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
+            Gfx::UpdateTexture(tex, this->emu.z1013.RGBA8Buffer, this->draw.texUpdateAttrs);
+        }
 
-        KCShader::KCVSParams vsParams;
-        vsParams.ModelViewProjection = mvp;
-        this->drawState.FSTexture[KCTextures::IRM] = tex;
-        Gfx::ApplyDrawState(this->drawState);
-        Gfx::ApplyUniformBlock(vsParams);
-        Gfx::Draw();
+        if (!onlyUpdateTexture) {
+            o_assert_dbg(tex.IsValid());
+            this->drawState.FSTexture[KCTextures::IRM] = tex;
+            KCShader::KCVSParams vsParams;
+            vsParams.ModelViewProjection = mvp;
+            Gfx::ApplyDrawState(this->drawState);
+            Gfx::ApplyUniformBlock(vsParams);
+            Gfx::Draw();
+        }
     }
 }
 
