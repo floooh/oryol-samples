@@ -6,7 +6,7 @@
 */
 #include "Core/Types.h"
 #include "Gfx/Gfx.h"
-#include "emu_shaders.h"
+#include "shaders.h"
 
 namespace Oryol {
 

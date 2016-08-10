@@ -6,7 +6,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "Gfx/Gfx.h"
 #include "Assets/Gfx/ShapeBuilder.h"
-#include "emu_shaders.h"
+#include "shaders.h"
 
 namespace Oryol {
 
