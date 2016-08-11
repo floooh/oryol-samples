@@ -194,8 +194,7 @@ ImguiAdvancedApp::OnCleanup() {
 void
 ImguiAdvancedApp::scene_t::setup(const GfxSetup& gfxSetup) {
 
-    // create an offscreen render target, we explicitly want repeat texture wrap mode
-    // and linear blending...
+    // create an offscreen render target
     auto rtSetup = TextureSetup::RenderTarget(320, 256);
     rtSetup.ColorFormat = PixelFormat::RGBA8;
     rtSetup.DepthFormat = PixelFormat::DEPTH;
@@ -210,6 +209,7 @@ ImguiAdvancedApp::scene_t::setup(const GfxSetup& gfxSetup) {
     this->imguiTexId = IMUI::AllocImage();
     IMUI::BindImage(this->imguiTexId, this->renderTarget);
 
+    // shape mesh, shader and pipeline state object
     ShapeBuilder shapeBuilder;
     shapeBuilder.Layout
         .Add(VertexAttr::Position, VertexFormat::Float3)
