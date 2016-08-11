@@ -19,14 +19,14 @@ using namespace Oryol;
 
 class ImguiAdvancedApp : public App {
 public:
-    /// on init frame method
     virtual AppState::Code OnInit();
-    /// on running frame method
     virtual AppState::Code OnRunning();
-    /// on cleanup frame method
     virtual AppState::Code OnCleanup();
+    void setupImguiStyle();
 
-    TimePoint lapTime;    
+    TimePoint lapTime;
+
+    // the 3D scene, render a bunch of shapes to an offscreen render target
     struct scene_t {
         void setup(const GfxSetup& gfxSetup);
         void render();
@@ -43,20 +43,29 @@ public:
 
         ImTextureID imguiTexId = nullptr;
     } scene;
+
+    // state for the 3 emulators
     struct emu_t {
         void setup(const GfxSetup& gfxSetup);
         void render(Duration frameTime);
-
-        KC85Emu kc853;
-        KC85Emu kc854;
-        KC85Emu kc87;
-        ImTextureID kc853TexId = nullptr;
-        ImTextureID kc854TexId = nullptr;
-        ImTextureID kc87TexId = nullptr;
-
+        enum {
+            KC85_3 = 0,
+            KC85_4 = 1,
+            KC87 = 2,
+            NumEmus,
+        };
+        KC85Emu kc[NumEmus];
+        ImTextureID imgId[NumEmus];
     } emu;
 };
 OryolMain(ImguiAdvancedApp);
+
+// initial emulator window position, size and title
+struct { float x, y, w, h; const char* title; } winAttrs[ImguiAdvancedApp::emu_t::NumEmus] = {
+    { 400.0f,  10.0f, 360.0f, 340.0f, "KC85/3 EMULATOR" },
+    {  10.0f, 340.0f, 360.0f, 340.0f, "KC85/4 EMULATOR" },
+    { 400.0f, 360.0f, 360.0f, 280.0f, "KC87 EMULATOR" },
+};
 
 //------------------------------------------------------------------------------
 AppState::Code
@@ -67,9 +76,12 @@ ImguiAdvancedApp::OnInit() {
 
     // add custom fonts which have been embedded as C arrays
     IMUISetup uiSetup;
-    uiSetup.AddFontFromMemory(dump_roboto_regular, sizeof(dump_roboto_regular), 20.0f);
-    uiSetup.AddFontFromMemory(dump_font, sizeof(dump_font), 20.0f);
+    uiSetup.AddFontFromMemory(dump_roboto_regular, sizeof(dump_roboto_regular), 18.0f);
+    uiSetup.AddFontFromMemory(dump_font, sizeof(dump_font), 18.0f);
     IMUI::Setup(uiSetup);
+    // tweak y offset of the retro-future-font
+    IMUI::Font(1)->DisplayOffset.y += 1;
+    this->setupImguiStyle();
 
     // initialize the 3D scene and emulators
     this->scene.setup(gfxSetup);
@@ -101,77 +113,34 @@ ImguiAdvancedApp::OnRunning() {
         ImGui::End();
         ImGui::PopFont();
 
-        // a window with a KC85/3 emulator
-        ImGui::SetNextWindowPos(ImVec2(400, 10), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(340,320), ImGuiSetCond_FirstUseEver);
-        ImGui::PushFont(IMUI::Font(1));
-        ImGui::Begin("KC85/3 EMULATOR", nullptr, ImGuiWindowFlags_NoResize);
-        ImGui::Image(this->emu.kc853TexId, ImVec2(320, 256));
-        ImGui::PushFont(nullptr);
-        if (ImGui::Button("On/Off")) {
-            this->emu.kc853.TogglePower();
-            this->emu.kc853.TogglePower();
+        // emulator windows
+        for (int i = 0; i < emu_t::NumEmus; i++) {
+            const auto& attrs = winAttrs[i];
+            ImGui::SetNextWindowPos(ImVec2(attrs.x, attrs.y), ImGuiSetCond_FirstUseEver);
+            ImGui::SetNextWindowSize(ImVec2(attrs.w, attrs.h), ImGuiSetCond_FirstUseEver);
+            ImGui::PushFont(IMUI::Font(1));
+            ImGui::Begin(attrs.title, nullptr);
+            ImVec2 imgSize = ImGui::GetContentRegionAvail();
+            imgSize.y -= ImGui::GetTextLineHeight();
+            ImGui::Image(this->emu.imgId[i], imgSize);
+            ImGui::PushFont(nullptr);
+            if (ImGui::Button("On/Off")) {
+                this->emu.kc[i].TogglePower();
+                this->emu.kc[i].TogglePower();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reset")) {
+                this->emu.kc[i].Reset();
+            }
+            ImGui::PopFont();
+            if (ImGui::IsWindowFocused()) {
+                for (int j = 0; j < emu_t::NumEmus; j++) {
+                    this->emu.kc[j].keyboard.hasInputFocus = (i == j);
+                }
+            }
+            ImGui::End();
+            ImGui::PopFont();
         }
-        ImGui::SameLine();
-        if (ImGui::Button("Reset")) {
-            this->emu.kc853.Reset();
-        }
-        ImGui::PopFont();
-        if (ImGui::IsWindowFocused()) {
-            this->emu.kc853.keyboard.hasInputFocus = true;
-            this->emu.kc854.keyboard.hasInputFocus = false;
-            this->emu.kc87.keyboard.hasInputFocus  = false;
-        }
-        ImGui::End();
-        ImGui::PopFont();
-
-        // a window with a KC85/4 emulator
-        ImGui::SetNextWindowPos(ImVec2(10, 340), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(340,320), ImGuiSetCond_FirstUseEver);
-        ImGui::PushFont(IMUI::Font(1));
-        ImGui::Begin("KC85/4 EMULATOR", nullptr, ImGuiWindowFlags_NoResize);
-        ImGui::Image(this->emu.kc854TexId, ImVec2(320, 256));
-        ImGui::PushFont(nullptr);
-        if (ImGui::Button("On/Off")) {
-            this->emu.kc854.TogglePower();
-            this->emu.kc854.TogglePower();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Reset")) {
-            this->emu.kc854.Reset();
-        }
-        ImGui::PopFont();
-        if (ImGui::IsWindowFocused()) {
-            this->emu.kc853.keyboard.hasInputFocus = false;
-            this->emu.kc854.keyboard.hasInputFocus = true;
-            this->emu.kc87.keyboard.hasInputFocus  = false;
-        }
-        ImGui::End();
-        ImGui::PopFont();
-
-        // a window with a KC87 emulator
-        ImGui::SetNextWindowPos(ImVec2(400, 360), ImGuiSetCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(340, 260), ImGuiSetCond_FirstUseEver);
-        ImGui::PushFont(IMUI::Font(1));
-        ImGui::Begin("KC87 EMULATOR", nullptr, ImGuiWindowFlags_NoResize);
-        ImGui::Image(this->emu.kc87TexId, ImVec2(320, 192));
-        ImGui::PushFont(nullptr);
-        if (ImGui::Button("On/Off")) {
-            this->emu.kc87.TogglePower();
-            this->emu.kc87.TogglePower();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Reset")) {
-            this->emu.kc87.Reset();
-        }
-        ImGui::PopFont();
-        if (ImGui::IsWindowFocused()) {
-            this->emu.kc853.keyboard.hasInputFocus = false;
-            this->emu.kc854.keyboard.hasInputFocus = false;
-            this->emu.kc87.keyboard.hasInputFocus  = true;
-        }
-        ImGui::End();
-        ImGui::PopFont();
     }
     ImGui::Render();
     Gfx::CommitFrame();
@@ -181,9 +150,9 @@ ImguiAdvancedApp::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 ImguiAdvancedApp::OnCleanup() {
-    this->emu.kc853.Discard();
-    this->emu.kc854.Discard();
-    this->emu.kc87.Discard();
+    for (auto& kc : this->emu.kc) {
+        kc.Discard();
+    }
     IMUI::Discard();
     Input::Discard();
     Gfx::Discard();
@@ -269,29 +238,52 @@ ImguiAdvancedApp::scene_t::render() {
 //------------------------------------------------------------------------------
 void
 ImguiAdvancedApp::emu_t::setup(const GfxSetup& gfxSetup) {
-    this->kc853.Setup(gfxSetup, YAKC::device::kc85_3, YAKC::os_rom::caos_3_1);
-    this->kc853.switchOnDelayFrames = 1;
-    this->kc853TexId = IMUI::AllocImage();
-    IMUI::BindImage(this->kc853TexId, this->kc853.draw.irmTexture320x256);
-
-    this->kc854.Setup(gfxSetup, YAKC::device::kc85_4, YAKC::os_rom::caos_4_2);
-    this->kc854.switchOnDelayFrames = 1;
-    this->kc854TexId = IMUI::AllocImage();
-    IMUI::BindImage(this->kc854TexId, this->kc854.draw.irmTexture320x256);
-
-    this->kc87.Setup(gfxSetup, YAKC::device::kc87, YAKC::os_rom::kc87_os_2);
-    this->kc87.switchOnDelayFrames = 1;
-    this->kc87TexId = IMUI::AllocImage();
-    IMUI::BindImage(this->kc87TexId, this->kc87.draw.irmTexture320x192);
+    for (int i = 0; i < NumEmus; i++) {
+        auto& kc = this->kc[i];
+        YAKC::device dev;
+        YAKC::os_rom os;
+        Id* texId;
+        switch (i) {
+            case KC85_3:
+                dev=YAKC::device::kc85_3; os=YAKC::os_rom::caos_3_1;
+                texId = &kc.draw.irmTexture320x256;
+                break;
+            case KC85_4:
+                dev=YAKC::device::kc85_4; os=YAKC::os_rom::caos_4_2;
+                texId = &kc.draw.irmTexture320x256;
+                break;
+            default:
+                dev=YAKC::device::kc87; os=YAKC::os_rom::kc87_os_2;
+                texId = &kc.draw.irmTexture320x192;
+                break;
+        }
+        kc.Setup(gfxSetup, dev, os);
+        kc.switchOnDelayFrames = 1;
+        this->imgId[i] = IMUI::AllocImage();
+        IMUI::BindImage(this->imgId[i], *texId);
+    }
 }
 
 //------------------------------------------------------------------------------
 void
 ImguiAdvancedApp::emu_t::render(Duration frameTime) {
-    this->kc853.Update(frameTime);
-    this->kc854.Update(frameTime);
-    this->kc87.Update(frameTime);
-    this->kc853.Render(glm::mat4(), true);
-    this->kc854.Render(glm::mat4(), true);
-    this->kc87.Render(glm::mat4(), true);
+    for (int i = 0; i < NumEmus; i++) {
+        this->kc[i].Update(frameTime);
+        this->kc[i].Render(glm::mat4(), true);
+    }
 }
+
+//------------------------------------------------------------------------------
+void
+ImguiAdvancedApp::setupImguiStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 0.0f;
+    style.Alpha = 1.0f;
+    style.WindowFillAlphaDefault = 0.5f;
+    style.WindowTitleAlign = ImGuiAlign_Center;
+    style.TouchExtraPadding = ImVec2(5.0f, 5.0f);
+    style.AntiAliasedLines = true;
+    style.AntiAliasedShapes = true;
+    style.Colors[ImGuiCol_ResizeGrip]    = ImVec4(1.00f, 1.00f, 1.00f, 0.00f);
+}
+
