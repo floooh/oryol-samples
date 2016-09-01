@@ -33,11 +33,6 @@ private:
 
     Id crtRenderTarget;
     DrawState crtDrawState;
-    #if USE_CRTEFFECT
-    CRTShader::FSParams crtParams;
-    #else
-    NoCRTShader::FSParams crtParams;
-    #endif
 
     canvas spriteCanvas;
     game gameState;
@@ -116,11 +111,9 @@ PacloneApp::OnRunning() {
     Dbg::DrawTextBuffer();
     
     // copy offscreen render target into backbuffer
-    this->crtParams.Resolution = glm::vec2(Gfx::DisplayAttrs().FramebufferWidth, Gfx::DisplayAttrs().FramebufferHeight);
     Gfx::ApplyDefaultRenderTarget();
     this->applyViewPort();
     Gfx::ApplyDrawState(this->crtDrawState);
-    Gfx::ApplyUniformBlock(this->crtParams);
     Gfx::Draw();
     Gfx::CommitFrame();
     this->tick++;
