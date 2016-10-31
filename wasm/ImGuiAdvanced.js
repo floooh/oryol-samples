@@ -1,9 +1,9 @@
 function integrateWasmJS(Module) {
  var method = Module["wasmJSMethod"] || Module["wasmJSMethod"] || "native-wasm" || "native-wasm,interpret-s-expr";
  Module["wasmJSMethod"] = method;
- var wasmTextFile = Module["wasmTextFile"] || "Paclone.wast";
- var wasmBinaryFile = Module["wasmBinaryFile"] || "Paclone.wasm";
- var asmjsCodeFile = Module["asmjsCodeFile"] || "Paclone.asm.js";
+ var wasmTextFile = Module["wasmTextFile"] || "ImGuiAdvanced.wast";
+ var wasmBinaryFile = Module["wasmBinaryFile"] || "ImGuiAdvanced.wasm";
+ var asmjsCodeFile = Module["asmjsCodeFile"] || "ImGuiAdvanced.asm.js";
  var wasmPageSize = 64 * 1024;
  var asm2wasmImports = {
   "f64-rem": (function(x, y) {
@@ -1326,10 +1326,14 @@ Module["preloadedAudios"] = {};
 var memoryInitializer = null;
 var ASM_CONSTS = [];
 STATIC_BASE = 1024;
-STATICTOP = STATIC_BASE + 174400;
-__ATINIT__.push();
-memoryInitializer = Module["wasmJSMethod"].indexOf("asmjs") >= 0 || Module["wasmJSMethod"].indexOf("interpret-asm2wasm") >= 0 ? "Paclone.html.mem" : null;
-var STATIC_BUMP = 174400;
+STATICTOP = STATIC_BASE + 680224;
+__ATINIT__.push({
+ func: (function() {
+  __GLOBAL__sub_I_imgui_cpp();
+ })
+});
+memoryInitializer = Module["wasmJSMethod"].indexOf("asmjs") >= 0 || Module["wasmJSMethod"].indexOf("interpret-asm2wasm") >= 0 ? "ImGuiAdvanced.html.mem" : null;
+var STATIC_BUMP = 680224;
 var tempDoublePtr = STATICTOP;
 STATICTOP += 16;
 var GL = {
@@ -1545,6 +1549,7 @@ function _glClearColor(x0, x1, x2, x3) {
 function _glStencilMaskSeparate(x0, x1) {
  GLctx["stencilMaskSeparate"](x0, x1);
 }
+Module["_pthread_mutex_lock"] = _pthread_mutex_lock;
 function _glLinkProgram(program) {
  GLctx.linkProgram(GL.programs[program]);
  GL.programInfos[program] = null;
@@ -1599,6 +1604,7 @@ function _glGetString(name_) {
  GL.stringCache[name_] = ret;
  return ret;
 }
+function _pthread_mutex_init() {}
 function _emscripten_get_now() {
  abort();
 }
@@ -3199,160 +3205,11 @@ function _glStencilOpSeparate(x0, x1, x2, x3) {
 function _glStencilFuncSeparate(x0, x1, x2, x3) {
  GLctx["stencilFuncSeparate"](x0, x1, x2, x3);
 }
-var AL = {
- contexts: [],
- currentContext: null,
- alcErr: 0,
- stringCache: {},
- alcStringCache: {},
- QUEUE_INTERVAL: 25,
- QUEUE_LOOKAHEAD: 100,
- newSrcId: 1,
- updateSources: function updateSources(context) {
-  if (Browser.mainLoop.timingMode == 1 && document["visibilityState"] != "visible") return;
-  for (var srcId in context.src) {
-   AL.updateSource(context.src[srcId]);
-  }
- },
- updateSource: function updateSource(src) {
-  if (Browser.mainLoop.timingMode == 1 && document["visibilityState"] != "visible") return;
-  if (src.state !== 4114) {
-   return;
-  }
-  var currentTime = AL.currentContext.ctx.currentTime;
-  var startTime = src.bufferPosition;
-  for (var i = src.buffersPlayed; i < src.queue.length; i++) {
-   var entry = src.queue[i];
-   var startOffset = (startTime - currentTime) / src.playbackRate;
-   var endTime;
-   if (entry.src) endTime = startTime + entry.src.duration; else endTime = startTime + entry.buffer.duration / src.playbackRate;
-   if (currentTime >= endTime) {
-    src.bufferPosition = endTime;
-    src.buffersPlayed = i + 1;
-    if (src.buffersPlayed >= src.queue.length) {
-     if (src.loop) {
-      AL.setSourceState(src, 4114);
-     } else {
-      AL.setSourceState(src, 4116);
-     }
-    }
-   } else if (startOffset < AL.QUEUE_LOOKAHEAD / 1e3 && !entry.src) {
-    var offset = Math.abs(Math.min(startOffset, 0));
-    entry.src = AL.currentContext.ctx.createBufferSource();
-    entry.src.buffer = entry.buffer;
-    entry.src.connect(src.gain);
-    entry.src.playbackRate.value = src.playbackRate;
-    entry.src.duration = entry.buffer.duration / src.playbackRate;
-    if (typeof entry.src.start !== "undefined") {
-     entry.src.start(startTime, offset);
-    } else if (typeof entry.src.noteOn !== "undefined") {
-     entry.src.noteOn(startTime);
-    }
-   }
-   startTime = endTime;
-  }
- },
- setSourceState: function setSourceState(src, state) {
-  if (state === 4114) {
-   if (src.state !== 4115) {
-    src.state = 4114;
-    src.bufferPosition = AL.currentContext.ctx.currentTime;
-    src.buffersPlayed = 0;
-   } else {
-    src.state = 4114;
-    src.bufferPosition = AL.currentContext.ctx.currentTime - src.bufferPosition;
-   }
-   AL.stopSourceQueue(src);
-   AL.updateSource(src);
-  } else if (state === 4115) {
-   if (src.state === 4114) {
-    src.state = 4115;
-    src.bufferPosition = AL.currentContext.ctx.currentTime - src.bufferPosition;
-    AL.stopSourceQueue(src);
-   }
-  } else if (state === 4116) {
-   if (src.state !== 4113) {
-    src.state = 4116;
-    src.buffersPlayed = src.queue.length;
-    AL.stopSourceQueue(src);
-   }
-  } else if (state == 4113) {
-   if (src.state !== 4113) {
-    src.state = 4113;
-    src.bufferPosition = 0;
-    src.buffersPlayed = 0;
-   }
-  }
- },
- stopSourceQueue: function stopSourceQueue(src) {
-  for (var i = 0; i < src.queue.length; i++) {
-   var entry = src.queue[i];
-   if (entry.src) {
-    entry.src.stop(0);
-    entry.src = null;
-   }
-  }
- }
-};
-function _alSourcei(source, param, value) {
- if (!AL.currentContext) {
-  return;
- }
- var src = AL.currentContext.src[source];
- if (!src) {
-  AL.currentContext.err = 40961;
-  return;
- }
- switch (param) {
- case 4097:
-  src.coneInnerAngle = value;
-  break;
- case 4098:
-  src.coneOuterAngle = value;
-  break;
- case 4103:
-  src.loop = value === 1;
-  break;
- case 4105:
-  var buffer = AL.currentContext.buf[value - 1];
-  if (value == 0) {
-   src.queue = [];
-  } else {
-   src.queue = [ {
-    buffer: buffer
-   } ];
-  }
-  AL.updateSource(src);
-  break;
- case 514:
-  if (value === 1) {
-   if (src.panner) {
-    src.panner = null;
-    src.gain.disconnect();
-    src.gain.connect(AL.currentContext.gain);
-   }
-  } else if (value === 0) {
-   if (!src.panner) {
-    var panner = src.panner = AL.currentContext.ctx.createPanner();
-    panner.panningModel = "equalpower";
-    panner.distanceModel = "linear";
-    panner.refDistance = src.refDistance;
-    panner.maxDistance = src.maxDistance;
-    panner.rolloffFactor = src.rolloffFactor;
-    panner.setPosition(src.position[0], src.position[1], src.position[2]);
-    panner.setVelocity(src.velocity[0], src.velocity[1], src.velocity[2]);
-    panner.connect(AL.currentContext.gain);
-    src.gain.disconnect();
-    src.gain.connect(panner);
-   }
-  } else {
-   AL.currentContext.err = 40963;
-  }
-  break;
- default:
-  AL.currentContext.err = 40962;
-  break;
- }
+function _pthread_cleanup_push(routine, arg) {
+ __ATEXIT__.push((function() {
+  Runtime.dynCall("vi", routine, [ arg ]);
+ }));
+ _pthread_cleanup_push.level = __ATEXIT__.length;
 }
 function _glClearDepthf(x0) {
  GLctx["clearDepth"](x0);
@@ -3379,123 +3236,6 @@ function _emscripten_memcpy_big(dest, src, num) {
  return dest;
 }
 Module["_memcpy"] = _memcpy;
-function _alSourcef(source, param, value) {
- if (!AL.currentContext) {
-  return;
- }
- var src = AL.currentContext.src[source];
- if (!src) {
-  AL.currentContext.err = 40961;
-  return;
- }
- switch (param) {
- case 4099:
-  if (value <= 0) {
-   AL.currentContext.err = 40963;
-   return;
-  }
-  src.playbackRate = value;
-  if (src.state === 4114) {
-   var entry = src.queue[src.buffersPlayed];
-   var currentTime = AL.currentContext.ctx.currentTime;
-   var oldrate = entry.src.playbackRate.value;
-   var offset = currentTime - src.bufferPosition;
-   entry.src.duration = (entry.src.duration - offset) * oldrate / src.playbackRate;
-   entry.src.playbackRate.value = src.playbackRate;
-   src.bufferPosition = currentTime;
-   for (var k = src.buffersPlayed + 1; k < src.queue.length; k++) {
-    var entry = src.queue[k];
-    if (entry.src) {
-     entry.src.stop();
-     entry.src = null;
-    }
-   }
-   AL.updateSource(src);
-  }
-  break;
- case 4106:
-  src.gain.gain.value = value;
-  break;
- case 4131:
-  src.maxDistance = value;
-  break;
- case 4129:
-  src.rolloffFactor = value;
-  break;
- case 4130:
-  src.coneOuterGain = value;
-  break;
- case 4097:
-  src.coneInnerAngle = value;
-  break;
- case 4098:
-  src.coneOuterAngle = value;
-  break;
- case 4128:
-  src.refDistance = value;
-  break;
- default:
-  AL.currentContext.err = 40962;
-  break;
- }
-}
-function _alcGetString(device, param) {
- if (AL.alcStringCache[param]) return AL.alcStringCache[param];
- var ret;
- switch (param) {
- case 0:
-  ret = "No Error";
-  break;
- case 40961:
-  ret = "Invalid Device";
-  break;
- case 40962:
-  ret = "Invalid Context";
-  break;
- case 40963:
-  ret = "Invalid Enum";
-  break;
- case 40964:
-  ret = "Invalid Value";
-  break;
- case 40965:
-  ret = "Out of Memory";
-  break;
- case 4100:
-  if (typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined") {
-   ret = "Device";
-  } else {
-   return 0;
-  }
-  break;
- case 4101:
-  if (typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined") {
-   ret = "Device ";
-  } else {
-   ret = " ";
-  }
-  break;
- case 785:
-  return 0;
-  break;
- case 784:
-  ret = " ";
-  break;
- case 4102:
-  if (!device) {
-   AL.alcErr = 40961;
-   return 0;
-  }
-  ret = "";
-  break;
- default:
-  AL.alcErr = 40963;
-  return 0;
- }
- ret = allocate(intArrayFromString(ret), "i8", ALLOC_NORMAL);
- AL.alcStringCache[param] = ret;
- return ret;
-}
 function _emscripten_set_devicemotion_callback(userData, useCapture, callbackfunc) {
  JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, 17, "devicemotion");
  return 0;
@@ -3514,6 +3254,1776 @@ function _glGenTextures(n, textures) {
   GL.textures[id] = texture;
   HEAP32[textures + i * 4 >> 2] = id;
  }
+}
+var PATH = {
+ splitPath: (function(filename) {
+  var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
+  return splitPathRe.exec(filename).slice(1);
+ }),
+ normalizeArray: (function(parts, allowAboveRoot) {
+  var up = 0;
+  for (var i = parts.length - 1; i >= 0; i--) {
+   var last = parts[i];
+   if (last === ".") {
+    parts.splice(i, 1);
+   } else if (last === "..") {
+    parts.splice(i, 1);
+    up++;
+   } else if (up) {
+    parts.splice(i, 1);
+    up--;
+   }
+  }
+  if (allowAboveRoot) {
+   for (; up--; up) {
+    parts.unshift("..");
+   }
+  }
+  return parts;
+ }),
+ normalize: (function(path) {
+  var isAbsolute = path.charAt(0) === "/", trailingSlash = path.substr(-1) === "/";
+  path = PATH.normalizeArray(path.split("/").filter((function(p) {
+   return !!p;
+  })), !isAbsolute).join("/");
+  if (!path && !isAbsolute) {
+   path = ".";
+  }
+  if (path && trailingSlash) {
+   path += "/";
+  }
+  return (isAbsolute ? "/" : "") + path;
+ }),
+ dirname: (function(path) {
+  var result = PATH.splitPath(path), root = result[0], dir = result[1];
+  if (!root && !dir) {
+   return ".";
+  }
+  if (dir) {
+   dir = dir.substr(0, dir.length - 1);
+  }
+  return root + dir;
+ }),
+ basename: (function(path) {
+  if (path === "/") return "/";
+  var lastSlash = path.lastIndexOf("/");
+  if (lastSlash === -1) return path;
+  return path.substr(lastSlash + 1);
+ }),
+ extname: (function(path) {
+  return PATH.splitPath(path)[3];
+ }),
+ join: (function() {
+  var paths = Array.prototype.slice.call(arguments, 0);
+  return PATH.normalize(paths.join("/"));
+ }),
+ join2: (function(l, r) {
+  return PATH.normalize(l + "/" + r);
+ }),
+ resolve: (function() {
+  var resolvedPath = "", resolvedAbsolute = false;
+  for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+   var path = i >= 0 ? arguments[i] : FS.cwd();
+   if (typeof path !== "string") {
+    throw new TypeError("Arguments to path.resolve must be strings");
+   } else if (!path) {
+    return "";
+   }
+   resolvedPath = path + "/" + resolvedPath;
+   resolvedAbsolute = path.charAt(0) === "/";
+  }
+  resolvedPath = PATH.normalizeArray(resolvedPath.split("/").filter((function(p) {
+   return !!p;
+  })), !resolvedAbsolute).join("/");
+  return (resolvedAbsolute ? "/" : "") + resolvedPath || ".";
+ }),
+ relative: (function(from, to) {
+  from = PATH.resolve(from).substr(1);
+  to = PATH.resolve(to).substr(1);
+  function trim(arr) {
+   var start = 0;
+   for (; start < arr.length; start++) {
+    if (arr[start] !== "") break;
+   }
+   var end = arr.length - 1;
+   for (; end >= 0; end--) {
+    if (arr[end] !== "") break;
+   }
+   if (start > end) return [];
+   return arr.slice(start, end - start + 1);
+  }
+  var fromParts = trim(from.split("/"));
+  var toParts = trim(to.split("/"));
+  var length = Math.min(fromParts.length, toParts.length);
+  var samePartsLength = length;
+  for (var i = 0; i < length; i++) {
+   if (fromParts[i] !== toParts[i]) {
+    samePartsLength = i;
+    break;
+   }
+  }
+  var outputParts = [];
+  for (var i = samePartsLength; i < fromParts.length; i++) {
+   outputParts.push("..");
+  }
+  outputParts = outputParts.concat(toParts.slice(samePartsLength));
+  return outputParts.join("/");
+ })
+};
+function _malloc(bytes) {
+ var ptr = Runtime.dynamicAlloc(bytes + 8);
+ return ptr + 8 & 4294967288;
+}
+Module["_malloc"] = _malloc;
+function _free() {}
+Module["_free"] = _free;
+function _SDL_CloseAudio() {
+ if (SDL.audio) {
+  _SDL_PauseAudio(1);
+  _free(SDL.audio.buffer);
+  SDL.audio = null;
+  SDL.allocateChannels(0);
+ }
+}
+var _environ = STATICTOP;
+STATICTOP += 16;
+function ___buildEnvironment(env) {
+ var MAX_ENV_VALUES = 64;
+ var TOTAL_ENV_SIZE = 1024;
+ var poolPtr;
+ var envPtr;
+ if (!___buildEnvironment.called) {
+  ___buildEnvironment.called = true;
+  ENV["USER"] = ENV["LOGNAME"] = "web_user";
+  ENV["PATH"] = "/";
+  ENV["PWD"] = "/";
+  ENV["HOME"] = "/home/web_user";
+  ENV["LANG"] = "C";
+  ENV["_"] = Module["thisProgram"];
+  poolPtr = allocate(TOTAL_ENV_SIZE, "i8", ALLOC_STATIC);
+  envPtr = allocate(MAX_ENV_VALUES * 4, "i8*", ALLOC_STATIC);
+  HEAP32[envPtr >> 2] = poolPtr;
+  HEAP32[_environ >> 2] = envPtr;
+ } else {
+  envPtr = HEAP32[_environ >> 2];
+  poolPtr = HEAP32[envPtr >> 2];
+ }
+ var strings = [];
+ var totalSize = 0;
+ for (var key in env) {
+  if (typeof env[key] === "string") {
+   var line = key + "=" + env[key];
+   strings.push(line);
+   totalSize += line.length;
+  }
+ }
+ if (totalSize > TOTAL_ENV_SIZE) {
+  throw new Error("Environment size exceeded TOTAL_ENV_SIZE!");
+ }
+ var ptrSize = 4;
+ for (var i = 0; i < strings.length; i++) {
+  var line = strings[i];
+  writeAsciiToMemory(line, poolPtr);
+  HEAP32[envPtr + i * ptrSize >> 2] = poolPtr;
+  poolPtr += line.length + 1;
+ }
+ HEAP32[envPtr + strings.length * ptrSize >> 2] = 0;
+}
+var ENV = {};
+function _getenv(name) {
+ if (name === 0) return 0;
+ name = Pointer_stringify(name);
+ if (!ENV.hasOwnProperty(name)) return 0;
+ if (_getenv.ret) _free(_getenv.ret);
+ _getenv.ret = allocate(intArrayFromString(ENV[name]), "i8", ALLOC_NORMAL);
+ return _getenv.ret;
+}
+var ERRNO_CODES = {
+ EPERM: 1,
+ ENOENT: 2,
+ ESRCH: 3,
+ EINTR: 4,
+ EIO: 5,
+ ENXIO: 6,
+ E2BIG: 7,
+ ENOEXEC: 8,
+ EBADF: 9,
+ ECHILD: 10,
+ EAGAIN: 11,
+ EWOULDBLOCK: 11,
+ ENOMEM: 12,
+ EACCES: 13,
+ EFAULT: 14,
+ ENOTBLK: 15,
+ EBUSY: 16,
+ EEXIST: 17,
+ EXDEV: 18,
+ ENODEV: 19,
+ ENOTDIR: 20,
+ EISDIR: 21,
+ EINVAL: 22,
+ ENFILE: 23,
+ EMFILE: 24,
+ ENOTTY: 25,
+ ETXTBSY: 26,
+ EFBIG: 27,
+ ENOSPC: 28,
+ ESPIPE: 29,
+ EROFS: 30,
+ EMLINK: 31,
+ EPIPE: 32,
+ EDOM: 33,
+ ERANGE: 34,
+ ENOMSG: 42,
+ EIDRM: 43,
+ ECHRNG: 44,
+ EL2NSYNC: 45,
+ EL3HLT: 46,
+ EL3RST: 47,
+ ELNRNG: 48,
+ EUNATCH: 49,
+ ENOCSI: 50,
+ EL2HLT: 51,
+ EDEADLK: 35,
+ ENOLCK: 37,
+ EBADE: 52,
+ EBADR: 53,
+ EXFULL: 54,
+ ENOANO: 55,
+ EBADRQC: 56,
+ EBADSLT: 57,
+ EDEADLOCK: 35,
+ EBFONT: 59,
+ ENOSTR: 60,
+ ENODATA: 61,
+ ETIME: 62,
+ ENOSR: 63,
+ ENONET: 64,
+ ENOPKG: 65,
+ EREMOTE: 66,
+ ENOLINK: 67,
+ EADV: 68,
+ ESRMNT: 69,
+ ECOMM: 70,
+ EPROTO: 71,
+ EMULTIHOP: 72,
+ EDOTDOT: 73,
+ EBADMSG: 74,
+ ENOTUNIQ: 76,
+ EBADFD: 77,
+ EREMCHG: 78,
+ ELIBACC: 79,
+ ELIBBAD: 80,
+ ELIBSCN: 81,
+ ELIBMAX: 82,
+ ELIBEXEC: 83,
+ ENOSYS: 38,
+ ENOTEMPTY: 39,
+ ENAMETOOLONG: 36,
+ ELOOP: 40,
+ EOPNOTSUPP: 95,
+ EPFNOSUPPORT: 96,
+ ECONNRESET: 104,
+ ENOBUFS: 105,
+ EAFNOSUPPORT: 97,
+ EPROTOTYPE: 91,
+ ENOTSOCK: 88,
+ ENOPROTOOPT: 92,
+ ESHUTDOWN: 108,
+ ECONNREFUSED: 111,
+ EADDRINUSE: 98,
+ ECONNABORTED: 103,
+ ENETUNREACH: 101,
+ ENETDOWN: 100,
+ ETIMEDOUT: 110,
+ EHOSTDOWN: 112,
+ EHOSTUNREACH: 113,
+ EINPROGRESS: 115,
+ EALREADY: 114,
+ EDESTADDRREQ: 89,
+ EMSGSIZE: 90,
+ EPROTONOSUPPORT: 93,
+ ESOCKTNOSUPPORT: 94,
+ EADDRNOTAVAIL: 99,
+ ENETRESET: 102,
+ EISCONN: 106,
+ ENOTCONN: 107,
+ ETOOMANYREFS: 109,
+ EUSERS: 87,
+ EDQUOT: 122,
+ ESTALE: 116,
+ ENOTSUP: 95,
+ ENOMEDIUM: 123,
+ EILSEQ: 84,
+ EOVERFLOW: 75,
+ ECANCELED: 125,
+ ENOTRECOVERABLE: 131,
+ EOWNERDEAD: 130,
+ ESTRPIPE: 86
+};
+function ___setErrNo(value) {
+ if (Module["___errno_location"]) HEAP32[Module["___errno_location"]() >> 2] = value;
+ return value;
+}
+function _putenv(string) {
+ if (string === 0) {
+  ___setErrNo(ERRNO_CODES.EINVAL);
+  return -1;
+ }
+ string = Pointer_stringify(string);
+ var splitPoint = string.indexOf("=");
+ if (string === "" || string.indexOf("=") === -1) {
+  ___setErrNo(ERRNO_CODES.EINVAL);
+  return -1;
+ }
+ var name = string.slice(0, splitPoint);
+ var value = string.slice(splitPoint + 1);
+ if (!(name in ENV) || ENV[name] !== value) {
+  ENV[name] = value;
+  ___buildEnvironment(ENV);
+ }
+ return 0;
+}
+function _SDL_RWFromConstMem(mem, size) {
+ var id = SDL.rwops.length;
+ SDL.rwops.push({
+  bytes: mem,
+  count: size
+ });
+ return id;
+}
+function _TTF_FontHeight(font) {
+ var fontData = SDL.fonts[font];
+ return fontData.size;
+}
+function _TTF_SizeText(font, text, w, h) {
+ var fontData = SDL.fonts[font];
+ if (w) {
+  HEAP32[w >> 2] = SDL.estimateTextWidth(fontData, Pointer_stringify(text));
+ }
+ if (h) {
+  HEAP32[h >> 2] = fontData.size;
+ }
+ return 0;
+}
+function _TTF_RenderText_Solid(font, text, color) {
+ text = Pointer_stringify(text) || " ";
+ var fontData = SDL.fonts[font];
+ var w = SDL.estimateTextWidth(fontData, text);
+ var h = fontData.size;
+ var color = SDL.loadColorToCSSRGB(color);
+ var fontString = h + "px " + fontData.name;
+ var surf = SDL.makeSurface(w, h, 0, false, "text:" + text);
+ var surfData = SDL.surfaces[surf];
+ surfData.ctx.save();
+ surfData.ctx.fillStyle = color;
+ surfData.ctx.font = fontString;
+ surfData.ctx.textBaseline = "top";
+ surfData.ctx.fillText(text, 0, 0);
+ surfData.ctx.restore();
+ return surf;
+}
+function _Mix_HaltMusic() {
+ var audio = SDL.music.audio;
+ if (audio) {
+  audio.src = audio.src;
+  audio.currentPosition = 0;
+  audio.pause();
+ }
+ SDL.music.audio = null;
+ if (SDL.hookMusicFinished) {
+  Runtime.dynCall("v", SDL.hookMusicFinished);
+ }
+ return 0;
+}
+function _Mix_PlayMusic(id, loops) {
+ if (SDL.music.audio) {
+  if (!SDL.music.audio.paused) Module.printErr("Music is already playing. " + SDL.music.source);
+  SDL.music.audio.pause();
+ }
+ var info = SDL.audios[id];
+ var audio;
+ if (info.webAudio) {
+  audio = {};
+  audio.resource = info;
+  audio.paused = false;
+  audio.currentPosition = 0;
+  audio.play = (function() {
+   SDL.playWebAudio(this);
+  });
+  audio.pause = (function() {
+   SDL.pauseWebAudio(this);
+  });
+ } else if (info.audio) {
+  audio = info.audio;
+ }
+ audio["onended"] = (function() {
+  if (SDL.music.audio == this) _Mix_HaltMusic();
+ });
+ audio.loop = loops != 0;
+ audio.volume = SDL.music.volume;
+ SDL.music.audio = audio;
+ audio.play();
+ return 0;
+}
+function _Mix_FreeChunk(id) {
+ SDL.audios[id] = null;
+}
+function _Mix_LoadWAV_RW(rwopsID, freesrc) {
+ var rwops = SDL.rwops[rwopsID];
+ if (rwops === undefined) return 0;
+ var filename = "";
+ var audio;
+ var webAudio;
+ var bytes;
+ if (rwops.filename !== undefined) {
+  filename = PATH.resolve(rwops.filename);
+  var raw = Module["preloadedAudios"][filename];
+  if (!raw) {
+   if (raw === null) Module.printErr("Trying to reuse preloaded audio, but freePreloadedMediaOnUse is set!");
+   if (!Module.noAudioDecoding) Runtime.warnOnce("Cannot find preloaded audio " + filename);
+   try {
+    bytes = FS.readFile(filename);
+   } catch (e) {
+    Module.printErr("Couldn't find file for: " + filename);
+    return 0;
+   }
+  }
+  if (Module["freePreloadedMediaOnUse"]) {
+   Module["preloadedAudios"][filename] = null;
+  }
+  audio = raw;
+ } else if (rwops.bytes !== undefined) {
+  if (SDL.webAudioAvailable()) bytes = HEAPU8.buffer.slice(rwops.bytes, rwops.bytes + rwops.count); else bytes = HEAPU8.subarray(rwops.bytes, rwops.bytes + rwops.count);
+ } else {
+  return 0;
+ }
+ var arrayBuffer = bytes ? bytes.buffer || bytes : bytes;
+ var canPlayWithWebAudio = Module["SDL_canPlayWithWebAudio"] === undefined || Module["SDL_canPlayWithWebAudio"](filename, arrayBuffer);
+ if (bytes !== undefined && SDL.webAudioAvailable() && canPlayWithWebAudio) {
+  audio = undefined;
+  webAudio = {};
+  webAudio.onDecodeComplete = [];
+  function onDecodeComplete(data) {
+   webAudio.decodedBuffer = data;
+   webAudio.onDecodeComplete.forEach((function(e) {
+    e();
+   }));
+   webAudio.onDecodeComplete = undefined;
+  }
+  SDL.audioContext["decodeAudioData"](arrayBuffer, onDecodeComplete);
+ } else if (audio === undefined && bytes) {
+  var blob = new Blob([ bytes ], {
+   type: rwops.mimetype
+  });
+  var url = URL.createObjectURL(blob);
+  audio = new Audio;
+  audio.src = url;
+  audio.mozAudioChannelType = "content";
+ }
+ var id = SDL.audios.length;
+ SDL.audios.push({
+  source: filename,
+  audio: audio,
+  webAudio: webAudio
+ });
+ return id;
+}
+function _Mix_PlayChannel(channel, id, loops) {
+ var info = SDL.audios[id];
+ if (!info) return -1;
+ if (!info.audio && !info.webAudio) return -1;
+ if (channel == -1) {
+  for (var i = SDL.channelMinimumNumber; i < SDL.numChannels; i++) {
+   if (!SDL.channels[i].audio) {
+    channel = i;
+    break;
+   }
+  }
+  if (channel == -1) {
+   Module.printErr("All " + SDL.numChannels + " channels in use!");
+   return -1;
+  }
+ }
+ var channelInfo = SDL.channels[channel];
+ var audio;
+ if (info.webAudio) {
+  audio = {};
+  audio.resource = info;
+  audio.paused = false;
+  audio.currentPosition = 0;
+  audio.play = (function() {
+   SDL.playWebAudio(this);
+  });
+  audio.pause = (function() {
+   SDL.pauseWebAudio(this);
+  });
+ } else {
+  audio = info.audio.cloneNode(true);
+  audio.numChannels = info.audio.numChannels;
+  audio.frequency = info.audio.frequency;
+ }
+ audio["onended"] = function SDL_audio_onended() {
+  if (channelInfo.audio == this) {
+   channelInfo.audio.paused = true;
+   channelInfo.audio = null;
+  }
+  if (SDL.channelFinished) Runtime.getFuncWrapper(SDL.channelFinished, "vi")(channel);
+ };
+ channelInfo.audio = audio;
+ audio.loop = loops != 0;
+ audio.volume = channelInfo.volume;
+ audio.play();
+ return channel;
+}
+function _SDL_LockSurface(surf) {
+ var surfData = SDL.surfaces[surf];
+ surfData.locked++;
+ if (surfData.locked > 1) return 0;
+ if (!surfData.buffer) {
+  surfData.buffer = _malloc(surfData.width * surfData.height * 4);
+  HEAP32[surf + 20 >> 2] = surfData.buffer;
+ }
+ HEAP32[surf + 20 >> 2] = surfData.buffer;
+ if (surf == SDL.screen && Module.screenIsReadOnly && surfData.image) return 0;
+ if (SDL.defaults.discardOnLock) {
+  if (!surfData.image) {
+   surfData.image = surfData.ctx.createImageData(surfData.width, surfData.height);
+  }
+  if (!SDL.defaults.opaqueFrontBuffer) return;
+ } else {
+  surfData.image = surfData.ctx.getImageData(0, 0, surfData.width, surfData.height);
+ }
+ if (surf == SDL.screen && SDL.defaults.opaqueFrontBuffer) {
+  var data = surfData.image.data;
+  var num = data.length;
+  for (var i = 0; i < num / 4; i++) {
+   data[i * 4 + 3] = 255;
+  }
+ }
+ if (SDL.defaults.copyOnLock && !SDL.defaults.discardOnLock) {
+  if (surfData.isFlagSet(2097152)) {
+   throw "CopyOnLock is not supported for SDL_LockSurface with SDL_HWPALETTE flag set" + (new Error).stack;
+  } else {
+   HEAPU8.set(surfData.image.data, surfData.buffer);
+  }
+ }
+ return 0;
+}
+function _SDL_FreeRW(rwopsID) {
+ SDL.rwops[rwopsID] = null;
+ while (SDL.rwops.length > 0 && SDL.rwops[SDL.rwops.length - 1] === null) {
+  SDL.rwops.pop();
+ }
+}
+function _IMG_Load_RW(rwopsID, freeSrc) {
+ try {
+  function cleanup() {
+   if (rwops && freeSrc) _SDL_FreeRW(rwopsID);
+  }
+  function addCleanup(func) {
+   var old = cleanup;
+   cleanup = function added_cleanup() {
+    old();
+    func();
+   };
+  }
+  var rwops = SDL.rwops[rwopsID];
+  if (rwops === undefined) {
+   return 0;
+  }
+  var filename = rwops.filename;
+  if (filename === undefined) {
+   Runtime.warnOnce("Only file names that have been preloaded are supported for IMG_Load_RW. Consider using STB_IMAGE=1 if you want synchronous image decoding (see settings.js), or package files with --use-preload-plugins");
+   return 0;
+  }
+  if (!raw) {
+   filename = PATH.resolve(filename);
+   var raw = Module["preloadedImages"][filename];
+   if (!raw) {
+    if (raw === null) Module.printErr("Trying to reuse preloaded image, but freePreloadedMediaOnUse is set!");
+    Runtime.warnOnce("Cannot find preloaded image " + filename);
+    Runtime.warnOnce("Cannot find preloaded image " + filename + ". Consider using STB_IMAGE=1 if you want synchronous image decoding (see settings.js), or package files with --use-preload-plugins");
+    return 0;
+   } else if (Module["freePreloadedMediaOnUse"]) {
+    Module["preloadedImages"][filename] = null;
+   }
+  }
+  var surf = SDL.makeSurface(raw.width, raw.height, 0, false, "load:" + filename);
+  var surfData = SDL.surfaces[surf];
+  surfData.ctx.globalCompositeOperation = "copy";
+  if (!raw.rawData) {
+   surfData.ctx.drawImage(raw, 0, 0, raw.width, raw.height, 0, 0, raw.width, raw.height);
+  } else {
+   var imageData = surfData.ctx.getImageData(0, 0, surfData.width, surfData.height);
+   if (raw.bpp == 4) {
+    imageData.data.set(HEAPU8.subarray(raw.data, raw.data + raw.size));
+   } else if (raw.bpp == 3) {
+    var pixels = raw.size / 3;
+    var data = imageData.data;
+    var sourcePtr = raw.data;
+    var destPtr = 0;
+    for (var i = 0; i < pixels; i++) {
+     data[destPtr++] = HEAPU8[sourcePtr++ >> 0];
+     data[destPtr++] = HEAPU8[sourcePtr++ >> 0];
+     data[destPtr++] = HEAPU8[sourcePtr++ >> 0];
+     data[destPtr++] = 255;
+    }
+   } else if (raw.bpp == 1) {
+    var pixels = raw.size;
+    var data = imageData.data;
+    var sourcePtr = raw.data;
+    var destPtr = 0;
+    for (var i = 0; i < pixels; i++) {
+     var value = HEAPU8[sourcePtr++ >> 0];
+     data[destPtr++] = value;
+     data[destPtr++] = value;
+     data[destPtr++] = value;
+     data[destPtr++] = 255;
+    }
+   } else {
+    Module.printErr("cannot handle bpp " + raw.bpp);
+    return 0;
+   }
+   surfData.ctx.putImageData(imageData, 0, 0);
+  }
+  surfData.ctx.globalCompositeOperation = "source-over";
+  _SDL_LockSurface(surf);
+  surfData.locked--;
+  if (SDL.GL) {
+   surfData.canvas = surfData.ctx = null;
+  }
+  return surf;
+ } finally {
+  cleanup();
+ }
+}
+function _SDL_RWFromFile(_name, mode) {
+ var id = SDL.rwops.length;
+ var name = Pointer_stringify(_name);
+ SDL.rwops.push({
+  filename: name,
+  mimetype: Browser.getMimetype(name)
+ });
+ return id;
+}
+function _IMG_Load(filename) {
+ var rwops = _SDL_RWFromFile(filename);
+ var result = _IMG_Load_RW(rwops, 1);
+ return result;
+}
+function _SDL_UpperBlitScaled(src, srcrect, dst, dstrect) {
+ return SDL.blitSurface(src, srcrect, dst, dstrect, true);
+}
+function _SDL_UpperBlit(src, srcrect, dst, dstrect) {
+ return SDL.blitSurface(src, srcrect, dst, dstrect, false);
+}
+function _SDL_GetTicks() {
+ return Date.now() - SDL.startTime | 0;
+}
+var SDL = {
+ defaults: {
+  width: 320,
+  height: 200,
+  copyOnLock: true,
+  discardOnLock: false,
+  opaqueFrontBuffer: true
+ },
+ version: null,
+ surfaces: {},
+ canvasPool: [],
+ events: [],
+ fonts: [ null ],
+ audios: [ null ],
+ rwops: [ null ],
+ music: {
+  audio: null,
+  volume: 1
+ },
+ mixerFrequency: 22050,
+ mixerFormat: 32784,
+ mixerNumChannels: 2,
+ mixerChunkSize: 1024,
+ channelMinimumNumber: 0,
+ GL: false,
+ glAttributes: {
+  0: 3,
+  1: 3,
+  2: 2,
+  3: 0,
+  4: 0,
+  5: 1,
+  6: 16,
+  7: 0,
+  8: 0,
+  9: 0,
+  10: 0,
+  11: 0,
+  12: 0,
+  13: 0,
+  14: 0,
+  15: 1,
+  16: 0,
+  17: 0,
+  18: 0
+ },
+ keyboardState: null,
+ keyboardMap: {},
+ canRequestFullscreen: false,
+ isRequestingFullscreen: false,
+ textInput: false,
+ startTime: null,
+ initFlags: 0,
+ buttonState: 0,
+ modState: 0,
+ DOMButtons: [ 0, 0, 0 ],
+ DOMEventToSDLEvent: {},
+ TOUCH_DEFAULT_ID: 0,
+ eventHandler: null,
+ eventHandlerContext: null,
+ eventHandlerTemp: 0,
+ keyCodes: {
+  16: 1249,
+  17: 1248,
+  18: 1250,
+  20: 1081,
+  33: 1099,
+  34: 1102,
+  35: 1101,
+  36: 1098,
+  37: 1104,
+  38: 1106,
+  39: 1103,
+  40: 1105,
+  44: 316,
+  45: 1097,
+  46: 127,
+  91: 1251,
+  93: 1125,
+  96: 1122,
+  97: 1113,
+  98: 1114,
+  99: 1115,
+  100: 1116,
+  101: 1117,
+  102: 1118,
+  103: 1119,
+  104: 1120,
+  105: 1121,
+  106: 1109,
+  107: 1111,
+  109: 1110,
+  110: 1123,
+  111: 1108,
+  112: 1082,
+  113: 1083,
+  114: 1084,
+  115: 1085,
+  116: 1086,
+  117: 1087,
+  118: 1088,
+  119: 1089,
+  120: 1090,
+  121: 1091,
+  122: 1092,
+  123: 1093,
+  124: 1128,
+  125: 1129,
+  126: 1130,
+  127: 1131,
+  128: 1132,
+  129: 1133,
+  130: 1134,
+  131: 1135,
+  132: 1136,
+  133: 1137,
+  134: 1138,
+  135: 1139,
+  144: 1107,
+  160: 94,
+  161: 33,
+  162: 34,
+  163: 35,
+  164: 36,
+  165: 37,
+  166: 38,
+  167: 95,
+  168: 40,
+  169: 41,
+  170: 42,
+  171: 43,
+  172: 124,
+  173: 45,
+  174: 123,
+  175: 125,
+  176: 126,
+  181: 127,
+  182: 129,
+  183: 128,
+  188: 44,
+  190: 46,
+  191: 47,
+  192: 96,
+  219: 91,
+  220: 92,
+  221: 93,
+  222: 39,
+  224: 1251
+ },
+ scanCodes: {
+  8: 42,
+  9: 43,
+  13: 40,
+  27: 41,
+  32: 44,
+  35: 204,
+  39: 53,
+  44: 54,
+  46: 55,
+  47: 56,
+  48: 39,
+  49: 30,
+  50: 31,
+  51: 32,
+  52: 33,
+  53: 34,
+  54: 35,
+  55: 36,
+  56: 37,
+  57: 38,
+  58: 203,
+  59: 51,
+  61: 46,
+  91: 47,
+  92: 49,
+  93: 48,
+  96: 52,
+  97: 4,
+  98: 5,
+  99: 6,
+  100: 7,
+  101: 8,
+  102: 9,
+  103: 10,
+  104: 11,
+  105: 12,
+  106: 13,
+  107: 14,
+  108: 15,
+  109: 16,
+  110: 17,
+  111: 18,
+  112: 19,
+  113: 20,
+  114: 21,
+  115: 22,
+  116: 23,
+  117: 24,
+  118: 25,
+  119: 26,
+  120: 27,
+  121: 28,
+  122: 29,
+  127: 76,
+  305: 224,
+  308: 226,
+  316: 70
+ },
+ loadRect: (function(rect) {
+  return {
+   x: HEAP32[rect + 0 >> 2],
+   y: HEAP32[rect + 4 >> 2],
+   w: HEAP32[rect + 8 >> 2],
+   h: HEAP32[rect + 12 >> 2]
+  };
+ }),
+ updateRect: (function(rect, r) {
+  HEAP32[rect >> 2] = r.x;
+  HEAP32[rect + 4 >> 2] = r.y;
+  HEAP32[rect + 8 >> 2] = r.w;
+  HEAP32[rect + 12 >> 2] = r.h;
+ }),
+ intersectionOfRects: (function(first, second) {
+  var leftX = Math.max(first.x, second.x);
+  var leftY = Math.max(first.y, second.y);
+  var rightX = Math.min(first.x + first.w, second.x + second.w);
+  var rightY = Math.min(first.y + first.h, second.y + second.h);
+  return {
+   x: leftX,
+   y: leftY,
+   w: Math.max(leftX, rightX) - leftX,
+   h: Math.max(leftY, rightY) - leftY
+  };
+ }),
+ checkPixelFormat: (function(fmt) {}),
+ loadColorToCSSRGB: (function(color) {
+  var rgba = HEAP32[color >> 2];
+  return "rgb(" + (rgba & 255) + "," + (rgba >> 8 & 255) + "," + (rgba >> 16 & 255) + ")";
+ }),
+ loadColorToCSSRGBA: (function(color) {
+  var rgba = HEAP32[color >> 2];
+  return "rgba(" + (rgba & 255) + "," + (rgba >> 8 & 255) + "," + (rgba >> 16 & 255) + "," + (rgba >> 24 & 255) / 255 + ")";
+ }),
+ translateColorToCSSRGBA: (function(rgba) {
+  return "rgba(" + (rgba & 255) + "," + (rgba >> 8 & 255) + "," + (rgba >> 16 & 255) + "," + (rgba >>> 24) / 255 + ")";
+ }),
+ translateRGBAToCSSRGBA: (function(r, g, b, a) {
+  return "rgba(" + (r & 255) + "," + (g & 255) + "," + (b & 255) + "," + (a & 255) / 255 + ")";
+ }),
+ translateRGBAToColor: (function(r, g, b, a) {
+  return r | g << 8 | b << 16 | a << 24;
+ }),
+ makeSurface: (function(width, height, flags, usePageCanvas, source, rmask, gmask, bmask, amask) {
+  flags = flags || 0;
+  var is_SDL_HWSURFACE = flags & 1;
+  var is_SDL_HWPALETTE = flags & 2097152;
+  var is_SDL_OPENGL = flags & 67108864;
+  var surf = _malloc(60);
+  var pixelFormat = _malloc(44);
+  var bpp = is_SDL_HWPALETTE ? 1 : 4;
+  var buffer = 0;
+  if (!is_SDL_HWSURFACE && !is_SDL_OPENGL) {
+   buffer = _malloc(width * height * 4);
+  }
+  HEAP32[surf >> 2] = flags;
+  HEAP32[surf + 4 >> 2] = pixelFormat;
+  HEAP32[surf + 8 >> 2] = width;
+  HEAP32[surf + 12 >> 2] = height;
+  HEAP32[surf + 16 >> 2] = width * bpp;
+  HEAP32[surf + 20 >> 2] = buffer;
+  HEAP32[surf + 36 >> 2] = 0;
+  HEAP32[surf + 40 >> 2] = 0;
+  HEAP32[surf + 44 >> 2] = Module["canvas"].width;
+  HEAP32[surf + 48 >> 2] = Module["canvas"].height;
+  HEAP32[surf + 56 >> 2] = 1;
+  HEAP32[pixelFormat >> 2] = -2042224636;
+  HEAP32[pixelFormat + 4 >> 2] = 0;
+  HEAP8[pixelFormat + 8 >> 0] = bpp * 8;
+  HEAP8[pixelFormat + 9 >> 0] = bpp;
+  HEAP32[pixelFormat + 12 >> 2] = rmask || 255;
+  HEAP32[pixelFormat + 16 >> 2] = gmask || 65280;
+  HEAP32[pixelFormat + 20 >> 2] = bmask || 16711680;
+  HEAP32[pixelFormat + 24 >> 2] = amask || 4278190080;
+  SDL.GL = SDL.GL || is_SDL_OPENGL;
+  var canvas;
+  if (!usePageCanvas) {
+   if (SDL.canvasPool.length > 0) {
+    canvas = SDL.canvasPool.pop();
+   } else {
+    canvas = document.createElement("canvas");
+   }
+   canvas.width = width;
+   canvas.height = height;
+  } else {
+   canvas = Module["canvas"];
+  }
+  var webGLContextAttributes = {
+   antialias: SDL.glAttributes[13] != 0 && SDL.glAttributes[14] > 1,
+   depth: SDL.glAttributes[6] > 0,
+   stencil: SDL.glAttributes[7] > 0,
+   alpha: SDL.glAttributes[3] > 0
+  };
+  var ctx = Browser.createContext(canvas, is_SDL_OPENGL, usePageCanvas, webGLContextAttributes);
+  SDL.surfaces[surf] = {
+   width: width,
+   height: height,
+   canvas: canvas,
+   ctx: ctx,
+   surf: surf,
+   buffer: buffer,
+   pixelFormat: pixelFormat,
+   alpha: 255,
+   flags: flags,
+   locked: 0,
+   usePageCanvas: usePageCanvas,
+   source: source,
+   isFlagSet: (function(flag) {
+    return flags & flag;
+   })
+  };
+  return surf;
+ }),
+ copyIndexedColorData: (function(surfData, rX, rY, rW, rH) {
+  if (!surfData.colors) {
+   return;
+  }
+  var fullWidth = Module["canvas"].width;
+  var fullHeight = Module["canvas"].height;
+  var startX = rX || 0;
+  var startY = rY || 0;
+  var endX = (rW || fullWidth - startX) + startX;
+  var endY = (rH || fullHeight - startY) + startY;
+  var buffer = surfData.buffer;
+  if (!surfData.image.data32) {
+   surfData.image.data32 = new Uint32Array(surfData.image.data.buffer);
+  }
+  var data32 = surfData.image.data32;
+  var colors32 = surfData.colors32;
+  for (var y = startY; y < endY; ++y) {
+   var base = y * fullWidth;
+   for (var x = startX; x < endX; ++x) {
+    data32[base + x] = colors32[HEAPU8[buffer + base + x >> 0]];
+   }
+  }
+ }),
+ freeSurface: (function(surf) {
+  var refcountPointer = surf + 56;
+  var refcount = HEAP32[refcountPointer >> 2];
+  if (refcount > 1) {
+   HEAP32[refcountPointer >> 2] = refcount - 1;
+   return;
+  }
+  var info = SDL.surfaces[surf];
+  if (!info.usePageCanvas && info.canvas) SDL.canvasPool.push(info.canvas);
+  if (info.buffer) _free(info.buffer);
+  _free(info.pixelFormat);
+  _free(surf);
+  SDL.surfaces[surf] = null;
+  if (surf === SDL.screen) {
+   SDL.screen = null;
+  }
+ }),
+ blitSurface__deps: [ "SDL_LockSurface" ],
+ blitSurface: (function(src, srcrect, dst, dstrect, scale) {
+  var srcData = SDL.surfaces[src];
+  var dstData = SDL.surfaces[dst];
+  var sr, dr;
+  if (srcrect) {
+   sr = SDL.loadRect(srcrect);
+  } else {
+   sr = {
+    x: 0,
+    y: 0,
+    w: srcData.width,
+    h: srcData.height
+   };
+  }
+  if (dstrect) {
+   dr = SDL.loadRect(dstrect);
+  } else {
+   dr = {
+    x: 0,
+    y: 0,
+    w: srcData.width,
+    h: srcData.height
+   };
+  }
+  if (dstData.clipRect) {
+   var widthScale = !scale || sr.w === 0 ? 1 : sr.w / dr.w;
+   var heightScale = !scale || sr.h === 0 ? 1 : sr.h / dr.h;
+   dr = SDL.intersectionOfRects(dstData.clipRect, dr);
+   sr.w = dr.w * widthScale;
+   sr.h = dr.h * heightScale;
+   if (dstrect) {
+    SDL.updateRect(dstrect, dr);
+   }
+  }
+  var blitw, blith;
+  if (scale) {
+   blitw = dr.w;
+   blith = dr.h;
+  } else {
+   blitw = sr.w;
+   blith = sr.h;
+  }
+  if (sr.w === 0 || sr.h === 0 || blitw === 0 || blith === 0) {
+   return 0;
+  }
+  var oldAlpha = dstData.ctx.globalAlpha;
+  dstData.ctx.globalAlpha = srcData.alpha / 255;
+  dstData.ctx.drawImage(srcData.canvas, sr.x, sr.y, sr.w, sr.h, dr.x, dr.y, blitw, blith);
+  dstData.ctx.globalAlpha = oldAlpha;
+  if (dst != SDL.screen) {
+   Runtime.warnOnce("WARNING: copying canvas data to memory for compatibility");
+   _SDL_LockSurface(dst);
+   dstData.locked--;
+  }
+  return 0;
+ }),
+ downFingers: {},
+ savedKeydown: null,
+ receiveEvent: (function(event) {
+  function unpressAllPressedKeys() {
+   for (var code in SDL.keyboardMap) {
+    SDL.events.push({
+     type: "keyup",
+     keyCode: SDL.keyboardMap[code]
+    });
+   }
+  }
+  switch (event.type) {
+  case "touchstart":
+  case "touchmove":
+   {
+    event.preventDefault();
+    var touches = [];
+    if (event.type === "touchstart") {
+     for (var i = 0; i < event.touches.length; i++) {
+      var touch = event.touches[i];
+      if (SDL.downFingers[touch.identifier] != true) {
+       SDL.downFingers[touch.identifier] = true;
+       touches.push(touch);
+      }
+     }
+    } else {
+     touches = event.touches;
+    }
+    var firstTouch = touches[0];
+    if (event.type == "touchstart") {
+     SDL.DOMButtons[0] = 1;
+    }
+    var mouseEventType;
+    switch (event.type) {
+    case "touchstart":
+     mouseEventType = "mousedown";
+     break;
+    case "touchmove":
+     mouseEventType = "mousemove";
+     break;
+    }
+    var mouseEvent = {
+     type: mouseEventType,
+     button: 0,
+     pageX: firstTouch.clientX,
+     pageY: firstTouch.clientY
+    };
+    SDL.events.push(mouseEvent);
+    for (var i = 0; i < touches.length; i++) {
+     var touch = touches[i];
+     SDL.events.push({
+      type: event.type,
+      touch: touch
+     });
+    }
+    break;
+   }
+  case "touchend":
+   {
+    event.preventDefault();
+    for (var i = 0; i < event.changedTouches.length; i++) {
+     var touch = event.changedTouches[i];
+     if (SDL.downFingers[touch.identifier] === true) {
+      delete SDL.downFingers[touch.identifier];
+     }
+    }
+    var mouseEvent = {
+     type: "mouseup",
+     button: 0,
+     pageX: event.changedTouches[0].clientX,
+     pageY: event.changedTouches[0].clientY
+    };
+    SDL.DOMButtons[0] = 0;
+    SDL.events.push(mouseEvent);
+    for (var i = 0; i < event.changedTouches.length; i++) {
+     var touch = event.changedTouches[i];
+     SDL.events.push({
+      type: "touchend",
+      touch: touch
+     });
+    }
+    break;
+   }
+  case "DOMMouseScroll":
+  case "mousewheel":
+  case "wheel":
+   var delta = -Browser.getMouseWheelDelta(event);
+   delta = delta == 0 ? 0 : delta > 0 ? Math.max(delta, 1) : Math.min(delta, -1);
+   var button = delta > 0 ? 3 : 4;
+   SDL.events.push({
+    type: "mousedown",
+    button: button,
+    pageX: event.pageX,
+    pageY: event.pageY
+   });
+   SDL.events.push({
+    type: "mouseup",
+    button: button,
+    pageX: event.pageX,
+    pageY: event.pageY
+   });
+   SDL.events.push({
+    type: "wheel",
+    deltaX: 0,
+    deltaY: delta
+   });
+   event.preventDefault();
+   break;
+  case "mousemove":
+   if (SDL.DOMButtons[0] === 1) {
+    SDL.events.push({
+     type: "touchmove",
+     touch: {
+      identifier: 0,
+      deviceID: -1,
+      pageX: event.pageX,
+      pageY: event.pageY
+     }
+    });
+   }
+   if (Browser.pointerLock) {
+    if ("mozMovementX" in event) {
+     event["movementX"] = event["mozMovementX"];
+     event["movementY"] = event["mozMovementY"];
+    }
+    if (event["movementX"] == 0 && event["movementY"] == 0) {
+     event.preventDefault();
+     return;
+    }
+   }
+  case "keydown":
+  case "keyup":
+  case "keypress":
+  case "mousedown":
+  case "mouseup":
+   if (event.type !== "keydown" || !SDL.unicode && !SDL.textInput || event.keyCode === 8 || event.keyCode === 9) {
+    event.preventDefault();
+   }
+   if (event.type == "mousedown") {
+    SDL.DOMButtons[event.button] = 1;
+    SDL.events.push({
+     type: "touchstart",
+     touch: {
+      identifier: 0,
+      deviceID: -1,
+      pageX: event.pageX,
+      pageY: event.pageY
+     }
+    });
+   } else if (event.type == "mouseup") {
+    if (!SDL.DOMButtons[event.button]) {
+     return;
+    }
+    SDL.events.push({
+     type: "touchend",
+     touch: {
+      identifier: 0,
+      deviceID: -1,
+      pageX: event.pageX,
+      pageY: event.pageY
+     }
+    });
+    SDL.DOMButtons[event.button] = 0;
+   }
+   if (event.type === "keydown" || event.type === "mousedown") {
+    SDL.canRequestFullscreen = true;
+   } else if (event.type === "keyup" || event.type === "mouseup") {
+    if (SDL.isRequestingFullscreen) {
+     Module["requestFullscreen"](true, true);
+     SDL.isRequestingFullscreen = false;
+    }
+    SDL.canRequestFullscreen = false;
+   }
+   if (event.type === "keypress" && SDL.savedKeydown) {
+    SDL.savedKeydown.keypressCharCode = event.charCode;
+    SDL.savedKeydown = null;
+   } else if (event.type === "keydown") {
+    SDL.savedKeydown = event;
+   }
+   if (event.type !== "keypress" || SDL.textInput) {
+    SDL.events.push(event);
+   }
+   break;
+  case "mouseout":
+   for (var i = 0; i < 3; i++) {
+    if (SDL.DOMButtons[i]) {
+     SDL.events.push({
+      type: "mouseup",
+      button: i,
+      pageX: event.pageX,
+      pageY: event.pageY
+     });
+     SDL.DOMButtons[i] = 0;
+    }
+   }
+   event.preventDefault();
+   break;
+  case "focus":
+   SDL.events.push(event);
+   event.preventDefault();
+   break;
+  case "blur":
+   SDL.events.push(event);
+   unpressAllPressedKeys();
+   event.preventDefault();
+   break;
+  case "visibilitychange":
+   SDL.events.push({
+    type: "visibilitychange",
+    visible: !document.hidden
+   });
+   unpressAllPressedKeys();
+   event.preventDefault();
+   break;
+  case "unload":
+   if (Browser.mainLoop.runner) {
+    SDL.events.push(event);
+    Browser.mainLoop.runner();
+   }
+   return;
+  case "resize":
+   SDL.events.push(event);
+   if (event.preventDefault) {
+    event.preventDefault();
+   }
+   break;
+  }
+  if (SDL.events.length >= 1e4) {
+   Module.printErr("SDL event queue full, dropping events");
+   SDL.events = SDL.events.slice(0, 1e4);
+  }
+  SDL.flushEventsToHandler();
+  return;
+ }),
+ lookupKeyCodeForEvent: (function(event) {
+  var code = event.keyCode;
+  if (code >= 65 && code <= 90) {
+   code += 32;
+  } else {
+   code = SDL.keyCodes[event.keyCode] || event.keyCode;
+   if (event.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT && code >= (224 | 1 << 10) && code <= (227 | 1 << 10)) {
+    code += 4;
+   }
+  }
+  return code;
+ }),
+ handleEvent: (function(event) {
+  if (event.handled) return;
+  event.handled = true;
+  switch (event.type) {
+  case "touchstart":
+  case "touchend":
+  case "touchmove":
+   {
+    Browser.calculateMouseEvent(event);
+    break;
+   }
+  case "keydown":
+  case "keyup":
+   {
+    var down = event.type === "keydown";
+    var code = SDL.lookupKeyCodeForEvent(event);
+    HEAP8[SDL.keyboardState + code >> 0] = down;
+    SDL.modState = (HEAP8[SDL.keyboardState + 1248 >> 0] ? 64 : 0) | (HEAP8[SDL.keyboardState + 1249 >> 0] ? 1 : 0) | (HEAP8[SDL.keyboardState + 1250 >> 0] ? 256 : 0) | (HEAP8[SDL.keyboardState + 1252 >> 0] ? 128 : 0) | (HEAP8[SDL.keyboardState + 1253 >> 0] ? 2 : 0) | (HEAP8[SDL.keyboardState + 1254 >> 0] ? 512 : 0);
+    if (down) {
+     SDL.keyboardMap[code] = event.keyCode;
+    } else {
+     delete SDL.keyboardMap[code];
+    }
+    break;
+   }
+  case "mousedown":
+  case "mouseup":
+   if (event.type == "mousedown") {
+    SDL.buttonState |= 1 << event.button;
+   } else if (event.type == "mouseup") {
+    SDL.buttonState &= ~(1 << event.button);
+   }
+  case "mousemove":
+   {
+    Browser.calculateMouseEvent(event);
+    break;
+   }
+  }
+ }),
+ flushEventsToHandler: (function() {
+  if (!SDL.eventHandler) return;
+  while (SDL.pollEvent(SDL.eventHandlerTemp)) {
+   Runtime.dynCall("iii", SDL.eventHandler, [ SDL.eventHandlerContext, SDL.eventHandlerTemp ]);
+  }
+ }),
+ pollEvent: (function(ptr) {
+  if (SDL.initFlags & 512 && SDL.joystickEventState) {
+   SDL.queryJoysticks();
+  }
+  if (ptr) {
+   while (SDL.events.length > 0) {
+    if (SDL.makeCEvent(SDL.events.shift(), ptr) !== false) return 1;
+   }
+   return 0;
+  } else {
+   return SDL.events.length > 0;
+  }
+ }),
+ makeCEvent: (function(event, ptr) {
+  if (typeof event === "number") {
+   _memcpy(ptr, event, 28);
+   _free(event);
+   return;
+  }
+  SDL.handleEvent(event);
+  switch (event.type) {
+  case "keydown":
+  case "keyup":
+   {
+    var down = event.type === "keydown";
+    var key = SDL.lookupKeyCodeForEvent(event);
+    var scan;
+    if (key >= 1024) {
+     scan = key - 1024;
+    } else {
+     scan = SDL.scanCodes[key] || key;
+    }
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP8[ptr + 8 >> 0] = down ? 1 : 0;
+    HEAP8[ptr + 9 >> 0] = 0;
+    HEAP32[ptr + 12 >> 2] = scan;
+    HEAP32[ptr + 16 >> 2] = key;
+    HEAP16[ptr + 20 >> 1] = SDL.modState;
+    HEAP32[ptr + 24 >> 2] = event.keypressCharCode || key;
+    break;
+   }
+  case "keypress":
+   {
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    var cStr = intArrayFromString(String.fromCharCode(event.charCode));
+    for (var i = 0; i < cStr.length; ++i) {
+     HEAP8[ptr + (8 + i) >> 0] = cStr[i];
+    }
+    break;
+   }
+  case "mousedown":
+  case "mouseup":
+  case "mousemove":
+   {
+    if (event.type != "mousemove") {
+     var down = event.type === "mousedown";
+     HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+     HEAP32[ptr + 4 >> 2] = 0;
+     HEAP32[ptr + 8 >> 2] = 0;
+     HEAP32[ptr + 12 >> 2] = 0;
+     HEAP8[ptr + 16 >> 0] = event.button + 1;
+     HEAP8[ptr + 17 >> 0] = down ? 1 : 0;
+     HEAP32[ptr + 20 >> 2] = Browser.mouseX;
+     HEAP32[ptr + 24 >> 2] = Browser.mouseY;
+    } else {
+     HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+     HEAP32[ptr + 4 >> 2] = 0;
+     HEAP32[ptr + 8 >> 2] = 0;
+     HEAP32[ptr + 12 >> 2] = 0;
+     HEAP32[ptr + 16 >> 2] = SDL.buttonState;
+     HEAP32[ptr + 20 >> 2] = Browser.mouseX;
+     HEAP32[ptr + 24 >> 2] = Browser.mouseY;
+     HEAP32[ptr + 28 >> 2] = Browser.mouseMovementX;
+     HEAP32[ptr + 32 >> 2] = Browser.mouseMovementY;
+    }
+    break;
+   }
+  case "wheel":
+   {
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 16 >> 2] = event.deltaX;
+    HEAP32[ptr + 20 >> 2] = event.deltaY;
+    break;
+   }
+  case "touchstart":
+  case "touchend":
+  case "touchmove":
+   {
+    var touch = event.touch;
+    if (!Browser.touches[touch.identifier]) break;
+    var w = Module["canvas"].width;
+    var h = Module["canvas"].height;
+    var x = Browser.touches[touch.identifier].x / w;
+    var y = Browser.touches[touch.identifier].y / h;
+    var lx = Browser.lastTouches[touch.identifier].x / w;
+    var ly = Browser.lastTouches[touch.identifier].y / h;
+    var dx = x - lx;
+    var dy = y - ly;
+    if (touch["deviceID"] === undefined) touch.deviceID = SDL.TOUCH_DEFAULT_ID;
+    if (dx === 0 && dy === 0 && event.type === "touchmove") return false;
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 4 >> 2] = _SDL_GetTicks();
+    tempI64 = [ touch.deviceID >>> 0, (tempDouble = touch.deviceID, +Math_abs(tempDouble) >= +1 ? tempDouble > +0 ? (Math_min(+Math_floor(tempDouble / +4294967296), +4294967295) | 0) >>> 0 : ~~+Math_ceil((tempDouble - +(~~tempDouble >>> 0)) / +4294967296) >>> 0 : 0) ], HEAP32[ptr + 8 >> 2] = tempI64[0], HEAP32[ptr + 12 >> 2] = tempI64[1];
+    tempI64 = [ touch.identifier >>> 0, (tempDouble = touch.identifier, +Math_abs(tempDouble) >= +1 ? tempDouble > +0 ? (Math_min(+Math_floor(tempDouble / +4294967296), +4294967295) | 0) >>> 0 : ~~+Math_ceil((tempDouble - +(~~tempDouble >>> 0)) / +4294967296) >>> 0 : 0) ], HEAP32[ptr + 16 >> 2] = tempI64[0], HEAP32[ptr + 20 >> 2] = tempI64[1];
+    HEAPF32[ptr + 24 >> 2] = x;
+    HEAPF32[ptr + 28 >> 2] = y;
+    HEAPF32[ptr + 32 >> 2] = dx;
+    HEAPF32[ptr + 36 >> 2] = dy;
+    if (touch.force !== undefined) {
+     HEAPF32[ptr + 40 >> 2] = touch.force;
+    } else {
+     HEAPF32[ptr + 40 >> 2] = event.type == "touchend" ? 0 : 1;
+    }
+    break;
+   }
+  case "unload":
+   {
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    break;
+   }
+  case "resize":
+   {
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 4 >> 2] = event.w;
+    HEAP32[ptr + 8 >> 2] = event.h;
+    break;
+   }
+  case "joystick_button_up":
+  case "joystick_button_down":
+   {
+    var state = event.type === "joystick_button_up" ? 0 : 1;
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP8[ptr + 4 >> 0] = event.index;
+    HEAP8[ptr + 5 >> 0] = event.button;
+    HEAP8[ptr + 6 >> 0] = state;
+    break;
+   }
+  case "joystick_axis_motion":
+   {
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP8[ptr + 4 >> 0] = event.index;
+    HEAP8[ptr + 5 >> 0] = event.axis;
+    HEAP32[ptr + 8 >> 2] = SDL.joystickAxisValueConversion(event.value);
+    break;
+   }
+  case "focus":
+   {
+    var SDL_WINDOWEVENT_FOCUS_GAINED = 12;
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 4 >> 2] = 0;
+    HEAP8[ptr + 8 >> 0] = SDL_WINDOWEVENT_FOCUS_GAINED;
+    break;
+   }
+  case "blur":
+   {
+    var SDL_WINDOWEVENT_FOCUS_LOST = 13;
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 4 >> 2] = 0;
+    HEAP8[ptr + 8 >> 0] = SDL_WINDOWEVENT_FOCUS_LOST;
+    break;
+   }
+  case "visibilitychange":
+   {
+    var SDL_WINDOWEVENT_SHOWN = 1;
+    var SDL_WINDOWEVENT_HIDDEN = 2;
+    var visibilityEventID = event.visible ? SDL_WINDOWEVENT_SHOWN : SDL_WINDOWEVENT_HIDDEN;
+    HEAP32[ptr >> 2] = SDL.DOMEventToSDLEvent[event.type];
+    HEAP32[ptr + 4 >> 2] = 0;
+    HEAP8[ptr + 8 >> 0] = visibilityEventID;
+    break;
+   }
+  default:
+   throw "Unhandled SDL event: " + event.type;
+  }
+ }),
+ estimateTextWidth: (function(fontData, text) {
+  var h = fontData.size;
+  var fontString = h + "px " + fontData.name;
+  var tempCtx = SDL.ttfContext;
+  tempCtx.save();
+  tempCtx.font = fontString;
+  var ret = tempCtx.measureText(text).width | 0;
+  tempCtx.restore();
+  return ret;
+ }),
+ allocateChannels: (function(num) {
+  if (SDL.numChannels && SDL.numChannels >= num && num != 0) return;
+  SDL.numChannels = num;
+  SDL.channels = [];
+  for (var i = 0; i < num; i++) {
+   SDL.channels[i] = {
+    audio: null,
+    volume: 1
+   };
+  }
+ }),
+ setGetVolume: (function(info, volume) {
+  if (!info) return 0;
+  var ret = info.volume * 128;
+  if (volume != -1) {
+   info.volume = Math.min(Math.max(volume, 0), 128) / 128;
+   if (info.audio) {
+    try {
+     info.audio.volume = info.volume;
+     if (info.audio.webAudioGainNode) info.audio.webAudioGainNode["gain"]["value"] = info.volume;
+    } catch (e) {
+     Module.printErr("setGetVolume failed to set audio volume: " + e);
+    }
+   }
+  }
+  return ret;
+ }),
+ setPannerPosition: (function(info, x, y, z) {
+  if (!info) return;
+  if (info.audio) {
+   if (info.audio.webAudioPannerNode) {
+    info.audio.webAudioPannerNode["setPosition"](x, y, z);
+   }
+  }
+ }),
+ playWebAudio: (function(audio) {
+  if (!audio) return;
+  if (audio.webAudioNode) return;
+  if (!SDL.webAudioAvailable()) return;
+  try {
+   var webAudio = audio.resource.webAudio;
+   audio.paused = false;
+   if (!webAudio.decodedBuffer) {
+    if (webAudio.onDecodeComplete === undefined) abort("Cannot play back audio object that was not loaded");
+    webAudio.onDecodeComplete.push((function() {
+     if (!audio.paused) SDL.playWebAudio(audio);
+    }));
+    return;
+   }
+   audio.webAudioNode = SDL.audioContext["createBufferSource"]();
+   audio.webAudioNode["buffer"] = webAudio.decodedBuffer;
+   audio.webAudioNode["loop"] = audio.loop;
+   audio.webAudioNode["onended"] = (function() {
+    audio["onended"]();
+   });
+   audio.webAudioPannerNode = SDL.audioContext["createPanner"]();
+   audio.webAudioPannerNode["panningModel"] = "equalpower";
+   audio.webAudioGainNode = SDL.audioContext["createGain"]();
+   audio.webAudioGainNode["gain"]["value"] = audio.volume;
+   audio.webAudioNode["connect"](audio.webAudioPannerNode);
+   audio.webAudioPannerNode["connect"](audio.webAudioGainNode);
+   audio.webAudioGainNode["connect"](SDL.audioContext["destination"]);
+   audio.webAudioNode["start"](0, audio.currentPosition);
+   audio.startTime = SDL.audioContext["currentTime"] - audio.currentPosition;
+  } catch (e) {
+   Module.printErr("playWebAudio failed: " + e);
+  }
+ }),
+ pauseWebAudio: (function(audio) {
+  if (!audio) return;
+  if (audio.webAudioNode) {
+   try {
+    audio.currentPosition = (SDL.audioContext["currentTime"] - audio.startTime) % audio.resource.webAudio.decodedBuffer.duration;
+    audio.webAudioNode["onended"] = undefined;
+    audio.webAudioNode.stop(0);
+    audio.webAudioNode = undefined;
+   } catch (e) {
+    Module.printErr("pauseWebAudio failed: " + e);
+   }
+  }
+  audio.paused = true;
+ }),
+ openAudioContext: (function() {
+  if (!SDL.audioContext) {
+   if (typeof AudioContext !== "undefined") SDL.audioContext = new AudioContext; else if (typeof webkitAudioContext !== "undefined") SDL.audioContext = new webkitAudioContext;
+  }
+ }),
+ webAudioAvailable: (function() {
+  return !!SDL.audioContext;
+ }),
+ fillWebAudioBufferFromHeap: (function(heapPtr, sizeSamplesPerChannel, dstAudioBuffer) {
+  var numChannels = SDL.audio.channels;
+  for (var c = 0; c < numChannels; ++c) {
+   var channelData = dstAudioBuffer["getChannelData"](c);
+   if (channelData.length != sizeSamplesPerChannel) {
+    throw "Web Audio output buffer length mismatch! Destination size: " + channelData.length + " samples vs expected " + sizeSamplesPerChannel + " samples!";
+   }
+   if (SDL.audio.format == 32784) {
+    for (var j = 0; j < sizeSamplesPerChannel; ++j) {
+     channelData[j] = HEAP16[heapPtr + (j * numChannels + c) * 2 >> 1] / 32768;
+    }
+   } else if (SDL.audio.format == 8) {
+    for (var j = 0; j < sizeSamplesPerChannel; ++j) {
+     var v = HEAP8[heapPtr + (j * numChannels + c) >> 0];
+     channelData[j] = (v >= 0 ? v - 128 : v + 128) / 128;
+    }
+   }
+  }
+ }),
+ debugSurface: (function(surfData) {
+  console.log("dumping surface " + [ surfData.surf, surfData.source, surfData.width, surfData.height ]);
+  var image = surfData.ctx.getImageData(0, 0, surfData.width, surfData.height);
+  var data = image.data;
+  var num = Math.min(surfData.width, surfData.height);
+  for (var i = 0; i < num; i++) {
+   console.log("   diagonal " + i + ":" + [ data[i * surfData.width * 4 + i * 4 + 0], data[i * surfData.width * 4 + i * 4 + 1], data[i * surfData.width * 4 + i * 4 + 2], data[i * surfData.width * 4 + i * 4 + 3] ]);
+  }
+ }),
+ joystickEventState: 1,
+ lastJoystickState: {},
+ joystickNamePool: {},
+ recordJoystickState: (function(joystick, state) {
+  var buttons = new Array(state.buttons.length);
+  for (var i = 0; i < state.buttons.length; i++) {
+   buttons[i] = SDL.getJoystickButtonState(state.buttons[i]);
+  }
+  SDL.lastJoystickState[joystick] = {
+   buttons: buttons,
+   axes: state.axes.slice(0),
+   timestamp: state.timestamp,
+   index: state.index,
+   id: state.id
+  };
+ }),
+ getJoystickButtonState: (function(button) {
+  if (typeof button === "object") {
+   return button.pressed;
+  } else {
+   return button > 0;
+  }
+ }),
+ queryJoysticks: (function() {
+  for (var joystick in SDL.lastJoystickState) {
+   var state = SDL.getGamepad(joystick - 1);
+   var prevState = SDL.lastJoystickState[joystick];
+   if (typeof state.timestamp !== "number" || state.timestamp !== prevState.timestamp) {
+    var i;
+    for (i = 0; i < state.buttons.length; i++) {
+     var buttonState = SDL.getJoystickButtonState(state.buttons[i]);
+     if (buttonState !== prevState.buttons[i]) {
+      SDL.events.push({
+       type: buttonState ? "joystick_button_down" : "joystick_button_up",
+       joystick: joystick,
+       index: joystick - 1,
+       button: i
+      });
+     }
+    }
+    for (i = 0; i < state.axes.length; i++) {
+     if (state.axes[i] !== prevState.axes[i]) {
+      SDL.events.push({
+       type: "joystick_axis_motion",
+       joystick: joystick,
+       index: joystick - 1,
+       axis: i,
+       value: state.axes[i]
+      });
+     }
+    }
+    SDL.recordJoystickState(joystick, state);
+   }
+  }
+ }),
+ joystickAxisValueConversion: (function(value) {
+  value = Math.min(1, Math.max(value, -1));
+  return Math.ceil((value + 1) * 32767.5 - 32768);
+ }),
+ getGamepads: (function() {
+  var fcn = navigator.getGamepads || navigator.webkitGamepads || navigator.mozGamepads || navigator.gamepads || navigator.webkitGetGamepads;
+  if (fcn !== undefined) {
+   return fcn.apply(navigator);
+  } else {
+   return [];
+  }
+ }),
+ getGamepad: (function(deviceIndex) {
+  var gamepads = SDL.getGamepads();
+  if (gamepads.length > deviceIndex && deviceIndex >= 0) {
+   return gamepads[deviceIndex];
+  }
+  return null;
+ })
+};
+function _SDL_PauseAudio(pauseOn) {
+ if (!SDL.audio) {
+  return;
+ }
+ if (pauseOn) {
+  if (SDL.audio.timer !== undefined) {
+   clearTimeout(SDL.audio.timer);
+   SDL.audio.numAudioTimersPending = 0;
+   SDL.audio.timer = undefined;
+  }
+ } else if (!SDL.audio.timer) {
+  SDL.audio.numAudioTimersPending = 1;
+  SDL.audio.timer = Browser.safeSetTimeout(SDL.audio.caller, 1);
+ }
+ SDL.audio.paused = pauseOn;
 }
 function _glDepthFunc(x0) {
  GLctx["depthFunc"](x0);
@@ -3534,18 +5044,20 @@ function _llvm_cttz_i32(x) {
 }
 Module["___udivmoddi4"] = ___udivmoddi4;
 Module["___uremdi3"] = ___uremdi3;
+function _glDeleteShader(id) {
+ if (!id) return;
+ var shader = GL.shaders[id];
+ if (!shader) {
+  GL.recordError(1281);
+  return;
+ }
+ GLctx.deleteShader(shader);
+ GL.shaders[id] = null;
+}
+function _pthread_mutexattr_init() {}
 function _glUniform1f(location, v0) {
  location = GL.uniforms[location];
  GLctx.uniform1f(location, v0);
-}
-function _alcMakeContextCurrent(context) {
- if (context == 0) {
-  AL.currentContext = null;
-  return 0;
- } else {
-  AL.currentContext = AL.contexts[context - 1];
-  return 1;
- }
 }
 function _glCreateShader(shaderType) {
  var id = GL.getNewId(GL.shaders);
@@ -3570,14 +5082,86 @@ function _glGenRenderbuffers(n, renderbuffers) {
   HEAP32[renderbuffers + i * 4 >> 2] = id;
  }
 }
-function _glCompressedTexImage2D(target, level, internalFormat, width, height, border, imageSize, data) {
- var heapView;
- if (data) {
-  heapView = HEAPU8.subarray(data, data + imageSize);
- } else {
-  heapView = null;
+function emscriptenWebGLComputeImageSize(width, height, sizePerPixel, alignment) {
+ function roundedToNextMultipleOf(x, y) {
+  return Math.floor((x + y - 1) / y) * y;
  }
- GLctx["compressedTexImage2D"](target, level, internalFormat, width, height, border, heapView);
+ var plainRowSize = width * sizePerPixel;
+ var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
+ return height <= 0 ? 0 : (height - 1) * alignedRowSize + plainRowSize;
+}
+function emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) {
+ var sizePerPixel;
+ var numChannels;
+ switch (format) {
+ case 6406:
+ case 6409:
+ case 6402:
+  numChannels = 1;
+  break;
+ case 6410:
+  numChannels = 2;
+  break;
+ case 6407:
+ case 35904:
+  numChannels = 3;
+  break;
+ case 6408:
+ case 35906:
+  numChannels = 4;
+  break;
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+ switch (type) {
+ case 5121:
+  sizePerPixel = numChannels * 1;
+  break;
+ case 5123:
+ case 36193:
+  sizePerPixel = numChannels * 2;
+  break;
+ case 5125:
+ case 5126:
+  sizePerPixel = numChannels * 4;
+  break;
+ case 34042:
+  sizePerPixel = 4;
+  break;
+ case 33635:
+ case 32819:
+ case 32820:
+  sizePerPixel = 2;
+  break;
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+ var bytes = emscriptenWebGLComputeImageSize(width, height, sizePerPixel, GL.unpackAlignment);
+ switch (type) {
+ case 5121:
+  return HEAPU8.subarray(pixels, pixels + bytes);
+ case 5126:
+  return HEAPF32.subarray(pixels >> 2, pixels + bytes >> 2);
+ case 5125:
+ case 34042:
+  return HEAPU32.subarray(pixels >> 2, pixels + bytes >> 2);
+ case 5123:
+ case 33635:
+ case 32819:
+ case 32820:
+ case 36193:
+  return HEAPU16.subarray(pixels >> 1, pixels + bytes >> 1);
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+}
+function _glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels) {
+ var pixelData = null;
+ if (pixels) pixelData = emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, 0);
+ GLctx.texSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixelData);
 }
 function _glDisable(x0) {
  GLctx["disable"](x0);
@@ -3635,39 +5219,6 @@ function _glGetProgramiv(program, pname, p) {
 function _glColorMask(x0, x1, x2, x3) {
  GLctx["colorMask"](x0, x1, x2, x3);
 }
-function _alDeleteBuffers(count, buffers) {
- if (!AL.currentContext) {
-  return;
- }
- if (count > AL.currentContext.buf.length) {
-  AL.currentContext.err = 40963;
-  return;
- }
- for (var i = 0; i < count; ++i) {
-  var bufferIdx = HEAP32[buffers + i * 4 >> 2] - 1;
-  if (bufferIdx >= AL.currentContext.buf.length || !AL.currentContext.buf[bufferIdx]) {
-   AL.currentContext.err = 40961;
-   return;
-  }
-  var buffer = AL.currentContext.buf[bufferIdx];
-  for (var srcId in AL.currentContext.src) {
-   var src = AL.currentContext.src[srcId];
-   if (!src) {
-    continue;
-   }
-   for (var k = 0; k < src.queue.length; k++) {
-    if (buffer === src.queue[k].buffer) {
-     AL.currentContext.err = 40964;
-     return;
-    }
-   }
-  }
- }
- for (var i = 0; i < count; ++i) {
-  var bufferIdx = HEAP32[buffers + i * 4 >> 2] - 1;
-  delete AL.currentContext.buf[bufferIdx];
- }
-}
 function _emscripten_exit_pointerlock() {
  JSEvents.removeDeferredCalls(JSEvents.requestPointerLock);
  if (document.exitPointerLock) {
@@ -3709,6 +5260,7 @@ function _glGetUniformLocation(program, name) {
   return -1;
  }
 }
+Module["___divdi3"] = ___divdi3;
 function _emscripten_set_touchcancel_callback(target, userData, useCapture, callbackfunc) {
  JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 25, "touchcancel");
  return 0;
@@ -3716,6 +5268,7 @@ function _emscripten_set_touchcancel_callback(target, userData, useCapture, call
 function _glBindFramebuffer(target, framebuffer) {
  GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : null);
 }
+function ___lock() {}
 function _glCullFace(x0) {
  GLctx["cullFace"](x0);
 }
@@ -3757,29 +5310,18 @@ function _glVertexAttribDivisor(index, divisor) {
 function _glRenderbufferStorage(x0, x1, x2, x3) {
  GLctx["renderbufferStorage"](x0, x1, x2, x3);
 }
-function _alSourcePlay(source) {
- if (!AL.currentContext) {
-  return;
- }
- var src = AL.currentContext.src[source];
- if (!src) {
-  AL.currentContext.err = 40961;
-  return;
- }
- AL.setSourceState(src, 4114);
-}
 function _glAttachShader(program, shader) {
  GLctx.attachShader(GL.programs[program], GL.shaders[shader]);
+}
+function _emscripten_set_mousedown_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 5, "mousedown");
+ return 0;
 }
 function _glCheckFramebufferStatus(x0) {
  return GLctx["checkFramebufferStatus"](x0);
 }
 function _emscripten_set_mousemove_callback(target, userData, useCapture, callbackfunc) {
  JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 8, "mousemove");
- return 0;
-}
-function _emscripten_set_deviceorientation_callback(userData, useCapture, callbackfunc) {
- JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, 16, "deviceorientation");
  return 0;
 }
 function _glUniform3f(location, v0, v1, v2) {
@@ -3833,6 +5375,17 @@ var SYSCALLS = {
   assert(SYSCALLS.get() === 0);
  })
 };
+function ___syscall5(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get();
+  var stream = FS.open(pathname, flags, mode);
+  return stream.fd;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
 function ___syscall6(which, varargs) {
  SYSCALLS.varargs = varargs;
  try {
@@ -3847,9 +5400,6 @@ function ___syscall6(which, varargs) {
 Module["___udivdi3"] = ___udivdi3;
 function _glBufferSubData(target, offset, size, data) {
  GLctx.bufferSubData(target, offset, HEAPU8.subarray(data, data + size));
-}
-function _alcDestroyContext(context) {
- clearInterval(AL.contexts[context - 1].interval);
 }
 function _glGetShaderiv(shader, pname, p) {
  if (!p) {
@@ -3911,9 +5461,20 @@ function ___syscall146(which, varargs) {
   return -e.errno;
  }
 }
+function ___syscall145(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.getStreamFromFD(), iov = SYSCALLS.get(), iovcnt = SYSCALLS.get();
+  return SYSCALLS.doReadv(stream, iov, iovcnt);
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
 function _glBlendColor(x0, x1, x2, x3) {
  GLctx["blendColor"](x0, x1, x2, x3);
 }
+Module["_roundf"] = _roundf;
 function _emscripten_set_touchmove_callback(target, userData, useCapture, callbackfunc) {
  JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 24, "touchmove");
  return 0;
@@ -4023,45 +5584,6 @@ function _emscripten_request_fullscreen_strategy(target, deferUntilInEventHandle
  __currentFullscreenStrategy = strategy;
  return _emscripten_do_request_fullscreen(target, strategy);
 }
-function _alcCreateContext(device, attrList) {
- if (device != 1) {
-  return 0;
- }
- if (attrList) {
-  return 0;
- }
- var ctx;
- try {
-  ctx = new AudioContext;
- } catch (e) {
-  try {
-   ctx = new webkitAudioContext;
-  } catch (e) {}
- }
- if (ctx) {
-  if (typeof ctx.createGain === "undefined") ctx.createGain = ctx.createGainNode;
-  var gain = ctx.createGain();
-  gain.connect(ctx.destination);
-  ctx.listener._position = [ 0, 0, 0 ];
-  ctx.listener._velocity = [ 0, 0, 0 ];
-  ctx.listener._orientation = [ 0, 0, 0, 0, 0, 0 ];
-  var context = {
-   ctx: ctx,
-   err: 0,
-   src: {},
-   buf: [],
-   interval: setInterval((function() {
-    AL.updateSources(context);
-   }), AL.QUEUE_INTERVAL),
-   gain: gain
-  };
-  AL.contexts.push(context);
-  return AL.contexts.length;
- } else {
-  return 0;
- }
-}
-function _alcCloseDevice(device) {}
 function _glShaderSource(shader, count, string, length) {
  var source = GL.getSource(shader, count, string, length);
  GLctx.shaderSource(GL.shaders[shader], source);
@@ -4069,15 +5591,14 @@ function _glShaderSource(shader, count, string, length) {
 function _glBindRenderbuffer(target, renderbuffer) {
  GLctx.bindRenderbuffer(target, renderbuffer ? GL.renderbuffers[renderbuffer] : null);
 }
-function _glDeleteRenderbuffers(n, renderbuffers) {
- for (var i = 0; i < n; i++) {
-  var id = HEAP32[renderbuffers + i * 4 >> 2];
-  var renderbuffer = GL.renderbuffers[id];
-  if (!renderbuffer) continue;
-  GLctx.deleteRenderbuffer(renderbuffer);
-  renderbuffer.name = 0;
-  GL.renderbuffers[id] = null;
+function _glCompressedTexImage2D(target, level, internalFormat, width, height, border, imageSize, data) {
+ var heapView;
+ if (data) {
+  heapView = HEAPU8.subarray(data, data + imageSize);
+ } else {
+  heapView = null;
  }
+ GLctx["compressedTexImage2D"](target, level, internalFormat, width, height, border, heapView);
 }
 function _glDeleteFramebuffers(n, framebuffers) {
  for (var i = 0; i < n; ++i) {
@@ -4096,12 +5617,9 @@ function _emscripten_set_touchstart_callback(target, userData, useCapture, callb
  JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 22, "touchstart");
  return 0;
 }
-function _alcOpenDevice(deviceName) {
- if (typeof AudioContext !== "undefined" || typeof webkitAudioContext !== "undefined") {
-  return 1;
- } else {
-  return 0;
- }
+function _emscripten_set_deviceorientation_callback(userData, useCapture, callbackfunc) {
+ JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, 16, "deviceorientation");
+ return 0;
 }
 function _emscripten_set_keypress_callback(target, userData, useCapture, callbackfunc) {
  JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 1, "keypress");
@@ -4129,6 +5647,9 @@ function _nanosleep(rqtp, rmtp) {
 }
 function _glClear(x0) {
  GLctx["clear"](x0);
+}
+function ___atomic_load_8(ptr, memmodel) {
+ return (asm["setTempRet0"](HEAP32[ptr + 4 >> 2]), HEAP32[ptr >> 2]) | 0;
 }
 function _glUniform2f(location, v0, v1) {
  location = GL.uniforms[location];
@@ -4261,156 +5782,23 @@ function _emscripten_webgl_create_context(target, attributes) {
  var contextHandle = GL.createContext(canvas, contextAttributes);
  return contextHandle;
 }
-function _alGetString(param) {
- if (AL.stringCache[param]) return AL.stringCache[param];
- var ret;
- switch (param) {
- case 0:
-  ret = "No Error";
-  break;
- case 40961:
-  ret = "Invalid Name";
-  break;
- case 40962:
-  ret = "Invalid Enum";
-  break;
- case 40963:
-  ret = "Invalid Value";
-  break;
- case 40964:
-  ret = "Invalid Operation";
-  break;
- case 40965:
-  ret = "Out of Memory";
-  break;
- case 45057:
-  ret = "Emscripten";
-  break;
- case 45058:
-  ret = "1.1";
-  break;
- case 45059:
-  ret = "WebAudio";
-  break;
- case 45060:
-  ret = "AL_EXT_float32";
-  break;
- default:
-  AL.currentContext.err = 40962;
-  return 0;
+function _glDeleteRenderbuffers(n, renderbuffers) {
+ for (var i = 0; i < n; i++) {
+  var id = HEAP32[renderbuffers + i * 4 >> 2];
+  var renderbuffer = GL.renderbuffers[id];
+  if (!renderbuffer) continue;
+  GLctx.deleteRenderbuffer(renderbuffer);
+  renderbuffer.name = 0;
+  GL.renderbuffers[id] = null;
  }
- ret = allocate(intArrayFromString(ret), "i8", ALLOC_NORMAL);
- AL.stringCache[param] = ret;
- return ret;
 }
+Module["_pthread_mutex_unlock"] = _pthread_mutex_unlock;
 function _glVertexAttribPointer(index, size, type, normalized, stride, ptr) {
  GLctx.vertexAttribPointer(index, size, type, normalized, stride, ptr);
-}
-function _alGenSources(count, sources) {
- if (!AL.currentContext) {
-  return;
- }
- for (var i = 0; i < count; ++i) {
-  var gain = AL.currentContext.ctx.createGain();
-  gain.connect(AL.currentContext.gain);
-  AL.currentContext.src[AL.newSrcId] = {
-   state: 4113,
-   queue: [],
-   loop: false,
-   playbackRate: 1,
-   _position: [ 0, 0, 0 ],
-   _velocity: [ 0, 0, 0 ],
-   _direction: [ 0, 0, 0 ],
-   get refDistance() {
-    return this._refDistance || 1;
-   },
-   set refDistance(val) {
-    this._refDistance = val;
-    if (this.panner) this.panner.refDistance = val;
-   },
-   get maxDistance() {
-    return this._maxDistance || 1e4;
-   },
-   set maxDistance(val) {
-    this._maxDistance = val;
-    if (this.panner) this.panner.maxDistance = val;
-   },
-   get rolloffFactor() {
-    return this._rolloffFactor || 1;
-   },
-   set rolloffFactor(val) {
-    this._rolloffFactor = val;
-    if (this.panner) this.panner.rolloffFactor = val;
-   },
-   get position() {
-    return this._position;
-   },
-   set position(val) {
-    this._position[0] = val[0];
-    this._position[1] = val[1];
-    this._position[2] = val[2];
-    if (this.panner) this.panner.setPosition(val[0], val[1], val[2]);
-   },
-   get velocity() {
-    return this._velocity;
-   },
-   set velocity(val) {
-    this._velocity[0] = val[0];
-    this._velocity[1] = val[1];
-    this._velocity[2] = val[2];
-    if (this.panner) this.panner.setVelocity(val[0], val[1], val[2]);
-   },
-   get direction() {
-    return this._direction;
-   },
-   set direction(val) {
-    this._direction[0] = val[0];
-    this._direction[1] = val[1];
-    this._direction[2] = val[2];
-    if (this.panner) this.panner.setOrientation(val[0], val[1], val[2]);
-   },
-   get coneOuterGain() {
-    return this._coneOuterGain || 0;
-   },
-   set coneOuterGain(val) {
-    this._coneOuterGain = val;
-    if (this.panner) this.panner.coneOuterGain = val;
-   },
-   get coneInnerAngle() {
-    return this._coneInnerAngle || 360;
-   },
-   set coneInnerAngle(val) {
-    this._coneInnerAngle = val;
-    if (this.panner) this.panner.coneInnerAngle = val;
-   },
-   get coneOuterAngle() {
-    return this._coneOuterAngle || 360;
-   },
-   set coneOuterAngle(val) {
-    this._coneOuterAngle = val;
-    if (this.panner) this.panner.coneOuterAngle = val;
-   },
-   gain: gain,
-   panner: null,
-   buffersPlayed: 0,
-   bufferPosition: 0
-  };
-  HEAP32[sources + i * 4 >> 2] = AL.newSrcId;
-  AL.newSrcId++;
- }
 }
 function _emscripten_set_keydown_callback(target, userData, useCapture, callbackfunc) {
  JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 2, "keydown");
  return 0;
-}
-function ___setErrNo(value) {
- if (Module["___errno_location"]) HEAP32[Module["___errno_location"]() >> 2] = value;
- return value;
-}
-Module["_sbrk"] = _sbrk;
-Module["_bitshift64Shl"] = _bitshift64Shl;
-function _glStencilFunc(x0, x1, x2) {
- GLctx["stencilFunc"](x0, x1, x2);
 }
 function emscriptenWebGLGet(name_, p, type) {
  if (!p) {
@@ -4516,6 +5904,12 @@ function emscriptenWebGLGet(name_, p, type) {
 function _glGetIntegerv(name_, p) {
  emscriptenWebGLGet(name_, p, "Integer");
 }
+Module["_sbrk"] = _sbrk;
+Module["_bitshift64Shl"] = _bitshift64Shl;
+function _glStencilFunc(x0, x1, x2) {
+ GLctx["stencilFunc"](x0, x1, x2);
+}
+function _pthread_mutex_destroy() {}
 function ___syscall54(which, varargs) {
  SYSCALLS.varargs = varargs;
  try {
@@ -4525,90 +5919,146 @@ function ___syscall54(which, varargs) {
   return -e.errno;
  }
 }
-function _abort() {
- Module["abort"]();
+function _SDL_OpenAudio(desired, obtained) {
+ try {
+  SDL.audio = {
+   freq: HEAPU32[desired >> 2],
+   format: HEAPU16[desired + 4 >> 1],
+   channels: HEAPU8[desired + 6 >> 0],
+   samples: HEAPU16[desired + 8 >> 1],
+   callback: HEAPU32[desired + 16 >> 2],
+   userdata: HEAPU32[desired + 20 >> 2],
+   paused: true,
+   timer: null
+  };
+  if (SDL.audio.format == 8) {
+   SDL.audio.silence = 128;
+  } else if (SDL.audio.format == 32784) {
+   SDL.audio.silence = 0;
+  } else {
+   throw "Invalid SDL audio format " + SDL.audio.format + "!";
+  }
+  if (SDL.audio.freq <= 0) {
+   throw "Unsupported sound frequency " + SDL.audio.freq + "!";
+  } else if (SDL.audio.freq <= 22050) {
+   SDL.audio.freq = 22050;
+  } else if (SDL.audio.freq <= 32e3) {
+   SDL.audio.freq = 32e3;
+  } else if (SDL.audio.freq <= 44100) {
+   SDL.audio.freq = 44100;
+  } else if (SDL.audio.freq <= 48e3) {
+   SDL.audio.freq = 48e3;
+  } else if (SDL.audio.freq <= 96e3) {
+   SDL.audio.freq = 96e3;
+  } else {
+   throw "Unsupported sound frequency " + SDL.audio.freq + "!";
+  }
+  if (SDL.audio.channels == 0) {
+   SDL.audio.channels = 1;
+  } else if (SDL.audio.channels < 0 || SDL.audio.channels > 32) {
+   throw "Unsupported number of audio channels for SDL audio: " + SDL.audio.channels + "!";
+  } else if (SDL.audio.channels != 1 && SDL.audio.channels != 2) {
+   console.log("Warning: Using untested number of audio channels " + SDL.audio.channels);
+  }
+  if (SDL.audio.samples < 128 || SDL.audio.samples > 524288) {
+   throw "Unsupported audio callback buffer size " + SDL.audio.samples + "!";
+  } else if ((SDL.audio.samples & SDL.audio.samples - 1) != 0) {
+   throw "Audio callback buffer size " + SDL.audio.samples + " must be a power-of-two!";
+  }
+  var totalSamples = SDL.audio.samples * SDL.audio.channels;
+  SDL.audio.bytesPerSample = SDL.audio.format == 8 || SDL.audio.format == 32776 ? 1 : 2;
+  SDL.audio.bufferSize = totalSamples * SDL.audio.bytesPerSample;
+  SDL.audio.bufferDurationSecs = SDL.audio.bufferSize / SDL.audio.bytesPerSample / SDL.audio.channels / SDL.audio.freq;
+  SDL.audio.bufferingDelay = 50 / 1e3;
+  SDL.audio.buffer = _malloc(SDL.audio.bufferSize);
+  SDL.audio.numSimultaneouslyQueuedBuffers = Module["SDL_numSimultaneouslyQueuedBuffers"] || 5;
+  SDL.audio.queueNewAudioData = function SDL_queueNewAudioData() {
+   if (!SDL.audio) return;
+   for (var i = 0; i < SDL.audio.numSimultaneouslyQueuedBuffers; ++i) {
+    var secsUntilNextPlayStart = SDL.audio.nextPlayTime - SDL.audioContext["currentTime"];
+    if (secsUntilNextPlayStart >= SDL.audio.bufferingDelay + SDL.audio.bufferDurationSecs * SDL.audio.numSimultaneouslyQueuedBuffers) return;
+    Runtime.dynCall("viii", SDL.audio.callback, [ SDL.audio.userdata, SDL.audio.buffer, SDL.audio.bufferSize ]);
+    SDL.audio.pushAudio(SDL.audio.buffer, SDL.audio.bufferSize);
+   }
+  };
+  SDL.audio.caller = function SDL_audioCaller() {
+   if (!SDL.audio) return;
+   --SDL.audio.numAudioTimersPending;
+   SDL.audio.queueNewAudioData();
+   var secsUntilNextPlayStart = SDL.audio.nextPlayTime - SDL.audioContext["currentTime"];
+   var preemptBufferFeedSecs = SDL.audio.bufferDurationSecs / 2;
+   if (SDL.audio.numAudioTimersPending < SDL.audio.numSimultaneouslyQueuedBuffers) {
+    ++SDL.audio.numAudioTimersPending;
+    SDL.audio.timer = Browser.safeSetTimeout(SDL.audio.caller, Math.max(0, 1e3 * (secsUntilNextPlayStart - preemptBufferFeedSecs)));
+    if (SDL.audio.numAudioTimersPending < SDL.audio.numSimultaneouslyQueuedBuffers) {
+     ++SDL.audio.numAudioTimersPending;
+     Browser.safeSetTimeout(SDL.audio.caller, 1);
+    }
+   }
+  };
+  SDL.audio.audioOutput = new Audio;
+  SDL.openAudioContext();
+  if (!SDL.audioContext) throw "Web Audio API is not available!";
+  SDL.audio.nextPlayTime = 0;
+  SDL.audio.pushAudio = (function(ptr, sizeBytes) {
+   try {
+    if (SDL.audio.paused) return;
+    var sizeSamples = sizeBytes / SDL.audio.bytesPerSample;
+    var sizeSamplesPerChannel = sizeSamples / SDL.audio.channels;
+    if (sizeSamplesPerChannel != SDL.audio.samples) {
+     throw "Received mismatching audio buffer size!";
+    }
+    var source = SDL.audioContext["createBufferSource"]();
+    var soundBuffer = SDL.audioContext["createBuffer"](SDL.audio.channels, sizeSamplesPerChannel, SDL.audio.freq);
+    source["connect"](SDL.audioContext["destination"]);
+    SDL.fillWebAudioBufferFromHeap(ptr, sizeSamplesPerChannel, soundBuffer);
+    source["buffer"] = soundBuffer;
+    var curtime = SDL.audioContext["currentTime"];
+    var playtime = Math.max(curtime + SDL.audio.bufferingDelay, SDL.audio.nextPlayTime);
+    if (typeof source["start"] !== "undefined") {
+     source["start"](playtime);
+    } else if (typeof source["noteOn"] !== "undefined") {
+     source["noteOn"](playtime);
+    }
+    SDL.audio.nextPlayTime = playtime + SDL.audio.bufferDurationSecs;
+   } catch (e) {
+    console.log("Web Audio API error playing back audio: " + e.toString());
+   }
+  });
+  if (obtained) {
+   HEAP32[obtained >> 2] = SDL.audio.freq;
+   HEAP16[obtained + 4 >> 1] = SDL.audio.format;
+   HEAP8[obtained + 6 >> 0] = SDL.audio.channels;
+   HEAP8[obtained + 7 >> 0] = SDL.audio.silence;
+   HEAP16[obtained + 8 >> 1] = SDL.audio.samples;
+   HEAP32[obtained + 16 >> 2] = SDL.audio.callback;
+   HEAP32[obtained + 20 >> 2] = SDL.audio.userdata;
+  }
+  SDL.allocateChannels(32);
+ } catch (e) {
+  console.log('Initializing SDL audio threw an exception: "' + e.toString() + '"! Continuing without audio.');
+  SDL.audio = null;
+  SDL.allocateChannels(0);
+  if (obtained) {
+   HEAP32[obtained >> 2] = 0;
+   HEAP16[obtained + 4 >> 1] = 0;
+   HEAP8[obtained + 6 >> 0] = 0;
+   HEAP8[obtained + 7 >> 0] = 0;
+   HEAP16[obtained + 8 >> 1] = 0;
+   HEAP32[obtained + 16 >> 2] = 0;
+   HEAP32[obtained + 20 >> 2] = 0;
+  }
+ }
+ if (!SDL.audio) {
+  return -1;
+ }
+ return 0;
 }
 function _glFrontFace(x0) {
  GLctx["frontFace"](x0);
 }
 function _glUseProgram(program) {
  GLctx.useProgram(program ? GL.programs[program] : null);
-}
-function emscriptenWebGLComputeImageSize(width, height, sizePerPixel, alignment) {
- function roundedToNextMultipleOf(x, y) {
-  return Math.floor((x + y - 1) / y) * y;
- }
- var plainRowSize = width * sizePerPixel;
- var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
- return height <= 0 ? 0 : (height - 1) * alignedRowSize + plainRowSize;
-}
-function emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) {
- var sizePerPixel;
- var numChannels;
- switch (format) {
- case 6406:
- case 6409:
- case 6402:
-  numChannels = 1;
-  break;
- case 6410:
-  numChannels = 2;
-  break;
- case 6407:
- case 35904:
-  numChannels = 3;
-  break;
- case 6408:
- case 35906:
-  numChannels = 4;
-  break;
- default:
-  GL.recordError(1280);
-  return null;
- }
- switch (type) {
- case 5121:
-  sizePerPixel = numChannels * 1;
-  break;
- case 5123:
- case 36193:
-  sizePerPixel = numChannels * 2;
-  break;
- case 5125:
- case 5126:
-  sizePerPixel = numChannels * 4;
-  break;
- case 34042:
-  sizePerPixel = 4;
-  break;
- case 33635:
- case 32819:
- case 32820:
-  sizePerPixel = 2;
-  break;
- default:
-  GL.recordError(1280);
-  return null;
- }
- var bytes = emscriptenWebGLComputeImageSize(width, height, sizePerPixel, GL.unpackAlignment);
- switch (type) {
- case 5121:
-  return HEAPU8.subarray(pixels, pixels + bytes);
- case 5126:
-  return HEAPF32.subarray(pixels >> 2, pixels + bytes >> 2);
- case 5125:
- case 34042:
-  return HEAPU32.subarray(pixels >> 2, pixels + bytes >> 2);
- case 5123:
- case 33635:
- case 32819:
- case 32820:
- case 36193:
-  return HEAPU16.subarray(pixels >> 1, pixels + bytes >> 1);
- default:
-  GL.recordError(1280);
-  return null;
- }
 }
 function _glTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels) {
  var pixelData = null;
@@ -4618,14 +6068,8 @@ function _glTexImage2D(target, level, internalFormat, width, height, border, for
 function _glStencilMask(x0) {
  GLctx["stencilMask"](x0);
 }
-function _alDeleteSources(count, sources) {
- if (!AL.currentContext) {
-  return;
- }
- for (var i = 0; i < count; ++i) {
-  var sourceIdx = HEAP32[sources + i * 4 >> 2];
-  delete AL.currentContext.src[sourceIdx];
- }
+function _abort() {
+ Module["abort"]();
 }
 function _glDeleteBuffers(n, buffers) {
  for (var i = 0; i < n; i++) {
@@ -4639,82 +6083,12 @@ function _glDeleteBuffers(n, buffers) {
   if (id == GL.currElementArrayBuffer) GL.currElementArrayBuffer = 0;
  }
 }
-function _alGenBuffers(count, buffers) {
- if (!AL.currentContext) {
-  return;
- }
- for (var i = 0; i < count; ++i) {
-  AL.currentContext.buf.push(null);
-  HEAP32[buffers + i * 4 >> 2] = AL.currentContext.buf.length;
- }
+function ___unlock() {}
+function _emscripten_set_canvas_size(width, height) {
+ Browser.setCanvasSize(width, height);
 }
 function _glEnable(x0) {
  GLctx["enable"](x0);
-}
-function _alBufferData(buffer, format, data, size, freq) {
- if (!AL.currentContext) {
-  return;
- }
- if (buffer > AL.currentContext.buf.length) {
-  return;
- }
- var channels, bytes;
- switch (format) {
- case 4352:
-  bytes = 1;
-  channels = 1;
-  break;
- case 4353:
-  bytes = 2;
-  channels = 1;
-  break;
- case 4354:
-  bytes = 1;
-  channels = 2;
-  break;
- case 4355:
-  bytes = 2;
-  channels = 2;
-  break;
- case 65552:
-  bytes = 4;
-  channels = 1;
-  break;
- case 65553:
-  bytes = 4;
-  channels = 2;
-  break;
- default:
-  return;
- }
- try {
-  AL.currentContext.buf[buffer - 1] = AL.currentContext.ctx.createBuffer(channels, size / (bytes * channels), freq);
-  AL.currentContext.buf[buffer - 1].bytesPerSample = bytes;
- } catch (e) {
-  AL.currentContext.err = 40963;
-  return;
- }
- var buf = new Array(channels);
- for (var i = 0; i < channels; ++i) {
-  buf[i] = AL.currentContext.buf[buffer - 1].getChannelData(i);
- }
- for (var i = 0; i < size / (bytes * channels); ++i) {
-  for (var j = 0; j < channels; ++j) {
-   switch (bytes) {
-   case 1:
-    var val = HEAP8[data + (i * channels + j) >> 0] & 255;
-    buf[j][i] = -1 + val * (2 / 256);
-    break;
-   case 2:
-    var val = HEAP16[data + 2 * (i * channels + j) >> 1];
-    buf[j][i] = val / 32768;
-    break;
-   case 4:
-    buf[j][i] = HEAPF32[data + 4 * (i * channels + j) >> 2];
-    break;
-   }
-  }
- }
 }
 function _glBlendEquationSeparate(x0, x1) {
  GLctx["blendEquationSeparate"](x0, x1);
@@ -4733,16 +6107,6 @@ function _glGenBuffers(n, buffers) {
   HEAP32[buffers + i * 4 >> 2] = id;
  }
 }
-function _glDeleteShader(id) {
- if (!id) return;
- var shader = GL.shaders[id];
- if (!shader) {
-  GL.recordError(1281);
-  return;
- }
- GLctx.deleteShader(shader);
- GL.shaders[id] = null;
-}
 function _glCreateProgram() {
  var id = GL.getNewId(GL.programs);
  var program = GLctx.createProgram();
@@ -4750,12 +6114,16 @@ function _glCreateProgram() {
  GL.programs[id] = program;
  return id;
 }
+function ___atomic_store_8(ptr, vall, valh, memmodel) {
+ HEAP32[ptr >> 2] = vall;
+ HEAP32[ptr + 4 >> 2] = valh;
+}
+function ___cxa_pure_virtual() {
+ ABORT = true;
+ throw "Pure virtual function called!";
+}
 function _glViewport(x0, x1, x2, x3) {
  GLctx["viewport"](x0, x1, x2, x3);
-}
-function _emscripten_set_mousedown_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 5, "mousedown");
- return 0;
 }
 function __hideEverythingExceptGivenElement(onlyVisibleElement) {
  var child = onlyVisibleElement;
@@ -4900,6 +6268,11 @@ function _emscripten_webgl_make_context_current(contextHandle) {
  var success = GL.makeContextCurrent(contextHandle);
  return success ? 0 : -5;
 }
+function _pthread_cleanup_pop() {
+ assert(_pthread_cleanup_push.level == __ATEXIT__.length, "cannot pop if something else added meanwhile!");
+ __ATEXIT__.pop();
+ _pthread_cleanup_push.level = __ATEXIT__.length;
+}
 function _emscripten_set_wheel_callback(target, userData, useCapture, callbackfunc) {
  target = JSEvents.findEventTarget(target);
  if (typeof target.onwheel !== "undefined") {
@@ -4912,13 +6285,68 @@ function _emscripten_set_wheel_callback(target, userData, useCapture, callbackfu
   return -1;
  }
 }
-function _emscripten_set_canvas_size(width, height) {
- Browser.setCanvasSize(width, height);
+function _glScissor(x0, x1, x2, x3) {
+ GLctx["scissor"](x0, x1, x2, x3);
 }
 function _llvm_trap() {
  abort("trap!");
 }
 Module["_pthread_self"] = _pthread_self;
+function ___syscall221(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.getStreamFromFD(), cmd = SYSCALLS.get();
+  switch (cmd) {
+  case 0:
+   {
+    var arg = SYSCALLS.get();
+    if (arg < 0) {
+     return -ERRNO_CODES.EINVAL;
+    }
+    var newStream;
+    newStream = FS.open(stream.path, stream.flags, 0, arg);
+    return newStream.fd;
+   }
+  case 1:
+  case 2:
+   return 0;
+  case 3:
+   return stream.flags;
+  case 4:
+   {
+    var arg = SYSCALLS.get();
+    stream.flags |= arg;
+    return 0;
+   }
+  case 12:
+  case 12:
+   {
+    var arg = SYSCALLS.get();
+    var offset = 0;
+    HEAP16[arg + offset >> 1] = 2;
+    return 0;
+   }
+  case 13:
+  case 14:
+  case 13:
+  case 14:
+   return 0;
+  case 16:
+  case 8:
+   return -ERRNO_CODES.EINVAL;
+  case 9:
+   ___setErrNo(ERRNO_CODES.EINVAL);
+   return -1;
+  default:
+   {
+    return -ERRNO_CODES.EINVAL;
+   }
+  }
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
 var GLctx;
 GL.init();
 if (ENVIRONMENT_IS_NODE) {
@@ -4965,6 +6393,7 @@ Module["getUserMedia"] = function Module_getUserMedia() {
 Module["createContext"] = function Module_createContext(canvas, useWebGL, setInModule, webGLContextAttributes) {
  return Browser.createContext(canvas, useWebGL, setInModule, webGLContextAttributes);
 };
+___buildEnvironment(ENV);
 __ATEXIT__.push((function() {
  var fflush = Module["_fflush"];
  if (fflush) fflush(0);
@@ -4980,10 +6409,58 @@ STACK_MAX = STACK_BASE + TOTAL_STACK;
 DYNAMIC_BASE = Runtime.alignMemory(STACK_MAX);
 HEAP32[DYNAMICTOP_PTR >> 2] = DYNAMIC_BASE;
 staticSealed = true;
-Module["wasmTableSize"] = 139;
+Module["wasmTableSize"] = 217;
 function invoke_iiii(index, a1, a2, a3) {
  try {
   return Module["dynCall_iiii"](index, a1, a2, a3);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viiiiii(index, a1, a2, a3, a4, a5, a6) {
+ try {
+  Module["dynCall_viiiiii"](index, a1, a2, a3, a4, a5, a6);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viiiifd(index, a1, a2, a3, a4, a5, a6) {
+ try {
+  Module["dynCall_viiiifd"](index, a1, a2, a3, a4, a5, a6);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viiii(index, a1, a2, a3, a4) {
+ try {
+  Module["dynCall_viiii"](index, a1, a2, a3, a4);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_vid(index, a1, a2) {
+ try {
+  Module["dynCall_vid"](index, a1, a2);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viiiii(index, a1, a2, a3, a4, a5) {
+ try {
+  Module["dynCall_viiiii"](index, a1, a2, a3, a4, a5);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_i(index) {
+ try {
+  return Module["dynCall_i"](index);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
   asm["setThrew"](1, 0);
@@ -5013,9 +6490,49 @@ function invoke_ii(index, a1) {
   asm["setThrew"](1, 0);
  }
 }
+function invoke_viiffdd(index, a1, a2, a3, a4, a5, a6) {
+ try {
+  Module["dynCall_viiffdd"](index, a1, a2, a3, a4, a5, a6);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viii(index, a1, a2, a3) {
+ try {
+  Module["dynCall_viii"](index, a1, a2, a3);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
 function invoke_v(index) {
  try {
   Module["dynCall_v"](index);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viifdd(index, a1, a2, a3, a4, a5) {
+ try {
+  Module["dynCall_viifdd"](index, a1, a2, a3, a4, a5);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viif(index, a1, a2, a3) {
+ try {
+  Module["dynCall_viif"](index, a1, a2, a3);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_fii(index, a1, a2) {
+ try {
+  return Module["dynCall_fii"](index, a1, a2);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
   asm["setThrew"](1, 0);
@@ -5029,9 +6546,17 @@ function invoke_iii(index, a1, a2) {
   asm["setThrew"](1, 0);
  }
 }
-function invoke_viiii(index, a1, a2, a3, a4) {
+function invoke_vidii(index, a1, a2, a3, a4) {
  try {
-  Module["dynCall_viiii"](index, a1, a2, a3, a4);
+  Module["dynCall_vidii"](index, a1, a2, a3, a4);
+ } catch (e) {
+  if (typeof e !== "number" && e !== "longjmp") throw e;
+  asm["setThrew"](1, 0);
+ }
+}
+function invoke_viiifdii(index, a1, a2, a3, a4, a5, a6, a7) {
+ try {
+  Module["dynCall_viiifdii"](index, a1, a2, a3, a4, a5, a6, a7);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
   asm["setThrew"](1, 0);
@@ -5057,113 +6582,141 @@ Module.asmLibraryArg = {
  "getTotalMemory": getTotalMemory,
  "abortOnCannotGrowMemory": abortOnCannotGrowMemory,
  "invoke_iiii": invoke_iiii,
+ "invoke_viiiiii": invoke_viiiiii,
+ "invoke_viiiifd": invoke_viiiifd,
+ "invoke_viiii": invoke_viiii,
+ "invoke_vid": invoke_vid,
+ "invoke_viiiii": invoke_viiiii,
+ "invoke_i": invoke_i,
  "invoke_vi": invoke_vi,
  "invoke_vii": invoke_vii,
  "invoke_ii": invoke_ii,
+ "invoke_viiffdd": invoke_viiffdd,
+ "invoke_viii": invoke_viii,
  "invoke_v": invoke_v,
+ "invoke_viifdd": invoke_viifdd,
+ "invoke_viif": invoke_viif,
+ "invoke_fii": invoke_fii,
  "invoke_iii": invoke_iii,
- "invoke_viiii": invoke_viiii,
+ "invoke_vidii": invoke_vidii,
+ "invoke_viiifdii": invoke_viiifdii,
  "_glClearStencil": _glClearStencil,
  "_glUseProgram": _glUseProgram,
  "_glUniformMatrix3fv": _glUniformMatrix3fv,
  "_glUniformMatrix2fv": _glUniformMatrix2fv,
+ "_glTexSubImage2D": _glTexSubImage2D,
  "_glStencilFunc": _glStencilFunc,
  "_glUniformMatrix4fv": _glUniformMatrix4fv,
- "_glGenRenderbuffers": _glGenRenderbuffers,
- "_alBufferData": _alBufferData,
+ "_glStencilOp": _glStencilOp,
+ "_SDL_RWFromFile": _SDL_RWFromFile,
  "_glDeleteProgram": _glDeleteProgram,
  "_glBindBuffer": _glBindBuffer,
  "_glCreateProgram": _glCreateProgram,
- "_emscripten_request_fullscreen_strategy": _emscripten_request_fullscreen_strategy,
+ "_emscripten_webgl_make_context_current": _emscripten_webgl_make_context_current,
  "_emscripten_set_touchmove_callback": _emscripten_set_touchmove_callback,
  "_emscripten_set_main_loop_timing": _emscripten_set_main_loop_timing,
+ "_glDepthFunc": _glDepthFunc,
  "_glDisableVertexAttribArray": _glDisableVertexAttribArray,
- "_emscripten_memcpy_big": _emscripten_memcpy_big,
+ "_Mix_PlayChannel": _Mix_PlayChannel,
+ "_TTF_RenderText_Solid": _TTF_RenderText_Solid,
  "_emscripten_set_mousedown_callback": _emscripten_set_mousedown_callback,
  "_emscripten_set_touchstart_callback": _emscripten_set_touchstart_callback,
- "_glStencilOp": _glStencilOp,
+ "emscriptenWebGLComputeImageSize": emscriptenWebGLComputeImageSize,
+ "___syscall221": ___syscall221,
  "_glUniform4f": _glUniform4f,
+ "_Mix_LoadWAV_RW": _Mix_LoadWAV_RW,
  "_emscripten_get_canvas_size": _emscripten_get_canvas_size,
- "_emscripten_webgl_make_context_current": _emscripten_webgl_make_context_current,
+ "_emscripten_request_fullscreen_strategy": _emscripten_request_fullscreen_strategy,
  "_glGenBuffers": _glGenBuffers,
  "_glShaderSource": _glShaderSource,
  "_glFramebufferRenderbuffer": _glFramebufferRenderbuffer,
- "_alSourcePlay": _alSourcePlay,
+ "_pthread_cleanup_push": _pthread_cleanup_push,
+ "_Mix_HaltMusic": _Mix_HaltMusic,
  "_llvm_trap": _llvm_trap,
- "_alGetString": _alGetString,
- "_emscripten_set_devicemotion_callback": _emscripten_set_devicemotion_callback,
+ "___syscall145": ___syscall145,
+ "___syscall146": ___syscall146,
+ "_pthread_cleanup_pop": _pthread_cleanup_pop,
  "_emscripten_set_keyup_callback": _emscripten_set_keyup_callback,
- "_alcCreateContext": _alcCreateContext,
+ "_glRenderbufferStorage": _glRenderbufferStorage,
  "__restoreHiddenElements": __restoreHiddenElements,
+ "_SDL_GetTicks": _SDL_GetTicks,
  "_glBindRenderbuffer": _glBindRenderbuffer,
  "_glDrawElements": _glDrawElements,
  "_glDepthMask": _glDepthMask,
  "_glBufferSubData": _glBufferSubData,
- "_alcMakeContextCurrent": _alcMakeContextCurrent,
+ "_SDL_LockSurface": _SDL_LockSurface,
  "_glViewport": _glViewport,
  "_llvm_cttz_i32": _llvm_cttz_i32,
  "___setErrNo": ___setErrNo,
- "_alSourcef": _alSourcef,
  "_glDeleteTextures": _glDeleteTextures,
- "_glDepthFunc": _glDepthFunc,
+ "_SDL_OpenAudio": _SDL_OpenAudio,
  "_glStencilOpSeparate": _glStencilOpSeparate,
  "_emscripten_set_canvas_size": _emscripten_set_canvas_size,
  "_glUniform3f": _glUniform3f,
- "_alSourcei": _alSourcei,
- "_alGenBuffers": _alGenBuffers,
  "_nanosleep": _nanosleep,
- "_glBlendFuncSeparate": _glBlendFuncSeparate,
+ "_glCompressedTexImage2D": _glCompressedTexImage2D,
  "_glEnable": _glEnable,
  "___syscall140": ___syscall140,
  "_glGenTextures": _glGenTextures,
  "_glGetIntegerv": _glGetIntegerv,
  "_glGetString": _glGetString,
  "emscriptenWebGLGet": emscriptenWebGLGet,
- "_emscripten_set_mouseup_callback": _emscripten_set_mouseup_callback,
+ "_glStencilMaskSeparate": _glStencilMaskSeparate,
  "_emscripten_get_now": _emscripten_get_now,
  "_glAttachShader": _glAttachShader,
  "__registerRestoreOldStyle": __registerRestoreOldStyle,
+ "___lock": ___lock,
  "emscriptenWebGLGetTexPixelData": emscriptenWebGLGetTexPixelData,
  "___syscall6": ___syscall6,
+ "___syscall5": ___syscall5,
+ "___atomic_store_8": ___atomic_store_8,
  "_glBindFramebuffer": _glBindFramebuffer,
- "___syscall146": ___syscall146,
+ "_emscripten_set_devicemotion_callback": _emscripten_set_devicemotion_callback,
  "_glGenFramebuffers": _glGenFramebuffers,
+ "_SDL_UpperBlitScaled": _SDL_UpperBlitScaled,
  "_glUniform2f": _glUniform2f,
- "_alDeleteSources": _alDeleteSources,
+ "_putenv": _putenv,
  "_glCullFace": _glCullFace,
  "_emscripten_set_keypress_callback": _emscripten_set_keypress_callback,
  "_glDeleteFramebuffers": _glDeleteFramebuffers,
+ "_IMG_Load": _IMG_Load,
+ "_TTF_FontHeight": _TTF_FontHeight,
  "_glCheckFramebufferStatus": _glCheckFramebufferStatus,
  "_emscripten_webgl_create_context": _emscripten_webgl_create_context,
- "_emscripten_set_deviceorientation_callback": _emscripten_set_deviceorientation_callback,
- "_glVertexAttribPointer": _glVertexAttribPointer,
- "_glCompressedTexImage2D": _glCompressedTexImage2D,
- "_glStencilMaskSeparate": _glStencilMaskSeparate,
- "_glClearDepthf": _glClearDepthf,
  "_glClearColor": _glClearColor,
+ "_glVertexAttribPointer": _glVertexAttribPointer,
+ "___buildEnvironment": ___buildEnvironment,
+ "_glBlendFuncSeparate": _glBlendFuncSeparate,
+ "_emscripten_set_mouseup_callback": _emscripten_set_mouseup_callback,
+ "_glClearDepthf": _glClearDepthf,
+ "_emscripten_set_deviceorientation_callback": _emscripten_set_deviceorientation_callback,
  "_glBindTexture": _glBindTexture,
  "_glUniform1f": _glUniform1f,
  "_glUniform1i": _glUniform1i,
- "_alcDestroyContext": _alcDestroyContext,
  "_glDrawArrays": _glDrawArrays,
  "_glCreateShader": _glCreateShader,
- "_emscripten_webgl_init_context_attributes": _emscripten_webgl_init_context_attributes,
+ "_pthread_mutex_destroy": _pthread_mutex_destroy,
+ "_getenv": _getenv,
+ "_SDL_UpperBlit": _SDL_UpperBlit,
+ "_SDL_PauseAudio": _SDL_PauseAudio,
  "_glActiveTexture": _glActiveTexture,
  "__setLetterbox": __setLetterbox,
- "_alcGetString": _alcGetString,
  "_glFrontFace": _glFrontFace,
  "_glCompileShader": _glCompileShader,
  "_emscripten_exit_pointerlock": _emscripten_exit_pointerlock,
- "_alcCloseDevice": _alcCloseDevice,
  "_glEnableVertexAttribArray": _glEnableVertexAttribArray,
  "_abort": _abort,
  "_glDeleteBuffers": _glDeleteBuffers,
  "_glBufferData": _glBufferData,
  "_glTexImage2D": _glTexImage2D,
+ "___atomic_load_8": ___atomic_load_8,
+ "___cxa_pure_virtual": ___cxa_pure_virtual,
  "_glDeleteShader": _glDeleteShader,
  "_glGetProgramiv": _glGetProgramiv,
+ "_glScissor": _glScissor,
  "_emscripten_request_pointerlock": _emscripten_request_pointerlock,
- "emscriptenWebGLComputeImageSize": emscriptenWebGLComputeImageSize,
+ "_Mix_PlayMusic": _Mix_PlayMusic,
+ "_SDL_CloseAudio": _SDL_CloseAudio,
  "_emscripten_set_keydown_callback": _emscripten_set_keydown_callback,
  "_emscripten_set_touchcancel_callback": _emscripten_set_touchcancel_callback,
  "_emscripten_set_mousemove_callback": _emscripten_set_mousemove_callback,
@@ -5171,31 +6724,38 @@ Module.asmLibraryArg = {
  "_usleep": _usleep,
  "_glLinkProgram": _glLinkProgram,
  "_emscripten_set_touchend_callback": _emscripten_set_touchend_callback,
- "_glGetShaderiv": _glGetShaderiv,
+ "_SDL_FreeRW": _SDL_FreeRW,
+ "_glGenRenderbuffers": _glGenRenderbuffers,
  "_glGetUniformLocation": _glGetUniformLocation,
  "_emscripten_cancel_main_loop": _emscripten_cancel_main_loop,
  "_glClear": _glClear,
  "_glUniform4fv": _glUniform4fv,
- "_glRenderbufferStorage": _glRenderbufferStorage,
+ "_Mix_FreeChunk": _Mix_FreeChunk,
  "__softFullscreenResizeWebGLRenderTarget": __softFullscreenResizeWebGLRenderTarget,
+ "_IMG_Load_RW": _IMG_Load_RW,
  "_glBindAttribLocation": _glBindAttribLocation,
+ "_glGetShaderiv": _glGetShaderiv,
  "_emscripten_webgl_destroy_context": _emscripten_webgl_destroy_context,
- "_alDeleteBuffers": _alDeleteBuffers,
  "_glVertexAttribDivisor": _glVertexAttribDivisor,
  "_emscripten_enter_soft_fullscreen": _emscripten_enter_soft_fullscreen,
+ "_TTF_SizeText": _TTF_SizeText,
  "_emscripten_set_wheel_callback": _emscripten_set_wheel_callback,
  "___syscall54": ___syscall54,
+ "___unlock": ___unlock,
  "_glFramebufferTexture2D": _glFramebufferTexture2D,
+ "_emscripten_memcpy_big": _emscripten_memcpy_big,
  "_emscripten_set_main_loop": _emscripten_set_main_loop,
- "_alGenSources": _alGenSources,
- "_alcOpenDevice": _alcOpenDevice,
+ "_pthread_mutexattr_init": _pthread_mutexattr_init,
+ "_emscripten_webgl_init_context_attributes": _emscripten_webgl_init_context_attributes,
  "_glColorMask": _glColorMask,
  "__hideEverythingExceptGivenElement": __hideEverythingExceptGivenElement,
  "_glDisable": _glDisable,
  "_glTexParameteri": _glTexParameteri,
  "_glBlendColor": _glBlendColor,
  "_glStencilMask": _glStencilMask,
+ "_pthread_mutex_init": _pthread_mutex_init,
  "_glBlendEquationSeparate": _glBlendEquationSeparate,
+ "_SDL_RWFromConstMem": _SDL_RWFromConstMem,
  "_glStencilFuncSeparate": _glStencilFuncSeparate,
  "_emscripten_do_request_fullscreen": _emscripten_do_request_fullscreen,
  "STACKTOP": STACKTOP,
@@ -5209,33 +6769,50 @@ Module.asmLibraryArg = {
 
 var asm =Module["asm"]// EMSCRIPTEN_END_ASM
 (Module.asmGlobalArg, Module.asmLibraryArg, buffer);
-var ___muldsi3 = Module["___muldsi3"] = asm["___muldsi3"];
-var _malloc = Module["_malloc"] = asm["_malloc"];
-var _i64Subtract = Module["_i64Subtract"] = asm["_i64Subtract"];
-var _free = Module["_free"] = asm["_free"];
+var _roundf = Module["_roundf"] = asm["_roundf"];
 var _main = Module["_main"] = asm["_main"];
-var _enter_fullscreen = Module["_enter_fullscreen"] = asm["_enter_fullscreen"];
-var _memmove = Module["_memmove"] = asm["_memmove"];
-var _pthread_self = Module["_pthread_self"] = asm["_pthread_self"];
-var _memset = Module["_memset"] = asm["_memset"];
 var ___udivdi3 = Module["___udivdi3"] = asm["___udivdi3"];
-var _sbrk = Module["_sbrk"] = asm["_sbrk"];
-var _i64Add = Module["_i64Add"] = asm["_i64Add"];
-var _memcpy = Module["_memcpy"] = asm["_memcpy"];
 var _enter_soft_fullscreen = Module["_enter_soft_fullscreen"] = asm["_enter_soft_fullscreen"];
-var runPostSets = Module["runPostSets"] = asm["runPostSets"];
-var ___muldi3 = Module["___muldi3"] = asm["___muldi3"];
 var _bitshift64Lshr = Module["_bitshift64Lshr"] = asm["_bitshift64Lshr"];
-var ___uremdi3 = Module["___uremdi3"] = asm["___uremdi3"];
-var ___udivmoddi4 = Module["___udivmoddi4"] = asm["___udivmoddi4"];
 var _bitshift64Shl = Module["_bitshift64Shl"] = asm["_bitshift64Shl"];
+var _memset = Module["_memset"] = asm["_memset"];
+var _sbrk = Module["_sbrk"] = asm["_sbrk"];
+var _enter_fullscreen = Module["_enter_fullscreen"] = asm["_enter_fullscreen"];
+var _memcpy = Module["_memcpy"] = asm["_memcpy"];
+var ___muldi3 = Module["___muldi3"] = asm["___muldi3"];
+var ___uremdi3 = Module["___uremdi3"] = asm["___uremdi3"];
+var ___divdi3 = Module["___divdi3"] = asm["___divdi3"];
+var _i64Subtract = Module["_i64Subtract"] = asm["_i64Subtract"];
+var ___udivmoddi4 = Module["___udivmoddi4"] = asm["___udivmoddi4"];
+var _i64Add = Module["_i64Add"] = asm["_i64Add"];
+var _pthread_self = Module["_pthread_self"] = asm["_pthread_self"];
+var _pthread_mutex_unlock = Module["_pthread_mutex_unlock"] = asm["_pthread_mutex_unlock"];
+var __GLOBAL__sub_I_imgui_cpp = Module["__GLOBAL__sub_I_imgui_cpp"] = asm["__GLOBAL__sub_I_imgui_cpp"];
+var ___muldsi3 = Module["___muldsi3"] = asm["___muldsi3"];
+var _free = Module["_free"] = asm["_free"];
+var runPostSets = Module["runPostSets"] = asm["runPostSets"];
+var _memmove = Module["_memmove"] = asm["_memmove"];
+var _malloc = Module["_malloc"] = asm["_malloc"];
+var _pthread_mutex_lock = Module["_pthread_mutex_lock"] = asm["_pthread_mutex_lock"];
 var dynCall_iiii = Module["dynCall_iiii"] = asm["dynCall_iiii"];
+var dynCall_viiiiii = Module["dynCall_viiiiii"] = asm["dynCall_viiiiii"];
+var dynCall_viiiifd = Module["dynCall_viiiifd"] = asm["dynCall_viiiifd"];
+var dynCall_viiii = Module["dynCall_viiii"] = asm["dynCall_viiii"];
+var dynCall_vid = Module["dynCall_vid"] = asm["dynCall_vid"];
+var dynCall_viiiii = Module["dynCall_viiiii"] = asm["dynCall_viiiii"];
+var dynCall_i = Module["dynCall_i"] = asm["dynCall_i"];
 var dynCall_vi = Module["dynCall_vi"] = asm["dynCall_vi"];
 var dynCall_vii = Module["dynCall_vii"] = asm["dynCall_vii"];
 var dynCall_ii = Module["dynCall_ii"] = asm["dynCall_ii"];
+var dynCall_viiffdd = Module["dynCall_viiffdd"] = asm["dynCall_viiffdd"];
+var dynCall_viii = Module["dynCall_viii"] = asm["dynCall_viii"];
 var dynCall_v = Module["dynCall_v"] = asm["dynCall_v"];
+var dynCall_viifdd = Module["dynCall_viifdd"] = asm["dynCall_viifdd"];
+var dynCall_viif = Module["dynCall_viif"] = asm["dynCall_viif"];
+var dynCall_fii = Module["dynCall_fii"] = asm["dynCall_fii"];
 var dynCall_iii = Module["dynCall_iii"] = asm["dynCall_iii"];
-var dynCall_viiii = Module["dynCall_viiii"] = asm["dynCall_viiii"];
+var dynCall_vidii = Module["dynCall_vidii"] = asm["dynCall_vidii"];
+var dynCall_viiifdii = Module["dynCall_viiifdii"] = asm["dynCall_viiifdii"];
 Runtime.stackAlloc = asm["stackAlloc"];
 Runtime.stackSave = asm["stackSave"];
 Runtime.stackRestore = asm["stackRestore"];
