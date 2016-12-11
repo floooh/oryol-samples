@@ -177,21 +177,21 @@ KC85Emu::Render(const glm::mat4& mvp, bool onlyUpdateTexture) {
             const int height = 256;
             tex = this->draw.irmTexture320x256;
             this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.kc85.video.LinearBuffer, this->draw.texUpdateAttrs);
+            Gfx::UpdateTexture(tex, this->emu.kc85.video.rgba8_buffer, this->draw.texUpdateAttrs);
         }
         else if (int(this->model) & int(device::any_z9001)) {
             const int width = 320;
             const int height = 192;
             tex = this->draw.irmTexture320x192;
             this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.z9001.RGBA8Buffer, this->draw.texUpdateAttrs);
+            Gfx::UpdateTexture(tex, this->emu.z9001.rgba8_buffer, this->draw.texUpdateAttrs);
         }
         else if (int(this->model) & int(device::any_z1013)) {
             const int width = 256;
             const int height = 256;
             tex = this->draw.irmTexture256x256;
             this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.z1013.RGBA8Buffer, this->draw.texUpdateAttrs);
+            Gfx::UpdateTexture(tex, this->emu.z1013.rgba8_buffer, this->draw.texUpdateAttrs);
         }
 
         if (!onlyUpdateTexture) {
