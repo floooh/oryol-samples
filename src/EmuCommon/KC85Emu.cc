@@ -5,6 +5,7 @@
 #include "KC85Emu.h"
 #include "Assets/Gfx/ShapeBuilder.h"
 #include "Input/Input.h"
+#include "yakc/roms/rom_dumps.h"
 #include "emu_shaders.h"
 
 using namespace YAKC;
@@ -20,13 +21,8 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, device m, os_rom os) {
 
     // initialize the emulator
     if (this->model == device::kc85_3) {
-        this->emu.kc85.roms.add(kc85_roms::caos31, dump_caos31, sizeof(dump_caos31));
-        this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
-    }
-    else if (model == device::kc85_4) {
-        this->emu.kc85.roms.add(kc85_roms::caos42c, dump_caos42c, sizeof(dump_caos42c));
-        this->emu.kc85.roms.add(kc85_roms::caos42e, dump_caos42e, sizeof(dump_caos42e));
-        this->emu.kc85.roms.add(kc85_roms::basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
+        this->emu.roms.add(rom_images::caos31, dump_caos31, sizeof(dump_caos31));
+        this->emu.roms.add(rom_images::kc85_basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     }
 
     ext_funcs sys_funcs;
@@ -87,7 +83,7 @@ KC85Emu::Update(Duration frameTime) {
         if (this->startGameFrameIndex == this->frameIndex) {
             for (const auto& item : this->fileLoader.Items) {
                 if ((int(item.Compat) & int(this->emu.model)) && (item.Name == this->startGameName)) {
-                    this->fileLoader.LoadAndStart(this->emu, item);
+                    this->fileLoader.LoadAndStart(item);
                     break;
                 }
             }
