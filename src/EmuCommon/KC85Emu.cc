@@ -29,14 +29,9 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, device m, os_rom os) {
     sys_funcs.assertmsg_func = Log::AssertMsg;
     sys_funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
     sys_funcs.free_func   = [] (void* p) { Memory::Free(p); };
-    sound_funcs snd_funcs;
-    snd_funcs.userdata = &this->audio;
-    snd_funcs.sound = Audio::cb_sound;
-    snd_funcs.volume = Audio::cb_volume;
-    snd_funcs.stop = Audio::cb_stop;
-    this->emu.init(sys_funcs, snd_funcs);
+    this->emu.init(sys_funcs);
     this->draw.Setup(gfxSetup, 5, 5);
-    this->audio.Setup(this->emu.board.clck);
+    this->audio.Setup(&this->emu);
     this->keyboard.Setup(this->emu);
     this->fileLoader.Setup(this->emu);
 
@@ -93,16 +88,8 @@ KC85Emu::Update(Duration frameTime) {
         this->keyboard.HandleInput();
         int micro_secs = (int) frameTime.AsMicroSeconds();
         const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
-        uint64_t min_cycle_count = 0;
-        uint64_t max_cycle_count = 0;
-        if (audio_cycle_count > 0) {
-            const uint64_t cpu_min_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/100;
-            const uint64_t cpu_max_ahead_cycles = (this->emu.board.clck.base_freq_khz*1000)/25;
-            min_cycle_count = audio_cycle_count + cpu_min_ahead_cycles;
-            max_cycle_count = audio_cycle_count + cpu_max_ahead_cycles;
-        }
-        this->emu.onframe(1, micro_secs, min_cycle_count, max_cycle_count);
-        this->audio.Update(this->emu.board.clck);
+        this->emu.step(micro_secs, audio_cycle_count);
+        this->audio.Update();
     }
     else {
         // switch KC on once after a little while
