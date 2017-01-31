@@ -14,13 +14,13 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-KC85Emu::Setup(const GfxSetup& gfxSetup, device m, os_rom os) {
+KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
 
     this->model = m;
     this->rom = os;
 
     // initialize the emulator
-    if (this->model == device::kc85_3) {
+    if (this->model == system::kc85_3) {
         this->emu.roms.add(rom_images::caos31, dump_caos31, sizeof(dump_caos31));
         this->emu.roms.add(rom_images::kc85_basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     }
@@ -36,7 +36,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, device m, os_rom os) {
     this->fileLoader.Setup(this->emu);
 
     // register modules
-    if (int(this->model) & int(device::any_kc85)) {
+    if (int(this->model) & int(system::any_kc85)) {
         this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
         this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
     }
@@ -109,7 +109,7 @@ KC85Emu::TogglePower() {
     }
     else {
         this->emu.poweron(this->model, this->rom);
-        if (int(this->model) & int(device::any_kc85)) {
+        if (int(this->model) & int(system::any_kc85)) {
             if (!this->emu.kc85.exp.slot_occupied(0x08)) {
                 this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
             }
@@ -153,38 +153,23 @@ void
 KC85Emu::Render(const glm::mat4& mvp, bool onlyUpdateTexture) {
 
     if (this->SwitchedOn()) {
-        // update the offscreen texture
-        Id tex;
-        if (int(this->model) & int(device::any_kc85)) {
-            const int width = 320;
-            const int height = 256;
-            tex = this->draw.irmTexture320x256;
+        // get the emulator's framebuffer and fb size
+        int width = 0, height = 0;
+        const void* fb = this->emu.framebuffer(width, height);
+        if (fb) {
+            this->draw.validateTexture(width, height);
             this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.kc85.video.rgba8_buffer, this->draw.texUpdateAttrs);
-        }
-        else if (int(this->model) & int(device::any_z9001)) {
-            const int width = 320;
-            const int height = 192;
-            tex = this->draw.irmTexture320x192;
-            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.z9001.rgba8_buffer, this->draw.texUpdateAttrs);
-        }
-        else if (int(this->model) & int(device::any_z1013)) {
-            const int width = 256;
-            const int height = 256;
-            tex = this->draw.irmTexture256x256;
-            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
-            Gfx::UpdateTexture(tex, this->emu.z1013.rgba8_buffer, this->draw.texUpdateAttrs);
-        }
-
-        if (!onlyUpdateTexture) {
-            o_assert_dbg(tex.IsValid());
-            this->drawState.FSTexture[KCTextures::IRM] = tex;
-            KCShader::KCVSParams vsParams;
-            vsParams.ModelViewProjection = mvp;
-            Gfx::ApplyDrawState(this->drawState);
-            Gfx::ApplyUniformBlock(vsParams);
-            Gfx::Draw();
+            if (this->draw.texture.IsValid()) {
+                Gfx::UpdateTexture(this->draw.texture, fb, this->draw.texUpdateAttrs);
+                if (!onlyUpdateTexture) {
+                    this->drawState.FSTexture[KCTextures::IRM] = this->draw.texture;
+                    KCShader::KCVSParams vsParams;
+                    vsParams.ModelViewProjection = mvp;
+                    Gfx::ApplyDrawState(this->drawState);
+                    Gfx::ApplyUniformBlock(vsParams);
+                    Gfx::Draw();
+                }
+            }
         }
     }
 }

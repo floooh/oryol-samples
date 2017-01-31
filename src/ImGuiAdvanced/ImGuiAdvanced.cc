@@ -240,24 +240,24 @@ void
 ImguiAdvancedApp::emu_t::setup(const GfxSetup& gfxSetup) {
     for (int i = 0; i < NumEmus; i++) {
         auto& kc = this->kc[i];
-        YAKC::device dev;
+        YAKC::system sys;
         YAKC::os_rom os;
         Id* texId;
         switch (i) {
             case KC85_3:
-                dev=YAKC::device::kc85_3; os=YAKC::os_rom::caos_3_1;
-                texId = &kc.draw.irmTexture320x256;
+                sys=YAKC::system::kc85_3; os=YAKC::os_rom::caos_3_1;
+                texId = &kc.draw.texture;
                 break;
             case KC85_4:
-                dev=YAKC::device::kc85_4; os=YAKC::os_rom::caos_4_2;
-                texId = &kc.draw.irmTexture320x256;
+                sys=YAKC::system::kc85_4; os=YAKC::os_rom::caos_4_2;
+                texId = &kc.draw.texture;
                 break;
             default:
-                dev=YAKC::device::kc87; os=YAKC::os_rom::kc87_os_2;
-                texId = &kc.draw.irmTexture320x192;
+                sys=YAKC::system::kc87; os=YAKC::os_rom::kc87_os_2;
+                texId = &kc.draw.texture;
                 break;
         }
-        kc.Setup(gfxSetup, dev, os);
+        kc.Setup(gfxSetup, sys, os);
         kc.switchOnDelayFrames = 1;
         this->imgId[i] = IMUI::AllocImage();
         IMUI::BindImage(this->imgId[i], *texId);

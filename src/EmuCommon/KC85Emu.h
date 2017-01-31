@@ -18,7 +18,7 @@ namespace Oryol {
 class KC85Emu {
 public:
     /// setup the KC85 emulator
-    void Setup(const GfxSetup& gfxSetup, YAKC::device m=YAKC::device::kc85_3, YAKC::os_rom os=YAKC::os_rom::caos_3_1);
+    void Setup(const GfxSetup& gfxSetup, YAKC::system m=YAKC::system::kc85_3, YAKC::os_rom os=YAKC::os_rom::caos_3_1);
     /// discard the KC85 emulator
     void Discard();
     /// tick the emulator
@@ -42,7 +42,7 @@ public:
 
     uint32_t switchOnDelayFrames = 120;
     DrawState drawState;
-    YAKC::device model = YAKC::device::kc85_3;
+    YAKC::system model = YAKC::system::kc85_3;
     YAKC::os_rom rom = YAKC::os_rom::caos_3_1;
     YAKC::yakc emu;
     YAKC::Draw draw;
