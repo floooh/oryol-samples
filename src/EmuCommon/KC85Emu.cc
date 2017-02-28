@@ -20,7 +20,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
     this->rom = os;
 
     // initialize the emulator
-    if (this->model == system::kc85_3) {
+    if (this->model == YAKC::system::kc85_3) {
         this->emu.roms.add(rom_images::caos31, dump_caos31, sizeof(dump_caos31));
         this->emu.roms.add(rom_images::kc85_basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     }
@@ -36,7 +36,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
     this->fileLoader.Setup(this->emu);
 
     // register modules
-    if (int(this->model) & int(system::any_kc85)) {
+    if (int(this->model) & int(YAKC::system::any_kc85)) {
         this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
         this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
     }
@@ -109,7 +109,7 @@ KC85Emu::TogglePower() {
     }
     else {
         this->emu.poweron(this->model, this->rom);
-        if (int(this->model) & int(system::any_kc85)) {
+        if (int(this->model) & int(YAKC::system::any_kc85)) {
             if (!this->emu.kc85.exp.slot_occupied(0x08)) {
                 this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
             }
