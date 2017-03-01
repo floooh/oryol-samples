@@ -1,246 +1,3 @@
-function integrateWasmJS(Module) {
- var method = Module["wasmJSMethod"] || Module["wasmJSMethod"] || "native-wasm" || "native-wasm,interpret-s-expr";
- Module["wasmJSMethod"] = method;
- var wasmTextFile = Module["wasmTextFile"] || "MeshViewer.wast";
- var wasmBinaryFile = Module["wasmBinaryFile"] || "MeshViewer.wasm";
- var asmjsCodeFile = Module["asmjsCodeFile"] || "MeshViewer.asm.js";
- var wasmPageSize = 64 * 1024;
- var asm2wasmImports = {
-  "f64-rem": (function(x, y) {
-   return x % y;
-  }),
-  "f64-to-int": (function(x) {
-   return x | 0;
-  }),
-  "i32s-div": (function(x, y) {
-   return (x | 0) / (y | 0) | 0;
-  }),
-  "i32u-div": (function(x, y) {
-   return (x >>> 0) / (y >>> 0) >>> 0;
-  }),
-  "i32s-rem": (function(x, y) {
-   return (x | 0) % (y | 0) | 0;
-  }),
-  "i32u-rem": (function(x, y) {
-   return (x >>> 0) % (y >>> 0) >>> 0;
-  }),
-  "debugger": (function() {
-   debugger;
-  })
- };
- var info = {
-  "global": null,
-  "env": null,
-  "asm2wasm": asm2wasmImports,
-  "parent": Module
- };
- var exports = null;
- function lookupImport(mod, base) {
-  var lookup = info;
-  if (mod.indexOf(".") < 0) {
-   lookup = (lookup || {})[mod];
-  } else {
-   var parts = mod.split(".");
-   lookup = (lookup || {})[parts[0]];
-   lookup = (lookup || {})[parts[1]];
-  }
-  if (base) {
-   lookup = (lookup || {})[base];
-  }
-  if (lookup === undefined) {
-   abort("bad lookupImport to (" + mod + ")." + base);
-  }
-  return lookup;
- }
- function mergeMemory(newBuffer) {
-  var oldBuffer = Module["buffer"];
-  if (newBuffer.byteLength < oldBuffer.byteLength) {
-   Module["printErr"]("the new buffer in mergeMemory is smaller than the previous one. in native wasm, we should grow memory here");
-  }
-  var oldView = new Int8Array(oldBuffer);
-  var newView = new Int8Array(newBuffer);
-  if (!memoryInitializer) {
-   oldView.set(newView.subarray(STATIC_BASE, STATIC_BASE + STATIC_BUMP), STATIC_BASE);
-  }
-  newView.set(oldView);
-  updateGlobalBuffer(newBuffer);
-  updateGlobalBufferViews();
- }
- var WasmTypes = {
-  none: 0,
-  i32: 1,
-  i64: 2,
-  f32: 3,
-  f64: 4
- };
- function fixImports(imports) {
-  if (!0) return imports;
-  var ret = {};
-  for (var i in imports) {
-   var fixed = i;
-   if (fixed[0] == "_") fixed = fixed.substr(1);
-   ret[fixed] = imports[i];
-  }
-  return ret;
- }
- function getBinary() {
-  var binary;
-  if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
-   binary = Module["wasmBinary"];
-   assert(binary, "on the web, we need the wasm binary to be preloaded and set on Module['wasmBinary']. emcc.py will do that for you when generating HTML (but not JS)");
-   binary = new Uint8Array(binary);
-  } else {
-   binary = Module["readBinary"](wasmBinaryFile);
-  }
-  return binary;
- }
- function doJustAsm(global, env, providedBuffer) {
-  if (typeof Module["asm"] !== "function" || Module["asm"] === methodHandler) {
-   if (!Module["asmPreload"]) {
-    eval(Module["read"](asmjsCodeFile));
-   } else {
-    Module["asm"] = Module["asmPreload"];
-   }
-  }
-  if (typeof Module["asm"] !== "function") {
-   Module["printErr"]("asm evalling did not set the module properly");
-   return false;
-  }
-  return Module["asm"](global, env, providedBuffer);
- }
- function doNativeWasm(global, env, providedBuffer) {
-  if (typeof WebAssembly !== "object") {
-   Module["printErr"]("no native wasm support detected");
-   return false;
-  }
-  if (!(Module["wasmMemory"] instanceof WebAssembly.Memory)) {
-   Module["printErr"]("no native wasm Memory in use");
-   return false;
-  }
-  env["memory"] = Module["wasmMemory"];
-  info["global"] = {
-   "NaN": NaN,
-   "Infinity": Infinity
-  };
-  info["global.Math"] = global.Math;
-  info["env"] = env;
-  var instance;
-  try {
-   instance = new WebAssembly.Instance(new WebAssembly.Module(getBinary()), info);
-  } catch (e) {
-   Module["printErr"]("failed to compile wasm module: " + e);
-   return false;
-  }
-  exports = instance.exports;
-  if (exports.memory) mergeMemory(exports.memory);
-  Module["usingWasm"] = true;
-  return exports;
- }
- function doWasmPolyfill(global, env, providedBuffer, method) {
-  if (typeof WasmJS !== "function") {
-   Module["printErr"]("WasmJS not detected - polyfill not bundled?");
-   return false;
-  }
-  var wasmJS = WasmJS({});
-  wasmJS["outside"] = Module;
-  wasmJS["info"] = info;
-  wasmJS["lookupImport"] = lookupImport;
-  assert(providedBuffer === Module["buffer"]);
-  info.global = global;
-  info.env = env;
-  assert(providedBuffer === Module["buffer"]);
-  env["memory"] = providedBuffer;
-  assert(env["memory"] instanceof ArrayBuffer);
-  wasmJS["providedTotalMemory"] = Module["buffer"].byteLength;
-  var code;
-  if (method === "interpret-binary") {
-   code = getBinary();
-  } else {
-   code = Module["read"](method == "interpret-asm2wasm" ? asmjsCodeFile : wasmTextFile);
-  }
-  var temp;
-  if (method == "interpret-asm2wasm") {
-   temp = wasmJS["_malloc"](code.length + 1);
-   wasmJS["writeAsciiToMemory"](code, temp);
-   wasmJS["_load_asm2wasm"](temp);
-  } else if (method === "interpret-s-expr") {
-   temp = wasmJS["_malloc"](code.length + 1);
-   wasmJS["writeAsciiToMemory"](code, temp);
-   wasmJS["_load_s_expr2wasm"](temp);
-  } else if (method === "interpret-binary") {
-   temp = wasmJS["_malloc"](code.length);
-   wasmJS["HEAPU8"].set(code, temp);
-   wasmJS["_load_binary2wasm"](temp, code.length);
-  } else {
-   throw "what? " + method;
-  }
-  wasmJS["_free"](temp);
-  wasmJS["_instantiate"](temp);
-  if (Module["newBuffer"]) {
-   mergeMemory(Module["newBuffer"]);
-   Module["newBuffer"] = null;
-  }
-  exports = wasmJS["asmExports"];
-  return exports;
- }
- Module["asmPreload"] = Module["asm"];
- Module["reallocBuffer"] = (function(size) {
-  size = Math.ceil(size / wasmPageSize) * wasmPageSize;
-  var old = Module["buffer"];
-  var result = exports["__growWasmMemory"](size / wasmPageSize);
-  if (Module["usingWasm"]) {
-   if (result !== (-1 | 0)) {
-    return Module["buffer"] = Module["wasmMemory"].buffer;
-   } else {
-    return null;
-   }
-  } else {
-   return Module["buffer"] !== old ? Module["buffer"] : null;
-  }
- });
- Module["asm"] = (function(global, env, providedBuffer) {
-  global = fixImports(global);
-  env = fixImports(env);
-  if (!env["table"]) {
-   var TABLE_SIZE = Module["wasmTableSize"];
-   if (TABLE_SIZE === undefined) TABLE_SIZE = 1024;
-   if (typeof WebAssembly === "object" && typeof WebAssembly.Table === "function") {
-    env["table"] = new WebAssembly.Table({
-     initial: TABLE_SIZE,
-     maximum: TABLE_SIZE,
-     element: "anyfunc"
-    });
-   } else {
-    env["table"] = new Array(TABLE_SIZE);
-   }
-  }
-  if (!env["memoryBase"]) {
-   env["memoryBase"] = STATIC_BASE;
-  }
-  if (!env["tableBase"]) {
-   env["tableBase"] = 0;
-  }
-  var exports;
-  var methods = method.split(",");
-  for (var i = 0; i < methods.length; i++) {
-   var curr = methods[i];
-   Module["printErr"]("trying binaryen method: " + curr);
-   if (curr === "native-wasm") {
-    if (exports = doNativeWasm(global, env, providedBuffer)) break;
-   } else if (curr === "asmjs") {
-    if (exports = doJustAsm(global, env, providedBuffer)) break;
-   } else if (curr === "interpret-asm2wasm" || curr === "interpret-s-expr" || curr === "interpret-binary") {
-    if (exports = doWasmPolyfill(global, env, providedBuffer, curr)) break;
-   } else {
-    throw "bad method: " + curr;
-   }
-  }
-  if (!exports) throw "no binaryen method succeeded";
-  Module["printErr"]("binaryen method succeeded.");
-  return exports;
- });
- var methodHandler = Module["asm"];
-}
 var Module;
 if (!Module) Module = (typeof Module !== "undefined" ? Module : null) || {};
 var moduleOverrides = {};
@@ -414,10 +171,10 @@ for (var key in moduleOverrides) {
  }
 }
 moduleOverrides = undefined;
-integrateWasmJS(Module);
 var Runtime = {
  setTempRet0: (function(value) {
   tempRet0 = value;
+  return value;
  }),
  getTempRet0: (function() {
   return tempRet0;
@@ -1005,15 +762,15 @@ function lengthBytesUTF8(str) {
 Module["lengthBytesUTF8"] = lengthBytesUTF8;
 var UTF16Decoder = typeof TextDecoder !== "undefined" ? new TextDecoder("utf-16le") : undefined;
 function demangle(func) {
- var hasLibcxxabi = !!Module["___cxa_demangle"];
- if (hasLibcxxabi) {
+ var __cxa_demangle_func = Module["___cxa_demangle"] || Module["__cxa_demangle"];
+ if (__cxa_demangle_func) {
   try {
    var s = func.substr(1);
    var len = lengthBytesUTF8(s) + 1;
    var buf = _malloc(len);
    stringToUTF8(s, buf, len);
    var status = _malloc(4);
-   var ret = Module["___cxa_demangle"](buf, 0, 0, status);
+   var ret = __cxa_demangle_func(buf, 0, 0, status);
    if (getValue(status, "i32") === 0 && ret) {
     return Pointer_stringify(ret);
    }
@@ -1028,7 +785,8 @@ function demangle(func) {
  return func;
 }
 function demangleAll(text) {
- return text.replace(/__Z[\w\d_]+/g, (function(x) {
+ var regex = /__Z[\w\d_]+/g;
+ return text.replace(regex, (function(x) {
   var y = demangle(x);
   return x === y ? x : x + " [" + y + "]";
  }));
@@ -1053,6 +811,14 @@ function stackTrace() {
  return demangleAll(js);
 }
 Module["stackTrace"] = stackTrace;
+var WASM_PAGE_SIZE = 65536;
+var ASMJS_PAGE_SIZE = 16777216;
+function alignUp(x, multiple) {
+ if (x % multiple > 0) {
+  x += multiple - x % multiple;
+ }
+ return x;
+}
 var HEAP;
 var buffer;
 var HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
@@ -1082,18 +848,7 @@ function enlargeMemory() {
 }
 var TOTAL_STACK = Module["TOTAL_STACK"] || 5242880;
 var TOTAL_MEMORY = Module["TOTAL_MEMORY"] || 134217728;
-var WASM_PAGE_SIZE = 64 * 1024;
-var totalMemory = WASM_PAGE_SIZE;
-while (totalMemory < TOTAL_MEMORY || totalMemory < 2 * TOTAL_STACK) {
- if (totalMemory < 16 * 1024 * 1024) {
-  totalMemory *= 2;
- } else {
-  totalMemory += 16 * 1024 * 1024;
- }
-}
-if (totalMemory !== TOTAL_MEMORY) {
- TOTAL_MEMORY = totalMemory;
-}
+if (TOTAL_MEMORY < TOTAL_STACK) Module.printErr("TOTAL_MEMORY should be larger than TOTAL_STACK, was " + TOTAL_MEMORY + "! (TOTAL_STACK=" + TOTAL_STACK + ")");
 if (Module["buffer"]) {
  buffer = Module["buffer"];
 } else {
@@ -1134,9 +889,9 @@ function callRuntimeCallbacks(callbacks) {
   var func = callback.func;
   if (typeof func === "number") {
    if (callback.arg === undefined) {
-    Runtime.dynCall("v", func);
+    Module["dynCall_v"](func);
    } else {
-    Runtime.dynCall("vi", func, [ callback.arg ]);
+    Module["dynCall_vi"](func, callback.arg);
    }
   } else {
    func(callback.arg === undefined ? null : callback.arg);
@@ -1324,16 +1079,294 @@ Module["removeRunDependency"] = removeRunDependency;
 Module["preloadedImages"] = {};
 Module["preloadedAudios"] = {};
 var memoryInitializer = null;
+function integrateWasmJS(Module) {
+ var method = Module["wasmJSMethod"] || "native-wasm";
+ Module["wasmJSMethod"] = method;
+ var wasmTextFile = Module["wasmTextFile"] || "MeshViewer.wast";
+ var wasmBinaryFile = Module["wasmBinaryFile"] || "MeshViewer.wasm";
+ var asmjsCodeFile = Module["asmjsCodeFile"] || "MeshViewer.temp.asm.js";
+ var wasmPageSize = 64 * 1024;
+ var asm2wasmImports = {
+  "f64-rem": (function(x, y) {
+   return x % y;
+  }),
+  "f64-to-int": (function(x) {
+   return x | 0;
+  }),
+  "i32s-div": (function(x, y) {
+   return (x | 0) / (y | 0) | 0;
+  }),
+  "i32u-div": (function(x, y) {
+   return (x >>> 0) / (y >>> 0) >>> 0;
+  }),
+  "i32s-rem": (function(x, y) {
+   return (x | 0) % (y | 0) | 0;
+  }),
+  "i32u-rem": (function(x, y) {
+   return (x >>> 0) % (y >>> 0) >>> 0;
+  }),
+  "debugger": (function() {
+   debugger;
+  })
+ };
+ var info = {
+  "global": null,
+  "env": null,
+  "asm2wasm": asm2wasmImports,
+  "parent": Module
+ };
+ var exports = null;
+ function lookupImport(mod, base) {
+  var lookup = info;
+  if (mod.indexOf(".") < 0) {
+   lookup = (lookup || {})[mod];
+  } else {
+   var parts = mod.split(".");
+   lookup = (lookup || {})[parts[0]];
+   lookup = (lookup || {})[parts[1]];
+  }
+  if (base) {
+   lookup = (lookup || {})[base];
+  }
+  if (lookup === undefined) {
+   abort("bad lookupImport to (" + mod + ")." + base);
+  }
+  return lookup;
+ }
+ function mergeMemory(newBuffer) {
+  var oldBuffer = Module["buffer"];
+  if (newBuffer.byteLength < oldBuffer.byteLength) {
+   Module["printErr"]("the new buffer in mergeMemory is smaller than the previous one. in native wasm, we should grow memory here");
+  }
+  var oldView = new Int8Array(oldBuffer);
+  var newView = new Int8Array(newBuffer);
+  if (!memoryInitializer) {
+   oldView.set(newView.subarray(Module["STATIC_BASE"], Module["STATIC_BASE"] + Module["STATIC_BUMP"]), Module["STATIC_BASE"]);
+  }
+  newView.set(oldView);
+  updateGlobalBuffer(newBuffer);
+  updateGlobalBufferViews();
+ }
+ var WasmTypes = {
+  none: 0,
+  i32: 1,
+  i64: 2,
+  f32: 3,
+  f64: 4
+ };
+ function fixImports(imports) {
+  if (!0) return imports;
+  var ret = {};
+  for (var i in imports) {
+   var fixed = i;
+   if (fixed[0] == "_") fixed = fixed.substr(1);
+   ret[fixed] = imports[i];
+  }
+  return ret;
+ }
+ function getBinary() {
+  var binary;
+  if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
+   binary = Module["wasmBinary"];
+   assert(binary, "on the web, we need the wasm binary to be preloaded and set on Module['wasmBinary']. emcc.py will do that for you when generating HTML (but not JS)");
+   binary = new Uint8Array(binary);
+  } else {
+   binary = Module["readBinary"](wasmBinaryFile);
+  }
+  return binary;
+ }
+ function doJustAsm(global, env, providedBuffer) {
+  if (typeof Module["asm"] !== "function" || Module["asm"] === methodHandler) {
+   if (!Module["asmPreload"]) {
+    eval(Module["read"](asmjsCodeFile));
+   } else {
+    Module["asm"] = Module["asmPreload"];
+   }
+  }
+  if (typeof Module["asm"] !== "function") {
+   Module["printErr"]("asm evalling did not set the module properly");
+   return false;
+  }
+  return Module["asm"](global, env, providedBuffer);
+ }
+ function doNativeWasm(global, env, providedBuffer) {
+  if (typeof WebAssembly !== "object") {
+   Module["printErr"]("no native wasm support detected");
+   return false;
+  }
+  if (!(Module["wasmMemory"] instanceof WebAssembly.Memory)) {
+   Module["printErr"]("no native wasm Memory in use");
+   return false;
+  }
+  env["memory"] = Module["wasmMemory"];
+  info["global"] = {
+   "NaN": NaN,
+   "Infinity": Infinity
+  };
+  info["global.Math"] = global.Math;
+  info["env"] = env;
+  function receiveInstance(instance) {
+   exports = instance.exports;
+   if (exports.memory) mergeMemory(exports.memory);
+   Module["asm"] = exports;
+   Module["usingWasm"] = true;
+  }
+  Module["printErr"]("asynchronously preparing wasm");
+  addRunDependency("wasm-instantiate");
+  WebAssembly.instantiate(getBinary(), info).then((function(output) {
+   receiveInstance(output.instance);
+   removeRunDependency("wasm-instantiate");
+  })).catch((function(reason) {
+   Module["printErr"]("failed to asynchronously prepare wasm:\n  " + reason);
+  }));
+  return {};
+  var instance;
+  try {
+   instance = new WebAssembly.Instance(new WebAssembly.Module(getBinary()), info);
+  } catch (e) {
+   Module["printErr"]("failed to compile wasm module: " + e);
+   if (e.toString().indexOf("imported Memory with incompatible size") >= 0) {
+    Module["printErr"]("Memory size incompatibility issues may be due to changing TOTAL_MEMORY at runtime to something too large. Use ALLOW_MEMORY_GROWTH to allow any size memory (and also make sure not to set TOTAL_MEMORY at runtime to something smaller than it was at compile time).");
+   }
+   return false;
+  }
+  receiveInstance(instance);
+  return exports;
+ }
+ function doWasmPolyfill(global, env, providedBuffer, method) {
+  if (typeof WasmJS !== "function") {
+   Module["printErr"]("WasmJS not detected - polyfill not bundled?");
+   return false;
+  }
+  var wasmJS = WasmJS({});
+  wasmJS["outside"] = Module;
+  wasmJS["info"] = info;
+  wasmJS["lookupImport"] = lookupImport;
+  assert(providedBuffer === Module["buffer"]);
+  info.global = global;
+  info.env = env;
+  assert(providedBuffer === Module["buffer"]);
+  env["memory"] = providedBuffer;
+  assert(env["memory"] instanceof ArrayBuffer);
+  wasmJS["providedTotalMemory"] = Module["buffer"].byteLength;
+  var code;
+  if (method === "interpret-binary") {
+   code = getBinary();
+  } else {
+   code = Module["read"](method == "interpret-asm2wasm" ? asmjsCodeFile : wasmTextFile);
+  }
+  var temp;
+  if (method == "interpret-asm2wasm") {
+   temp = wasmJS["_malloc"](code.length + 1);
+   wasmJS["writeAsciiToMemory"](code, temp);
+   wasmJS["_load_asm2wasm"](temp);
+  } else if (method === "interpret-s-expr") {
+   temp = wasmJS["_malloc"](code.length + 1);
+   wasmJS["writeAsciiToMemory"](code, temp);
+   wasmJS["_load_s_expr2wasm"](temp);
+  } else if (method === "interpret-binary") {
+   temp = wasmJS["_malloc"](code.length);
+   wasmJS["HEAPU8"].set(code, temp);
+   wasmJS["_load_binary2wasm"](temp, code.length);
+  } else {
+   throw "what? " + method;
+  }
+  wasmJS["_free"](temp);
+  wasmJS["_instantiate"](temp);
+  if (Module["newBuffer"]) {
+   mergeMemory(Module["newBuffer"]);
+   Module["newBuffer"] = null;
+  }
+  exports = wasmJS["asmExports"];
+  return exports;
+ }
+ Module["asmPreload"] = Module["asm"];
+ Module["reallocBuffer"] = (function(size) {
+  var PAGE_MULTIPLE = Module["usingWasm"] ? WASM_PAGE_SIZE : ASMJS_PAGE_SIZE;
+  size = alignUp(size, PAGE_MULTIPLE);
+  var old = Module["buffer"];
+  var oldSize = old.byteLength;
+  if (Module["usingWasm"]) {
+   try {
+    var result = Module["wasmMemory"].grow((size - oldSize) / wasmPageSize);
+    if (result !== (-1 | 0)) {
+     return Module["buffer"] = Module["wasmMemory"].buffer;
+    } else {
+     return null;
+    }
+   } catch (e) {
+    return null;
+   }
+  } else {
+   exports["__growWasmMemory"]((size - oldSize) / wasmPageSize);
+   return Module["buffer"] !== old ? Module["buffer"] : null;
+  }
+ });
+ Module["asm"] = (function(global, env, providedBuffer) {
+  global = fixImports(global);
+  env = fixImports(env);
+  if (!env["table"]) {
+   var TABLE_SIZE = Module["wasmTableSize"];
+   if (TABLE_SIZE === undefined) TABLE_SIZE = 1024;
+   var MAX_TABLE_SIZE = Module["wasmMaxTableSize"];
+   if (typeof WebAssembly === "object" && typeof WebAssembly.Table === "function") {
+    if (MAX_TABLE_SIZE !== undefined) {
+     env["table"] = new WebAssembly.Table({
+      initial: TABLE_SIZE,
+      maximum: MAX_TABLE_SIZE,
+      element: "anyfunc"
+     });
+    } else {
+     env["table"] = new WebAssembly.Table({
+      initial: TABLE_SIZE,
+      element: "anyfunc"
+     });
+    }
+   } else {
+    env["table"] = new Array(TABLE_SIZE);
+   }
+   Module["wasmTable"] = env["table"];
+  }
+  if (!env["memoryBase"]) {
+   env["memoryBase"] = Module["STATIC_BASE"];
+  }
+  if (!env["tableBase"]) {
+   env["tableBase"] = 0;
+  }
+  var exports;
+  var methods = method.split(",");
+  for (var i = 0; i < methods.length; i++) {
+   var curr = methods[i];
+   Module["printErr"]("trying binaryen method: " + curr);
+   if (curr === "native-wasm") {
+    if (exports = doNativeWasm(global, env, providedBuffer)) break;
+   } else if (curr === "asmjs") {
+    if (exports = doJustAsm(global, env, providedBuffer)) break;
+   } else if (curr === "interpret-asm2wasm" || curr === "interpret-s-expr" || curr === "interpret-binary") {
+    if (exports = doWasmPolyfill(global, env, providedBuffer, curr)) break;
+   } else {
+    throw "bad method: " + curr;
+   }
+  }
+  if (!exports) throw "no binaryen method succeeded. consider enabling more options, like interpreting, if you want that: https://github.com/kripken/emscripten/wiki/WebAssembly#binaryen-methods";
+  Module["printErr"]("binaryen method succeeded.");
+  return exports;
+ });
+ var methodHandler = Module["asm"];
+}
+integrateWasmJS(Module);
 var ASM_CONSTS = [];
 STATIC_BASE = 1024;
-STATICTOP = STATIC_BASE + 57488;
+STATICTOP = STATIC_BASE + 57584;
 __ATINIT__.push({
  func: (function() {
   __GLOBAL__sub_I_imgui_cpp();
  })
 });
 memoryInitializer = Module["wasmJSMethod"].indexOf("asmjs") >= 0 || Module["wasmJSMethod"].indexOf("interpret-asm2wasm") >= 0 ? "MeshViewer.html.mem" : null;
-var STATIC_BUMP = 57488;
+var STATIC_BUMP = 57584;
+Module["STATIC_BASE"] = STATIC_BASE;
+Module["STATIC_BUMP"] = STATIC_BUMP;
 var tempDoublePtr = STATICTOP;
 STATICTOP += 16;
 var GL = {
@@ -1356,12 +1389,16 @@ var GL = {
  byteSizeByType: [ 1, 1, 2, 2, 4, 4, 4, 2, 3, 4, 8 ],
  programInfos: {},
  stringCache: {},
+ tempFixedLengthArray: [],
  packAlignment: 4,
  unpackAlignment: 4,
  init: (function() {
   GL.miniTempBuffer = new Float32Array(GL.MINI_TEMP_BUFFER_SIZE);
   for (var i = 0; i < GL.MINI_TEMP_BUFFER_SIZE; i++) {
    GL.miniTempBufferViews[i] = GL.miniTempBuffer.subarray(0, i + 1);
+  }
+  for (var i = 0; i < 32; i++) {
+   GL.tempFixedLengthArray.push((new Array(i)).fill(0));
   }
  }),
  recordError: function recordError(errorCode) {
@@ -1531,33 +1568,76 @@ var GL = {
     name = name.slice(0, ls);
    }
    var loc = GLctx.getUniformLocation(p, name);
-   var id = GL.getNewId(GL.uniforms);
-   utable[name] = [ u.size, id ];
-   GL.uniforms[id] = loc;
-   for (var j = 1; j < u.size; ++j) {
-    var n = name + "[" + j + "]";
-    loc = GLctx.getUniformLocation(p, n);
-    id = GL.getNewId(GL.uniforms);
+   if (loc != null) {
+    var id = GL.getNewId(GL.uniforms);
+    utable[name] = [ u.size, id ];
     GL.uniforms[id] = loc;
+    for (var j = 1; j < u.size; ++j) {
+     var n = name + "[" + j + "]";
+     loc = GLctx.getUniformLocation(p, n);
+     id = GL.getNewId(GL.uniforms);
+     GL.uniforms[id] = loc;
+    }
    }
   }
  })
 };
-function _glUniformMatrix2fv(location, count, transpose, value) {
- location = GL.uniforms[location];
- var view;
- if (4 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
-  view = GL.miniTempBufferViews[4 * count - 1];
-  for (var i = 0; i < 4 * count; i += 4) {
-   view[i] = HEAPF32[value + 4 * i >> 2];
-   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
-   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
-   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
+function _glClearColor(x0, x1, x2, x3) {
+ GLctx["clearColor"](x0, x1, x2, x3);
+}
+function _glStencilMaskSeparate(x0, x1) {
+ GLctx["stencilMaskSeparate"](x0, x1);
+}
+function _glLinkProgram(program) {
+ GLctx.linkProgram(GL.programs[program]);
+ GL.programInfos[program] = null;
+ GL.populateUniformTable(program);
+}
+function _glBindTexture(target, texture) {
+ GLctx.bindTexture(target, texture ? GL.textures[texture] : null);
+}
+function _glGetString(name_) {
+ if (GL.stringCache[name_]) return GL.stringCache[name_];
+ var ret;
+ switch (name_) {
+ case 7936:
+ case 7937:
+ case 37445:
+ case 37446:
+  ret = allocate(intArrayFromString(GLctx.getParameter(name_)), "i8", ALLOC_NORMAL);
+  break;
+ case 7938:
+  var glVersion = GLctx.getParameter(GLctx.VERSION);
+  {
+   glVersion = "OpenGL ES 2.0 (" + glVersion + ")";
   }
- } else {
-  view = HEAPF32.subarray(value >> 2, value + count * 16 >> 2);
+  ret = allocate(intArrayFromString(glVersion), "i8", ALLOC_NORMAL);
+  break;
+ case 7939:
+  var exts = GLctx.getSupportedExtensions();
+  var gl_exts = [];
+  for (var i in exts) {
+   gl_exts.push(exts[i]);
+   gl_exts.push("GL_" + exts[i]);
+  }
+  ret = allocate(intArrayFromString(gl_exts.join(" ")), "i8", ALLOC_NORMAL);
+  break;
+ case 35724:
+  var glslVersion = GLctx.getParameter(GLctx.SHADING_LANGUAGE_VERSION);
+  var ver_re = /^WebGL GLSL ES ([0-9]\.[0-9][0-9]?)(?:$| .*)/;
+  var ver_num = glslVersion.match(ver_re);
+  if (ver_num !== null) {
+   if (ver_num[1].length == 3) ver_num[1] = ver_num[1] + "0";
+   glslVersion = "OpenGL ES GLSL ES " + ver_num[1] + " (" + glslVersion + ")";
+  }
+  ret = allocate(intArrayFromString(glslVersion), "i8", ALLOC_NORMAL);
+  break;
+ default:
+  GL.recordError(1280);
+  return 0;
  }
- GLctx.uniformMatrix2fv(location, transpose, view);
+ GL.stringCache[name_] = ret;
+ return ret;
 }
 var JSEvents = {
  keyEvent: 0,
@@ -1573,10 +1653,21 @@ var JSEvents = {
  touchEvent: 0,
  lastGamepadState: null,
  lastGamepadStateFrame: null,
+ numGamepadsConnected: 0,
  previousFullscreenElement: null,
  previousScreenX: null,
  previousScreenY: null,
  removeEventListenersRegistered: false,
+ staticInit: (function() {
+  if (typeof window !== "undefined") {
+   window.addEventListener("gamepadconnected", (function() {
+    ++JSEvents.numGamepadsConnected;
+   }));
+   window.addEventListener("gamepaddisconnected", (function() {
+    --JSEvents.numGamepadsConnected;
+   }));
+  }
+ }),
  registerRemoveEventListeners: (function() {
   if (!JSEvents.removeEventListenersRegistered) {
    __ATEXIT__.push((function() {
@@ -1703,7 +1794,7 @@ var JSEvents = {
    HEAP32[JSEvents.keyEvent + 152 >> 2] = e.charCode;
    HEAP32[JSEvents.keyEvent + 156 >> 2] = e.keyCode;
    HEAP32[JSEvents.keyEvent + 160 >> 2] = e.which;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.keyEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.keyEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1765,7 +1856,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillMouseEventData(JSEvents.mouseEvent, e, target);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.mouseEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.mouseEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1793,7 +1884,7 @@ var JSEvents = {
    HEAPF64[JSEvents.wheelEvent + 80 >> 3] = e["deltaY"];
    HEAPF64[JSEvents.wheelEvent + 88 >> 3] = e["deltaZ"];
    HEAP32[JSEvents.wheelEvent + 96 >> 2] = e["deltaMode"];
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.wheelEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.wheelEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1805,7 +1896,7 @@ var JSEvents = {
    HEAPF64[JSEvents.wheelEvent + 80 >> 3] = -(e["wheelDeltaY"] ? e["wheelDeltaY"] : e["wheelDelta"]);
    HEAPF64[JSEvents.wheelEvent + 88 >> 3] = 0;
    HEAP32[JSEvents.wheelEvent + 96 >> 2] = 0;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.wheelEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.wheelEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1853,7 +1944,7 @@ var JSEvents = {
    HEAP32[JSEvents.uiEvent + 24 >> 2] = window.outerHeight;
    HEAP32[JSEvents.uiEvent + 28 >> 2] = scrollPos[0];
    HEAP32[JSEvents.uiEvent + 32 >> 2] = scrollPos[1];
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.uiEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.uiEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1884,7 +1975,7 @@ var JSEvents = {
    var id = e.target.id ? e.target.id : "";
    stringToUTF8(nodeName, JSEvents.focusEvent + 0, 128);
    stringToUTF8(id, JSEvents.focusEvent + 128, 128);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.focusEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.focusEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1913,7 +2004,7 @@ var JSEvents = {
    HEAPF64[JSEvents.deviceOrientationEvent + 16 >> 3] = e.beta;
    HEAPF64[JSEvents.deviceOrientationEvent + 24 >> 3] = e.gamma;
    HEAP32[JSEvents.deviceOrientationEvent + 32 >> 2] = e.absolute;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.deviceOrientationEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.deviceOrientationEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1944,7 +2035,7 @@ var JSEvents = {
    HEAPF64[JSEvents.deviceMotionEvent + 56 >> 3] = e.rotationRate.alpha;
    HEAPF64[JSEvents.deviceMotionEvent + 64 >> 3] = e.rotationRate.beta;
    HEAPF64[JSEvents.deviceMotionEvent + 72 >> 3] = e.rotationRate.gamma;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.deviceMotionEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.deviceMotionEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -1986,7 +2077,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillOrientationChangeEventData(JSEvents.orientationChangeEvent, e);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.orientationChangeEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.orientationChangeEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2037,7 +2128,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillFullscreenChangeEventData(JSEvents.fullscreenChangeEvent, e);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.fullscreenChangeEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.fullscreenChangeEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2119,7 +2210,7 @@ var JSEvents = {
    }
   }
   if (strategy.canvasResizedCallback) {
-   Runtime.dynCall("iiii", strategy.canvasResizedCallback, [ 37, 0, strategy.canvasResizedCallbackUserData ]);
+   Module["dynCall_iiii"](strategy.canvasResizedCallback, 37, 0, strategy.canvasResizedCallbackUserData);
   }
   return 0;
  }),
@@ -2144,7 +2235,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillPointerlockChangeEventData(JSEvents.pointerlockChangeEvent, e);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.pointerlockChangeEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.pointerlockChangeEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2167,7 +2258,7 @@ var JSEvents = {
   }
   var handlerFunc = (function(event) {
    var e = event || window.event;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, 0, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, 0, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2218,7 +2309,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillVisibilityChangeEventData(JSEvents.visibilityChangeEvent, e);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.visibilityChangeEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.visibilityChangeEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2289,7 +2380,7 @@ var JSEvents = {
     }
    }
    HEAP32[JSEvents.touchEvent >> 2] = numTouches;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.touchEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.touchEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2337,7 +2428,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillGamepadEventData(JSEvents.gamepadEvent, e.gamepad);
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.gamepadEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.gamepadEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2355,7 +2446,7 @@ var JSEvents = {
  registerBeforeUnloadEventCallback: (function(target, userData, useCapture, callbackfunc, eventTypeId, eventTypeString) {
   var handlerFunc = (function(event) {
    var e = event || window.event;
-   var confirmationMessage = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, 0, userData ]);
+   var confirmationMessage = Module["dynCall_iiii"](callbackfunc, eventTypeId, 0, userData);
    if (confirmationMessage) {
     confirmationMessage = Pointer_stringify(confirmationMessage);
    }
@@ -2391,7 +2482,7 @@ var JSEvents = {
   var handlerFunc = (function(event) {
    var e = event || window.event;
    JSEvents.fillBatteryEventData(JSEvents.batteryEvent, JSEvents.battery());
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, JSEvents.batteryEvent, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, JSEvents.batteryEvent, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2412,7 +2503,7 @@ var JSEvents = {
   }
   var handlerFunc = (function(event) {
    var e = event || window.event;
-   var shouldCancel = Runtime.dynCall("iiii", callbackfunc, [ eventTypeId, 0, userData ]);
+   var shouldCancel = Module["dynCall_iiii"](callbackfunc, eventTypeId, 0, userData);
    if (shouldCancel) {
     e.preventDefault();
    }
@@ -2428,253 +2519,13 @@ var JSEvents = {
   JSEvents.registerOrRemoveHandler(eventHandler);
  })
 };
-function _emscripten_set_mousedown_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 5, "mousedown");
+var __restoreOldWindowedStyle = null;
+function _emscripten_exit_soft_fullscreen() {
+ if (__restoreOldWindowedStyle) __restoreOldWindowedStyle();
+ __restoreOldWindowedStyle = null;
  return 0;
-}
-function _glBlendColor(x0, x1, x2, x3) {
- GLctx["blendColor"](x0, x1, x2, x3);
-}
-Module["_i64Subtract"] = _i64Subtract;
-function _glClearColor(x0, x1, x2, x3) {
- GLctx["clearColor"](x0, x1, x2, x3);
-}
-Module["_i64Add"] = _i64Add;
-function _emscripten_set_touchmove_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 24, "touchmove");
- return 0;
-}
-function _emscripten_set_touchend_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 23, "touchend");
- return 0;
-}
-function _glStencilMaskSeparate(x0, x1) {
- GLctx["stencilMaskSeparate"](x0, x1);
-}
-function _glDisableVertexAttribArray(index) {
- GLctx.disableVertexAttribArray(index);
-}
-function __setLetterbox(element, topBottom, leftRight) {
- if (JSEvents.isInternetExplorer()) {
-  element.style.marginLeft = element.style.marginRight = leftRight + "px";
-  element.style.marginTop = element.style.marginBottom = topBottom + "px";
- } else {
-  element.style.paddingLeft = element.style.paddingRight = leftRight + "px";
-  element.style.paddingTop = element.style.paddingBottom = topBottom + "px";
- }
-}
-function _emscripten_do_request_fullscreen(target, strategy) {
- if (typeof JSEvents.fullscreenEnabled() === "undefined") return -1;
- if (!JSEvents.fullscreenEnabled()) return -3;
- if (!target) target = "#canvas";
- target = JSEvents.findEventTarget(target);
- if (!target) return -4;
- if (!target.requestFullscreen && !target.msRequestFullscreen && !target.mozRequestFullScreen && !target.mozRequestFullscreen && !target.webkitRequestFullscreen) {
-  return -3;
- }
- var canPerformRequests = JSEvents.canPerformEventHandlerRequests();
- if (!canPerformRequests) {
-  if (strategy.deferUntilInEventHandler) {
-   JSEvents.deferCall(JSEvents.requestFullscreen, 1, [ target, strategy ]);
-   return 1;
-  } else {
-   return -2;
-  }
- }
- return JSEvents.requestFullscreen(target, strategy);
-}
-var __currentFullscreenStrategy = {};
-function __registerRestoreOldStyle(canvas) {
- var oldWidth = canvas.width;
- var oldHeight = canvas.height;
- var oldCssWidth = canvas.style.width;
- var oldCssHeight = canvas.style.height;
- var oldBackgroundColor = canvas.style.backgroundColor;
- var oldDocumentBackgroundColor = document.body.style.backgroundColor;
- var oldPaddingLeft = canvas.style.paddingLeft;
- var oldPaddingRight = canvas.style.paddingRight;
- var oldPaddingTop = canvas.style.paddingTop;
- var oldPaddingBottom = canvas.style.paddingBottom;
- var oldMarginLeft = canvas.style.marginLeft;
- var oldMarginRight = canvas.style.marginRight;
- var oldMarginTop = canvas.style.marginTop;
- var oldMarginBottom = canvas.style.marginBottom;
- var oldDocumentBodyMargin = document.body.style.margin;
- var oldDocumentOverflow = document.documentElement.style.overflow;
- var oldDocumentScroll = document.body.scroll;
- var oldImageRendering = canvas.style.imageRendering;
- function restoreOldStyle() {
-  var fullscreenElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-  if (!fullscreenElement) {
-   document.removeEventListener("fullscreenchange", restoreOldStyle);
-   document.removeEventListener("mozfullscreenchange", restoreOldStyle);
-   document.removeEventListener("webkitfullscreenchange", restoreOldStyle);
-   document.removeEventListener("MSFullscreenChange", restoreOldStyle);
-   canvas.width = oldWidth;
-   canvas.height = oldHeight;
-   canvas.style.width = oldCssWidth;
-   canvas.style.height = oldCssHeight;
-   canvas.style.backgroundColor = oldBackgroundColor;
-   if (!oldDocumentBackgroundColor) document.body.style.backgroundColor = "white";
-   document.body.style.backgroundColor = oldDocumentBackgroundColor;
-   canvas.style.paddingLeft = oldPaddingLeft;
-   canvas.style.paddingRight = oldPaddingRight;
-   canvas.style.paddingTop = oldPaddingTop;
-   canvas.style.paddingBottom = oldPaddingBottom;
-   canvas.style.marginLeft = oldMarginLeft;
-   canvas.style.marginRight = oldMarginRight;
-   canvas.style.marginTop = oldMarginTop;
-   canvas.style.marginBottom = oldMarginBottom;
-   document.body.style.margin = oldDocumentBodyMargin;
-   document.documentElement.style.overflow = oldDocumentOverflow;
-   document.body.scroll = oldDocumentScroll;
-   canvas.style.imageRendering = oldImageRendering;
-   if (canvas.GLctxObject) canvas.GLctxObject.GLctx.viewport(0, 0, oldWidth, oldHeight);
-   if (__currentFullscreenStrategy.canvasResizedCallback) {
-    Runtime.dynCall("iiii", __currentFullscreenStrategy.canvasResizedCallback, [ 37, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData ]);
-   }
-  }
- }
- document.addEventListener("fullscreenchange", restoreOldStyle);
- document.addEventListener("mozfullscreenchange", restoreOldStyle);
- document.addEventListener("webkitfullscreenchange", restoreOldStyle);
- document.addEventListener("MSFullscreenChange", restoreOldStyle);
- return restoreOldStyle;
-}
-function _emscripten_request_fullscreen_strategy(target, deferUntilInEventHandler, fullscreenStrategy) {
- var strategy = {};
- strategy.scaleMode = HEAP32[fullscreenStrategy >> 2];
- strategy.canvasResolutionScaleMode = HEAP32[fullscreenStrategy + 4 >> 2];
- strategy.filteringMode = HEAP32[fullscreenStrategy + 8 >> 2];
- strategy.deferUntilInEventHandler = deferUntilInEventHandler;
- strategy.canvasResizedCallback = HEAP32[fullscreenStrategy + 12 >> 2];
- strategy.canvasResizedCallbackUserData = HEAP32[fullscreenStrategy + 16 >> 2];
- __currentFullscreenStrategy = strategy;
- return _emscripten_do_request_fullscreen(target, strategy);
-}
-function _glLinkProgram(program) {
- GLctx.linkProgram(GL.programs[program]);
- GL.programInfos[program] = null;
- GL.populateUniformTable(program);
-}
-function _glShaderSource(shader, count, string, length) {
- var source = GL.getSource(shader, count, string, length);
- GLctx.shaderSource(GL.shaders[shader], source);
-}
-function _glBindTexture(target, texture) {
- GLctx.bindTexture(target, texture ? GL.textures[texture] : null);
-}
-function _glDeleteRenderbuffers(n, renderbuffers) {
- for (var i = 0; i < n; i++) {
-  var id = HEAP32[renderbuffers + i * 4 >> 2];
-  var renderbuffer = GL.renderbuffers[id];
-  if (!renderbuffer) continue;
-  GLctx.deleteRenderbuffer(renderbuffer);
-  renderbuffer.name = 0;
-  GL.renderbuffers[id] = null;
- }
-}
-Module["___muldsi3"] = ___muldsi3;
-Module["___muldi3"] = ___muldi3;
-function _glDeleteFramebuffers(n, framebuffers) {
- for (var i = 0; i < n; ++i) {
-  var id = HEAP32[framebuffers + i * 4 >> 2];
-  var framebuffer = GL.framebuffers[id];
-  if (!framebuffer) continue;
-  GLctx.deleteFramebuffer(framebuffer);
-  framebuffer.name = 0;
-  GL.framebuffers[id] = null;
- }
-}
-function _glDrawArrays(mode, first, count) {
- GLctx.drawArrays(mode, first, count);
-}
-function _emscripten_set_touchstart_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 22, "touchstart");
- return 0;
-}
-function _emscripten_set_deviceorientation_callback(userData, useCapture, callbackfunc) {
- JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, 16, "deviceorientation");
- return 0;
-}
-function _glGetString(name_) {
- if (GL.stringCache[name_]) return GL.stringCache[name_];
- var ret;
- switch (name_) {
- case 7936:
- case 7937:
- case 37445:
- case 37446:
-  ret = allocate(intArrayFromString(GLctx.getParameter(name_)), "i8", ALLOC_NORMAL);
-  break;
- case 7938:
-  var glVersion = GLctx.getParameter(GLctx.VERSION);
-  {
-   glVersion = "OpenGL ES 2.0 (" + glVersion + ")";
-  }
-  ret = allocate(intArrayFromString(glVersion), "i8", ALLOC_NORMAL);
-  break;
- case 7939:
-  var exts = GLctx.getSupportedExtensions();
-  var gl_exts = [];
-  for (var i in exts) {
-   gl_exts.push(exts[i]);
-   gl_exts.push("GL_" + exts[i]);
-  }
-  ret = allocate(intArrayFromString(gl_exts.join(" ")), "i8", ALLOC_NORMAL);
-  break;
- case 35724:
-  var glslVersion = GLctx.getParameter(GLctx.SHADING_LANGUAGE_VERSION);
-  var ver_re = /^WebGL GLSL ES ([0-9]\.[0-9][0-9]?)(?:$| .*)/;
-  var ver_num = glslVersion.match(ver_re);
-  if (ver_num !== null) {
-   if (ver_num[1].length == 3) ver_num[1] = ver_num[1] + "0";
-   glslVersion = "OpenGL ES GLSL ES " + ver_num[1] + " (" + glslVersion + ")";
-  }
-  ret = allocate(intArrayFromString(glslVersion), "i8", ALLOC_NORMAL);
-  break;
- default:
-  GL.recordError(1280);
-  return 0;
- }
- GL.stringCache[name_] = ret;
- return ret;
-}
-function _emscripten_set_keypress_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 1, "keypress");
- return 0;
-}
-function _usleep(useconds) {
- var msec = useconds / 1e3;
- if ((ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) && self["performance"] && self["performance"]["now"]) {
-  var start = self["performance"]["now"]();
-  while (self["performance"]["now"]() - start < msec) {}
- } else {
-  var start = Date.now();
-  while (Date.now() - start < msec) {}
- }
- return 0;
-}
-function _nanosleep(rqtp, rmtp) {
- var seconds = HEAP32[rqtp >> 2];
- var nanoseconds = HEAP32[rqtp + 4 >> 2];
- if (rmtp !== 0) {
-  HEAP32[rmtp >> 2] = 0;
-  HEAP32[rmtp + 4 >> 2] = 0;
- }
- return _usleep(seconds * 1e6 + nanoseconds / 1e3);
-}
-function _glClear(x0) {
- GLctx["clear"](x0);
 }
 var _llvm_pow_f32 = Math_pow;
-function _glUniform2f(location, v0, v1) {
- location = GL.uniforms[location];
- GLctx.uniform2f(location, v0, v1);
-}
-function _glActiveTexture(x0) {
- GLctx["activeTexture"](x0);
-}
 function _emscripten_get_now() {
  abort();
 }
@@ -2682,15 +2533,8 @@ function _emscripten_set_mouseup_callback(target, userData, useCapture, callback
  JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 6, "mouseup");
  return 0;
 }
-function _glBindBuffer(target, buffer) {
- var bufferObj = buffer ? GL.buffers[buffer] : null;
- GLctx.bindBuffer(target, bufferObj);
-}
 function _emscripten_webgl_destroy_context(contextHandle) {
  GL.deleteContext(contextHandle);
-}
-function _glEnableVertexAttribArray(index) {
- GLctx.enableVertexAttribArray(index);
 }
 function _glCompileShader(shader) {
  GLctx.compileShader(GL.shaders[shader]);
@@ -2748,13 +2592,12 @@ function _emscripten_set_main_loop(func, fps, simulateInfiniteLoop, arg, noSetTi
  Browser.mainLoop.arg = arg;
  var browserIterationFunc;
  if (typeof arg !== "undefined") {
-  var argArray = [ arg ];
   browserIterationFunc = (function() {
-   Runtime.dynCall("vi", func, argArray);
+   Module["dynCall_vi"](func, arg);
   });
  } else {
   browserIterationFunc = (function() {
-   Runtime.dynCall("v", func);
+   Module["dynCall_v"](func);
   });
  }
  var thisMainLoopId = Browser.mainLoop.currentlyRunningMainloop;
@@ -3007,10 +2850,10 @@ var Browser = {
    }
   };
   Module["preloadPlugins"].push(audioPlugin);
-  var canvas = Module["canvas"];
   function pointerLockChange() {
-   Browser.pointerLock = document["pointerLockElement"] === canvas || document["mozPointerLockElement"] === canvas || document["webkitPointerLockElement"] === canvas || document["msPointerLockElement"] === canvas;
+   Browser.pointerLock = document["pointerLockElement"] === Module["canvas"] || document["mozPointerLockElement"] === Module["canvas"] || document["webkitPointerLockElement"] === Module["canvas"] || document["msPointerLockElement"] === Module["canvas"];
   }
+  var canvas = Module["canvas"];
   if (canvas) {
    canvas.requestPointerLock = canvas["requestPointerLock"] || canvas["mozRequestPointerLock"] || canvas["webkitRequestPointerLock"] || canvas["msRequestPointerLock"] || (function() {});
    canvas.exitPointerLock = document["exitPointerLock"] || document["mozExitPointerLock"] || document["webkitExitPointerLock"] || document["msExitPointerLock"] || (function() {});
@@ -3021,8 +2864,8 @@ var Browser = {
    document.addEventListener("mspointerlockchange", pointerLockChange, false);
    if (Module["elementPointerLock"]) {
     canvas.addEventListener("click", (function(ev) {
-     if (!Browser.pointerLock && canvas.requestPointerLock) {
-      canvas.requestPointerLock();
+     if (!Browser.pointerLock && Module["canvas"].requestPointerLock) {
+      Module["canvas"].requestPointerLock();
       ev.preventDefault();
      }
     }), false);
@@ -3397,10 +3240,6 @@ function _emscripten_cancel_main_loop() {
  Browser.mainLoop.pause();
  Browser.mainLoop.func = null;
 }
-function _glUniform4f(location, v0, v1, v2, v3) {
- location = GL.uniforms[location];
- GLctx.uniform4f(location, v0, v1, v2, v3);
-}
 function _glDeleteTextures(n, textures) {
  for (var i = 0; i < n; i++) {
   var id = HEAP32[textures + i * 4 >> 2];
@@ -3411,102 +3250,23 @@ function _glDeleteTextures(n, textures) {
   GL.textures[id] = null;
  }
 }
-function _emscripten_request_pointerlock(target, deferUntilInEventHandler) {
- if (!target) target = "#canvas";
- target = JSEvents.findEventTarget(target);
- if (!target) return -4;
- if (!target.requestPointerLock && !target.mozRequestPointerLock && !target.webkitRequestPointerLock && !target.msRequestPointerLock) {
-  return -1;
- }
- var canPerformRequests = JSEvents.canPerformEventHandlerRequests();
- if (!canPerformRequests) {
-  if (deferUntilInEventHandler) {
-   JSEvents.deferCall(JSEvents.requestPointerLock, 2, [ target ]);
-   return 1;
-  } else {
-   return -2;
-  }
- }
- return JSEvents.requestPointerLock(target);
-}
 function _glStencilOpSeparate(x0, x1, x2, x3) {
  GLctx["stencilOpSeparate"](x0, x1, x2, x3);
-}
-function _glUniformMatrix3fv(location, count, transpose, value) {
- location = GL.uniforms[location];
- var view;
- if (9 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
-  view = GL.miniTempBufferViews[9 * count - 1];
-  for (var i = 0; i < 9 * count; i += 9) {
-   view[i] = HEAPF32[value + 4 * i >> 2];
-   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
-   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
-   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
-   view[i + 4] = HEAPF32[value + (4 * i + 16) >> 2];
-   view[i + 5] = HEAPF32[value + (4 * i + 20) >> 2];
-   view[i + 6] = HEAPF32[value + (4 * i + 24) >> 2];
-   view[i + 7] = HEAPF32[value + (4 * i + 28) >> 2];
-   view[i + 8] = HEAPF32[value + (4 * i + 32) >> 2];
-  }
- } else {
-  view = HEAPF32.subarray(value >> 2, value + count * 36 >> 2);
- }
- GLctx.uniformMatrix3fv(location, transpose, view);
 }
 function _glStencilFuncSeparate(x0, x1, x2, x3) {
  GLctx["stencilFuncSeparate"](x0, x1, x2, x3);
 }
 function _pthread_cleanup_push(routine, arg) {
  __ATEXIT__.push((function() {
-  Runtime.dynCall("vi", routine, [ arg ]);
+  Module["dynCall_vi"](routine, arg);
  }));
  _pthread_cleanup_push.level = __ATEXIT__.length;
-}
-function _emscripten_webgl_create_context(target, attributes) {
- var contextAttributes = {};
- contextAttributes["alpha"] = !!HEAP32[attributes >> 2];
- contextAttributes["depth"] = !!HEAP32[attributes + 4 >> 2];
- contextAttributes["stencil"] = !!HEAP32[attributes + 8 >> 2];
- contextAttributes["antialias"] = !!HEAP32[attributes + 12 >> 2];
- contextAttributes["premultipliedAlpha"] = !!HEAP32[attributes + 16 >> 2];
- contextAttributes["preserveDrawingBuffer"] = !!HEAP32[attributes + 20 >> 2];
- contextAttributes["preferLowPowerToHighPerformance"] = !!HEAP32[attributes + 24 >> 2];
- contextAttributes["failIfMajorPerformanceCaveat"] = !!HEAP32[attributes + 28 >> 2];
- contextAttributes["majorVersion"] = HEAP32[attributes + 32 >> 2];
- contextAttributes["minorVersion"] = HEAP32[attributes + 36 >> 2];
- contextAttributes["explicitSwapControl"] = HEAP32[attributes + 44 >> 2];
- target = Pointer_stringify(target);
- var canvas;
- if ((!target || target === "#canvas") && Module["canvas"]) {
-  canvas = Module["canvas"].id ? GL.offscreenCanvases[Module["canvas"].id] || JSEvents.findEventTarget(Module["canvas"].id) : Module["canvas"];
- } else {
-  canvas = GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
- }
- if (!canvas) {
-  return 0;
- }
- if (contextAttributes["explicitSwapControl"]) {
-  console.error("emscripten_webgl_create_context failed: explicitSwapControl is not supported, please rebuild with -s OFFSCREENCANVAS_SUPPORT=1 to enable targeting the experimental OffscreenCanvas specification!");
-  return 0;
- }
- var contextHandle = GL.createContext(canvas, contextAttributes);
- return contextHandle;
 }
 function _glClearDepthf(x0) {
  GLctx["clearDepth"](x0);
 }
 function _glClearStencil(x0) {
  GLctx["clearStencil"](x0);
-}
-function _glStencilOp(x0, x1, x2) {
- GLctx["stencilOp"](x0, x1, x2);
-}
-function _emscripten_set_keydown_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 2, "keydown");
- return 0;
-}
-function _glVertexAttribPointer(index, size, type, normalized, stride, ptr) {
- GLctx.vertexAttribPointer(index, size, type, normalized, stride, ptr);
 }
 function _emscripten_memcpy_big(dest, src, num) {
  HEAPU8.set(HEAPU8.subarray(src, src + num), dest);
@@ -3517,11 +3277,6 @@ function _emscripten_set_devicemotion_callback(userData, useCapture, callbackfun
  JSEvents.registerDeviceMotionEventCallback(window, userData, useCapture, callbackfunc, 17, "devicemotion");
  return 0;
 }
-function ___setErrNo(value) {
- if (Module["___errno_location"]) HEAP32[Module["___errno_location"]() >> 2] = value;
- return value;
-}
-Module["_sbrk"] = _sbrk;
 Module["_memmove"] = _memmove;
 function _glGenTextures(n, textures) {
  for (var i = 0; i < n; i++) {
@@ -3537,12 +3292,11 @@ function _glGenTextures(n, textures) {
   HEAP32[textures + i * 4 >> 2] = id;
  }
 }
-function _glStencilFunc(x0, x1, x2) {
- GLctx["stencilFunc"](x0, x1, x2);
-}
 function _glDepthFunc(x0) {
  GLctx["depthFunc"](x0);
 }
+Module["_i64Add"] = _i64Add;
+Module["_i64Subtract"] = _i64Subtract;
 var cttz_i8 = allocate([ 8, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 7, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 6, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0 ], "i8", ALLOC_STATIC);
 function _llvm_cttz_i32(x) {
  x = x | 0;
@@ -3557,158 +3311,19 @@ function _llvm_cttz_i32(x) {
 }
 Module["___udivmoddi4"] = ___udivmoddi4;
 Module["___uremdi3"] = ___uremdi3;
-var SYSCALLS = {
- varargs: 0,
- get: (function(varargs) {
-  SYSCALLS.varargs += 4;
-  var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
-  return ret;
- }),
- getStr: (function() {
-  var ret = Pointer_stringify(SYSCALLS.get());
-  return ret;
- }),
- get64: (function() {
-  var low = SYSCALLS.get(), high = SYSCALLS.get();
-  if (low >= 0) assert(high === 0); else assert(high === -1);
-  return low;
- }),
- getZero: (function() {
-  assert(SYSCALLS.get() === 0);
- })
-};
-function ___syscall54(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  return 0;
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
-}
 function _glUniform1f(location, v0) {
- location = GL.uniforms[location];
- GLctx.uniform1f(location, v0);
-}
-function _glDepthMask(x0) {
- GLctx["depthMask"](x0);
-}
-function _glDeleteBuffers(n, buffers) {
- for (var i = 0; i < n; i++) {
-  var id = HEAP32[buffers + i * 4 >> 2];
-  var buffer = GL.buffers[id];
-  if (!buffer) continue;
-  GLctx.deleteBuffer(buffer);
-  buffer.name = 0;
-  GL.buffers[id] = null;
-  if (id == GL.currArrayBuffer) GL.currArrayBuffer = 0;
-  if (id == GL.currElementArrayBuffer) GL.currElementArrayBuffer = 0;
- }
+ GLctx.uniform1f(GL.uniforms[location], v0);
 }
 function _glCreateShader(shaderType) {
  var id = GL.getNewId(GL.shaders);
  GL.shaders[id] = GLctx.createShader(shaderType);
  return id;
 }
-function _glFrontFace(x0) {
- GLctx["frontFace"](x0);
-}
 function _glUniform1i(location, v0) {
- location = GL.uniforms[location];
- GLctx.uniform1i(location, v0);
-}
-function _glUseProgram(program) {
- GLctx.useProgram(program ? GL.programs[program] : null);
+ GLctx.uniform1i(GL.uniforms[location], v0);
 }
 function _glCompressedTexImage2D(target, level, internalFormat, width, height, border, imageSize, data) {
- var heapView;
- if (data) {
-  heapView = HEAPU8.subarray(data, data + imageSize);
- } else {
-  heapView = null;
- }
- GLctx["compressedTexImage2D"](target, level, internalFormat, width, height, border, heapView);
-}
-function emscriptenWebGLComputeImageSize(width, height, sizePerPixel, alignment) {
- function roundedToNextMultipleOf(x, y) {
-  return Math.floor((x + y - 1) / y) * y;
- }
- var plainRowSize = width * sizePerPixel;
- var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
- return height <= 0 ? 0 : (height - 1) * alignedRowSize + plainRowSize;
-}
-function emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) {
- var sizePerPixel;
- var numChannels;
- switch (format) {
- case 6406:
- case 6409:
- case 6402:
-  numChannels = 1;
-  break;
- case 6410:
-  numChannels = 2;
-  break;
- case 6407:
- case 35904:
-  numChannels = 3;
-  break;
- case 6408:
- case 35906:
-  numChannels = 4;
-  break;
- default:
-  GL.recordError(1280);
-  return null;
- }
- switch (type) {
- case 5121:
-  sizePerPixel = numChannels * 1;
-  break;
- case 5123:
- case 36193:
-  sizePerPixel = numChannels * 2;
-  break;
- case 5125:
- case 5126:
-  sizePerPixel = numChannels * 4;
-  break;
- case 34042:
-  sizePerPixel = 4;
-  break;
- case 33635:
- case 32819:
- case 32820:
-  sizePerPixel = 2;
-  break;
- default:
-  GL.recordError(1280);
-  return null;
- }
- var bytes = emscriptenWebGLComputeImageSize(width, height, sizePerPixel, GL.unpackAlignment);
- switch (type) {
- case 5121:
-  return HEAPU8.subarray(pixels, pixels + bytes);
- case 5126:
-  return HEAPF32.subarray(pixels >> 2, pixels + bytes >> 2);
- case 5125:
- case 34042:
-  return HEAPU32.subarray(pixels >> 2, pixels + bytes >> 2);
- case 5123:
- case 33635:
- case 32819:
- case 32820:
- case 36193:
-  return HEAPU16.subarray(pixels >> 1, pixels + bytes >> 1);
- default:
-  GL.recordError(1280);
-  return null;
- }
-}
-function _glTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels) {
- var pixelData = null;
- if (pixels) pixelData = emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat);
- GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
+ GLctx["compressedTexImage2D"](target, level, internalFormat, width, height, border, data ? HEAPU8.subarray(data, data + imageSize) : null);
 }
 function _glDisable(x0) {
  GLctx["disable"](x0);
@@ -3716,11 +3331,7 @@ function _glDisable(x0) {
 function _glBlendFuncSeparate(x0, x1, x2, x3) {
  GLctx["blendFuncSeparate"](x0, x1, x2, x3);
 }
-function _glStencilMask(x0) {
- GLctx["stencilMask"](x0);
-}
 Module["_memset"] = _memset;
-Module["_bitshift64Lshr"] = _bitshift64Lshr;
 function _glGetProgramiv(program, pname, p) {
  if (!p) {
   GL.recordError(1281);
@@ -3759,7 +3370,7 @@ function _glGetProgramiv(program, pname, p) {
    ptable.maxUniformBlockNameLength = 0;
    for (var i = 0; i < numBlocks; ++i) {
     var activeBlockName = GLctx.getActiveUniformBlockName(program, i);
-    ptable.maxUniformBlockNameLength = Math.max(ptable.maxAttributeLength, activeBlockName.length + 1);
+    ptable.maxUniformBlockNameLength = Math.max(ptable.maxUniformBlockNameLength, activeBlockName.length + 1);
    }
   }
   HEAP32[p >> 2] = ptable.maxUniformBlockNameLength;
@@ -3767,8 +3378,8 @@ function _glGetProgramiv(program, pname, p) {
   HEAP32[p >> 2] = GLctx.getProgramParameter(GL.programs[program], pname);
  }
 }
-function _glColorMask(x0, x1, x2, x3) {
- GLctx["colorMask"](x0, x1, x2, x3);
+function _glColorMask(red, green, blue, alpha) {
+ GLctx.colorMask(!!red, !!green, !!blue, !!alpha);
 }
 function _emscripten_exit_pointerlock() {
  JSEvents.removeDeferredCalls(JSEvents.requestPointerLock);
@@ -3785,18 +3396,569 @@ function _emscripten_exit_pointerlock() {
  }
  return 0;
 }
-function _abort() {
- Module["abort"]();
-}
 function _emscripten_async_wget_data(url, arg, onload, onerror) {
  Browser.asyncLoad(Pointer_stringify(url), (function(byteArray) {
   var buffer = _malloc(byteArray.length);
   HEAPU8.set(byteArray, buffer);
-  Runtime.dynCall("viii", onload, [ arg, buffer, byteArray.length ]);
+  Module["dynCall_viii"](onload, arg, buffer, byteArray.length);
   _free(buffer);
  }), (function() {
-  if (onerror) Runtime.dynCall("vi", onerror, [ arg ]);
+  if (onerror) Module["dynCall_vi"](onerror, arg);
  }), true);
+}
+function _glGetUniformLocation(program, name) {
+ name = Pointer_stringify(name);
+ var arrayOffset = 0;
+ if (name.indexOf("]", name.length - 1) !== -1) {
+  var ls = name.lastIndexOf("[");
+  var arrayIndex = name.slice(ls + 1, -1);
+  if (arrayIndex.length > 0) {
+   arrayOffset = parseInt(arrayIndex);
+   if (arrayOffset < 0) {
+    return -1;
+   }
+  }
+  name = name.slice(0, ls);
+ }
+ var ptable = GL.programInfos[program];
+ if (!ptable) {
+  return -1;
+ }
+ var utable = ptable.uniforms;
+ var uniformInfo = utable[name];
+ if (uniformInfo && arrayOffset < uniformInfo[0]) {
+  return uniformInfo[1] + arrayOffset;
+ } else {
+  return -1;
+ }
+}
+function _emscripten_set_touchcancel_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 25, "touchcancel");
+ return 0;
+}
+function _glBindFramebuffer(target, framebuffer) {
+ GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : null);
+}
+function ___lock() {}
+function _glCullFace(x0) {
+ GLctx["cullFace"](x0);
+}
+function _glUniform4fv(location, count, value) {
+ var view;
+ if (4 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
+  view = GL.miniTempBufferViews[4 * count - 1];
+  for (var i = 0; i < 4 * count; i += 4) {
+   view[i] = HEAPF32[value + 4 * i >> 2];
+   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
+   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
+   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
+  }
+ } else {
+  view = HEAPF32.subarray(value >> 2, value + count * 16 >> 2);
+ }
+ GLctx.uniform4fv(GL.uniforms[location], view);
+}
+function _emscripten_set_keyup_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 3, "keyup");
+ return 0;
+}
+function _glDeleteProgram(id) {
+ if (!id) return;
+ var program = GL.programs[id];
+ if (!program) {
+  GL.recordError(1281);
+  return;
+ }
+ GLctx.deleteProgram(program);
+ program.name = 0;
+ GL.programs[id] = null;
+ GL.programInfos[id] = null;
+}
+function _glVertexAttribDivisor(index, divisor) {
+ GLctx["vertexAttribDivisor"](index, divisor);
+}
+function _glAttachShader(program, shader) {
+ GLctx.attachShader(GL.programs[program], GL.shaders[shader]);
+}
+function _emscripten_set_mousedown_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 5, "mousedown");
+ return 0;
+}
+function _emscripten_set_mousemove_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 8, "mousemove");
+ return 0;
+}
+function _glUniform3f(location, v0, v1, v2) {
+ GLctx.uniform3f(GL.uniforms[location], v0, v1, v2);
+}
+function _glBindAttribLocation(program, index, name) {
+ name = Pointer_stringify(name);
+ GLctx.bindAttribLocation(GL.programs[program], index, name);
+}
+function _emscripten_get_canvas_size(width, height, isFullscreen) {
+ var canvas = Module["canvas"];
+ HEAP32[width >> 2] = canvas.width;
+ HEAP32[height >> 2] = canvas.height;
+ HEAP32[isFullscreen >> 2] = Browser.isFullscreen ? 1 : 0;
+}
+function _glDrawElements(mode, count, type, indices) {
+ GLctx.drawElements(mode, count, type, indices);
+}
+function _emscripten_webgl_init_context_attributes(attributes) {
+ HEAP32[attributes >> 2] = 1;
+ HEAP32[attributes + 4 >> 2] = 1;
+ HEAP32[attributes + 8 >> 2] = 0;
+ HEAP32[attributes + 12 >> 2] = 1;
+ HEAP32[attributes + 16 >> 2] = 1;
+ HEAP32[attributes + 20 >> 2] = 0;
+ HEAP32[attributes + 24 >> 2] = 0;
+ HEAP32[attributes + 28 >> 2] = 0;
+ HEAP32[attributes + 32 >> 2] = 1;
+ HEAP32[attributes + 36 >> 2] = 0;
+ HEAP32[attributes + 40 >> 2] = 1;
+ HEAP32[attributes + 44 >> 2] = 0;
+}
+var SYSCALLS = {
+ varargs: 0,
+ get: (function(varargs) {
+  SYSCALLS.varargs += 4;
+  var ret = HEAP32[SYSCALLS.varargs - 4 >> 2];
+  return ret;
+ }),
+ getStr: (function() {
+  var ret = Pointer_stringify(SYSCALLS.get());
+  return ret;
+ }),
+ get64: (function() {
+  var low = SYSCALLS.get(), high = SYSCALLS.get();
+  if (low >= 0) assert(high === 0); else assert(high === -1);
+  return low;
+ }),
+ getZero: (function() {
+  assert(SYSCALLS.get() === 0);
+ })
+};
+function ___syscall5(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get();
+  var stream = FS.open(pathname, flags, mode);
+  return stream.fd;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
+function ___syscall6(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.getStreamFromFD();
+  FS.close(stream);
+  return 0;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
+Module["___udivdi3"] = ___udivdi3;
+function _glBufferSubData(target, offset, size, data) {
+ GLctx.bufferSubData(target, offset, HEAPU8.subarray(data, data + size));
+}
+function _glGetShaderiv(shader, pname, p) {
+ if (!p) {
+  GL.recordError(1281);
+  return;
+ }
+ if (pname == 35716) {
+  var log = GLctx.getShaderInfoLog(GL.shaders[shader]);
+  if (log === null) log = "(unknown error)";
+  HEAP32[p >> 2] = log.length + 1;
+ } else {
+  HEAP32[p >> 2] = GLctx.getShaderParameter(GL.shaders[shader], pname);
+ }
+}
+function ___syscall140(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.getStreamFromFD(), offset_high = SYSCALLS.get(), offset_low = SYSCALLS.get(), result = SYSCALLS.get(), whence = SYSCALLS.get();
+  var offset = offset_low;
+  assert(offset_high === 0);
+  FS.llseek(stream, offset, whence);
+  HEAP32[result >> 2] = stream.position;
+  if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
+  return 0;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
+function ___syscall146(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.get(), iov = SYSCALLS.get(), iovcnt = SYSCALLS.get();
+  var ret = 0;
+  if (!___syscall146.buffer) {
+   ___syscall146.buffers = [ null, [], [] ];
+   ___syscall146.printChar = (function(stream, curr) {
+    var buffer = ___syscall146.buffers[stream];
+    assert(buffer);
+    if (curr === 0 || curr === 10) {
+     (stream === 1 ? Module["print"] : Module["printErr"])(UTF8ArrayToString(buffer, 0));
+     buffer.length = 0;
+    } else {
+     buffer.push(curr);
+    }
+   });
+  }
+  for (var i = 0; i < iovcnt; i++) {
+   var ptr = HEAP32[iov + i * 8 >> 2];
+   var len = HEAP32[iov + (i * 8 + 4) >> 2];
+   for (var j = 0; j < len; j++) {
+    ___syscall146.printChar(stream, HEAPU8[ptr + j]);
+   }
+   ret += len;
+  }
+  return ret;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
+function ___syscall145(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  var stream = SYSCALLS.getStreamFromFD(), iov = SYSCALLS.get(), iovcnt = SYSCALLS.get();
+  return SYSCALLS.doReadv(stream, iov, iovcnt);
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
+ }
+}
+function _glBlendColor(x0, x1, x2, x3) {
+ GLctx["blendColor"](x0, x1, x2, x3);
+}
+function _emscripten_set_touchmove_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 24, "touchmove");
+ return 0;
+}
+function _emscripten_set_touchend_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 23, "touchend");
+ return 0;
+}
+function _glDisableVertexAttribArray(index) {
+ GLctx.disableVertexAttribArray(index);
+}
+function __setLetterbox(element, topBottom, leftRight) {
+ if (JSEvents.isInternetExplorer()) {
+  element.style.marginLeft = element.style.marginRight = leftRight + "px";
+  element.style.marginTop = element.style.marginBottom = topBottom + "px";
+ } else {
+  element.style.paddingLeft = element.style.paddingRight = leftRight + "px";
+  element.style.paddingTop = element.style.paddingBottom = topBottom + "px";
+ }
+}
+function _emscripten_do_request_fullscreen(target, strategy) {
+ if (typeof JSEvents.fullscreenEnabled() === "undefined") return -1;
+ if (!JSEvents.fullscreenEnabled()) return -3;
+ if (!target) target = "#canvas";
+ target = JSEvents.findEventTarget(target);
+ if (!target) return -4;
+ if (!target.requestFullscreen && !target.msRequestFullscreen && !target.mozRequestFullScreen && !target.mozRequestFullscreen && !target.webkitRequestFullscreen) {
+  return -3;
+ }
+ var canPerformRequests = JSEvents.canPerformEventHandlerRequests();
+ if (!canPerformRequests) {
+  if (strategy.deferUntilInEventHandler) {
+   JSEvents.deferCall(JSEvents.requestFullscreen, 1, [ target, strategy ]);
+   return 1;
+  } else {
+   return -2;
+  }
+ }
+ return JSEvents.requestFullscreen(target, strategy);
+}
+var __currentFullscreenStrategy = {};
+function __registerRestoreOldStyle(canvas) {
+ var oldWidth = canvas.width;
+ var oldHeight = canvas.height;
+ var oldCssWidth = canvas.style.width;
+ var oldCssHeight = canvas.style.height;
+ var oldBackgroundColor = canvas.style.backgroundColor;
+ var oldDocumentBackgroundColor = document.body.style.backgroundColor;
+ var oldPaddingLeft = canvas.style.paddingLeft;
+ var oldPaddingRight = canvas.style.paddingRight;
+ var oldPaddingTop = canvas.style.paddingTop;
+ var oldPaddingBottom = canvas.style.paddingBottom;
+ var oldMarginLeft = canvas.style.marginLeft;
+ var oldMarginRight = canvas.style.marginRight;
+ var oldMarginTop = canvas.style.marginTop;
+ var oldMarginBottom = canvas.style.marginBottom;
+ var oldDocumentBodyMargin = document.body.style.margin;
+ var oldDocumentOverflow = document.documentElement.style.overflow;
+ var oldDocumentScroll = document.body.scroll;
+ var oldImageRendering = canvas.style.imageRendering;
+ function restoreOldStyle() {
+  var fullscreenElement = document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+  if (!fullscreenElement) {
+   document.removeEventListener("fullscreenchange", restoreOldStyle);
+   document.removeEventListener("mozfullscreenchange", restoreOldStyle);
+   document.removeEventListener("webkitfullscreenchange", restoreOldStyle);
+   document.removeEventListener("MSFullscreenChange", restoreOldStyle);
+   canvas.width = oldWidth;
+   canvas.height = oldHeight;
+   canvas.style.width = oldCssWidth;
+   canvas.style.height = oldCssHeight;
+   canvas.style.backgroundColor = oldBackgroundColor;
+   if (!oldDocumentBackgroundColor) document.body.style.backgroundColor = "white";
+   document.body.style.backgroundColor = oldDocumentBackgroundColor;
+   canvas.style.paddingLeft = oldPaddingLeft;
+   canvas.style.paddingRight = oldPaddingRight;
+   canvas.style.paddingTop = oldPaddingTop;
+   canvas.style.paddingBottom = oldPaddingBottom;
+   canvas.style.marginLeft = oldMarginLeft;
+   canvas.style.marginRight = oldMarginRight;
+   canvas.style.marginTop = oldMarginTop;
+   canvas.style.marginBottom = oldMarginBottom;
+   document.body.style.margin = oldDocumentBodyMargin;
+   document.documentElement.style.overflow = oldDocumentOverflow;
+   document.body.scroll = oldDocumentScroll;
+   canvas.style.imageRendering = oldImageRendering;
+   if (canvas.GLctxObject) canvas.GLctxObject.GLctx.viewport(0, 0, oldWidth, oldHeight);
+   if (__currentFullscreenStrategy.canvasResizedCallback) {
+    Module["dynCall_iiii"](__currentFullscreenStrategy.canvasResizedCallback, 37, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
+   }
+  }
+ }
+ document.addEventListener("fullscreenchange", restoreOldStyle);
+ document.addEventListener("mozfullscreenchange", restoreOldStyle);
+ document.addEventListener("webkitfullscreenchange", restoreOldStyle);
+ document.addEventListener("MSFullscreenChange", restoreOldStyle);
+ return restoreOldStyle;
+}
+function _emscripten_request_fullscreen_strategy(target, deferUntilInEventHandler, fullscreenStrategy) {
+ var strategy = {};
+ strategy.scaleMode = HEAP32[fullscreenStrategy >> 2];
+ strategy.canvasResolutionScaleMode = HEAP32[fullscreenStrategy + 4 >> 2];
+ strategy.filteringMode = HEAP32[fullscreenStrategy + 8 >> 2];
+ strategy.deferUntilInEventHandler = deferUntilInEventHandler;
+ strategy.canvasResizedCallback = HEAP32[fullscreenStrategy + 12 >> 2];
+ strategy.canvasResizedCallbackUserData = HEAP32[fullscreenStrategy + 16 >> 2];
+ __currentFullscreenStrategy = strategy;
+ return _emscripten_do_request_fullscreen(target, strategy);
+}
+function _glShaderSource(shader, count, string, length) {
+ var source = GL.getSource(shader, count, string, length);
+ GLctx.shaderSource(GL.shaders[shader], source);
+}
+function _glDeleteRenderbuffers(n, renderbuffers) {
+ for (var i = 0; i < n; i++) {
+  var id = HEAP32[renderbuffers + i * 4 >> 2];
+  var renderbuffer = GL.renderbuffers[id];
+  if (!renderbuffer) continue;
+  GLctx.deleteRenderbuffer(renderbuffer);
+  renderbuffer.name = 0;
+  GL.renderbuffers[id] = null;
+ }
+}
+function _glDeleteFramebuffers(n, framebuffers) {
+ for (var i = 0; i < n; ++i) {
+  var id = HEAP32[framebuffers + i * 4 >> 2];
+  var framebuffer = GL.framebuffers[id];
+  if (!framebuffer) continue;
+  GLctx.deleteFramebuffer(framebuffer);
+  framebuffer.name = 0;
+  GL.framebuffers[id] = null;
+ }
+}
+function _glDrawArrays(mode, first, count) {
+ GLctx.drawArrays(mode, first, count);
+}
+function _emscripten_set_touchstart_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 22, "touchstart");
+ return 0;
+}
+function _emscripten_set_deviceorientation_callback(userData, useCapture, callbackfunc) {
+ JSEvents.registerDeviceOrientationEventCallback(window, userData, useCapture, callbackfunc, 16, "deviceorientation");
+ return 0;
+}
+function _emscripten_set_keypress_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 1, "keypress");
+ return 0;
+}
+function _usleep(useconds) {
+ var msec = useconds / 1e3;
+ if ((ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) && self["performance"] && self["performance"]["now"]) {
+  var start = self["performance"]["now"]();
+  while (self["performance"]["now"]() - start < msec) {}
+ } else {
+  var start = Date.now();
+  while (Date.now() - start < msec) {}
+ }
+ return 0;
+}
+function _nanosleep(rqtp, rmtp) {
+ var seconds = HEAP32[rqtp >> 2];
+ var nanoseconds = HEAP32[rqtp + 4 >> 2];
+ if (rmtp !== 0) {
+  HEAP32[rmtp >> 2] = 0;
+  HEAP32[rmtp + 4 >> 2] = 0;
+ }
+ return _usleep(seconds * 1e6 + nanoseconds / 1e3);
+}
+function _glClear(x0) {
+ GLctx["clear"](x0);
+}
+function _emscripten_set_resize_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerUiEventCallback(target, userData, useCapture, callbackfunc, 10, "resize");
+ return 0;
+}
+function _glUniform2f(location, v0, v1) {
+ GLctx.uniform2f(GL.uniforms[location], v0, v1);
+}
+function _glActiveTexture(x0) {
+ GLctx["activeTexture"](x0);
+}
+function _glEnableVertexAttribArray(index) {
+ GLctx.enableVertexAttribArray(index);
+}
+function _glBindBuffer(target, buffer) {
+ var bufferObj = buffer ? GL.buffers[buffer] : null;
+ GLctx.bindBuffer(target, bufferObj);
+}
+function _glStencilOp(x0, x1, x2) {
+ GLctx["stencilOp"](x0, x1, x2);
+}
+function _glUniform4f(location, v0, v1, v2, v3) {
+ GLctx.uniform4f(GL.uniforms[location], v0, v1, v2, v3);
+}
+function _glUniformMatrix2fv(location, count, transpose, value) {
+ var view;
+ if (4 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
+  view = GL.miniTempBufferViews[4 * count - 1];
+  for (var i = 0; i < 4 * count; i += 4) {
+   view[i] = HEAPF32[value + 4 * i >> 2];
+   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
+   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
+   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
+  }
+ } else {
+  view = HEAPF32.subarray(value >> 2, value + count * 16 >> 2);
+ }
+ GLctx.uniformMatrix2fv(GL.uniforms[location], !!transpose, view);
+}
+function _emscripten_request_pointerlock(target, deferUntilInEventHandler) {
+ if (!target) target = "#canvas";
+ target = JSEvents.findEventTarget(target);
+ if (!target) return -4;
+ if (!target.requestPointerLock && !target.mozRequestPointerLock && !target.webkitRequestPointerLock && !target.msRequestPointerLock) {
+  return -1;
+ }
+ var canPerformRequests = JSEvents.canPerformEventHandlerRequests();
+ if (!canPerformRequests) {
+  if (deferUntilInEventHandler) {
+   JSEvents.deferCall(JSEvents.requestPointerLock, 2, [ target ]);
+   return 1;
+  } else {
+   return -2;
+  }
+ }
+ return JSEvents.requestPointerLock(target);
+}
+Module["_bitshift64Lshr"] = _bitshift64Lshr;
+function _glUniformMatrix3fv(location, count, transpose, value) {
+ var view;
+ if (9 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
+  view = GL.miniTempBufferViews[9 * count - 1];
+  for (var i = 0; i < 9 * count; i += 9) {
+   view[i] = HEAPF32[value + 4 * i >> 2];
+   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
+   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
+   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
+   view[i + 4] = HEAPF32[value + (4 * i + 16) >> 2];
+   view[i + 5] = HEAPF32[value + (4 * i + 20) >> 2];
+   view[i + 6] = HEAPF32[value + (4 * i + 24) >> 2];
+   view[i + 7] = HEAPF32[value + (4 * i + 28) >> 2];
+   view[i + 8] = HEAPF32[value + (4 * i + 32) >> 2];
+  }
+ } else {
+  view = HEAPF32.subarray(value >> 2, value + count * 36 >> 2);
+ }
+ GLctx.uniformMatrix3fv(GL.uniforms[location], !!transpose, view);
+}
+function _glBufferData(target, size, data, usage) {
+ if (!data) {
+  GLctx.bufferData(target, size, usage);
+ } else {
+  GLctx.bufferData(target, HEAPU8.subarray(data, data + size), usage);
+ }
+}
+function _emscripten_webgl_create_context(target, attributes) {
+ var contextAttributes = {};
+ contextAttributes["alpha"] = !!HEAP32[attributes >> 2];
+ contextAttributes["depth"] = !!HEAP32[attributes + 4 >> 2];
+ contextAttributes["stencil"] = !!HEAP32[attributes + 8 >> 2];
+ contextAttributes["antialias"] = !!HEAP32[attributes + 12 >> 2];
+ contextAttributes["premultipliedAlpha"] = !!HEAP32[attributes + 16 >> 2];
+ contextAttributes["preserveDrawingBuffer"] = !!HEAP32[attributes + 20 >> 2];
+ contextAttributes["preferLowPowerToHighPerformance"] = !!HEAP32[attributes + 24 >> 2];
+ contextAttributes["failIfMajorPerformanceCaveat"] = !!HEAP32[attributes + 28 >> 2];
+ contextAttributes["majorVersion"] = HEAP32[attributes + 32 >> 2];
+ contextAttributes["minorVersion"] = HEAP32[attributes + 36 >> 2];
+ contextAttributes["explicitSwapControl"] = HEAP32[attributes + 44 >> 2];
+ target = Pointer_stringify(target);
+ var canvas;
+ if ((!target || target === "#canvas") && Module["canvas"]) {
+  canvas = Module["canvas"].id ? GL.offscreenCanvases[Module["canvas"].id] || JSEvents.findEventTarget(Module["canvas"].id) : Module["canvas"];
+ } else {
+  canvas = GL.offscreenCanvases[target] || JSEvents.findEventTarget(target);
+ }
+ if (!canvas) {
+  return 0;
+ }
+ if (contextAttributes["explicitSwapControl"]) {
+  console.error("emscripten_webgl_create_context failed: explicitSwapControl is not supported, please rebuild with -s OFFSCREENCANVAS_SUPPORT=1 to enable targeting the experimental OffscreenCanvas specification!");
+  return 0;
+ }
+ var contextHandle = GL.createContext(canvas, contextAttributes);
+ return contextHandle;
+}
+function _pthread_cleanup_pop() {
+ assert(_pthread_cleanup_push.level == __ATEXIT__.length, "cannot pop if something else added meanwhile!");
+ __ATEXIT__.pop();
+ _pthread_cleanup_push.level = __ATEXIT__.length;
+}
+function _glVertexAttribPointer(index, size, type, normalized, stride, ptr) {
+ GLctx.vertexAttribPointer(index, size, type, !!normalized, stride, ptr);
+}
+function _emscripten_set_keydown_callback(target, userData, useCapture, callbackfunc) {
+ JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 2, "keydown");
+ return 0;
+}
+function _emscripten_get_element_css_size(target, width, height) {
+ if (!target) {
+  target = Module["canvas"];
+ } else {
+  target = JSEvents.findEventTarget(target);
+ }
+ if (!target) return -4;
+ if (target.getBoundingClientRect) {
+  var rect = target.getBoundingClientRect();
+  HEAPF64[width >> 3] = rect.right - rect.left;
+  HEAPF64[height >> 3] = rect.bottom - rect.top;
+ } else {
+  HEAPF64[width >> 3] = target.clientWidth;
+  HEAPF64[height >> 3] = target.clientHeight;
+ }
+ return 0;
+}
+function ___setErrNo(value) {
+ if (Module["___errno_location"]) HEAP32[Module["___errno_location"]() >> 2] = value;
+ return value;
+}
+Module["_sbrk"] = _sbrk;
+Module["_bitshift64Shl"] = _bitshift64Shl;
+function _glStencilFunc(x0, x1, x2) {
+ GLctx["stencilFunc"](x0, x1, x2);
 }
 function emscriptenWebGLGet(name_, p, type) {
  if (!p) {
@@ -3902,69 +4064,126 @@ function emscriptenWebGLGet(name_, p, type) {
 function _glGetIntegerv(name_, p) {
  emscriptenWebGLGet(name_, p, "Integer");
 }
-function _glGetUniformLocation(program, name) {
- name = Pointer_stringify(name);
- var arrayOffset = 0;
- if (name.indexOf("]", name.length - 1) !== -1) {
-  var ls = name.lastIndexOf("[");
-  var arrayIndex = name.slice(ls + 1, -1);
-  if (arrayIndex.length > 0) {
-   arrayOffset = parseInt(arrayIndex);
-   if (arrayOffset < 0) {
-    return -1;
-   }
-  }
-  name = name.slice(0, ls);
- }
- var ptable = GL.programInfos[program];
- if (!ptable) {
-  return -1;
- }
- var utable = ptable.uniforms;
- var uniformInfo = utable[name];
- if (uniformInfo && arrayOffset < uniformInfo[0]) {
-  return uniformInfo[1] + arrayOffset;
- } else {
-  return -1;
+function ___syscall54(which, varargs) {
+ SYSCALLS.varargs = varargs;
+ try {
+  return 0;
+ } catch (e) {
+  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
+  return -e.errno;
  }
 }
-function _emscripten_set_touchcancel_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerTouchEventCallback(target, userData, useCapture, callbackfunc, 25, "touchcancel");
- return 0;
+function _glFrontFace(x0) {
+ GLctx["frontFace"](x0);
 }
-function _glBindFramebuffer(target, framebuffer) {
- GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : null);
+function _glUseProgram(program) {
+ GLctx.useProgram(program ? GL.programs[program] : null);
 }
-function ___lock() {}
+function emscriptenWebGLComputeImageSize(width, height, sizePerPixel, alignment) {
+ function roundedToNextMultipleOf(x, y) {
+  return Math.floor((x + y - 1) / y) * y;
+ }
+ var plainRowSize = width * sizePerPixel;
+ var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
+ return height <= 0 ? 0 : (height - 1) * alignedRowSize + plainRowSize;
+}
+function emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) {
+ var sizePerPixel;
+ var numChannels;
+ switch (format) {
+ case 6406:
+ case 6409:
+ case 6402:
+  numChannels = 1;
+  break;
+ case 6410:
+  numChannels = 2;
+  break;
+ case 6407:
+ case 35904:
+  numChannels = 3;
+  break;
+ case 6408:
+ case 35906:
+  numChannels = 4;
+  break;
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+ switch (type) {
+ case 5121:
+  sizePerPixel = numChannels * 1;
+  break;
+ case 5123:
+ case 36193:
+  sizePerPixel = numChannels * 2;
+  break;
+ case 5125:
+ case 5126:
+  sizePerPixel = numChannels * 4;
+  break;
+ case 34042:
+  sizePerPixel = 4;
+  break;
+ case 33635:
+ case 32819:
+ case 32820:
+  sizePerPixel = 2;
+  break;
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+ var bytes = emscriptenWebGLComputeImageSize(width, height, sizePerPixel, GL.unpackAlignment);
+ switch (type) {
+ case 5121:
+  return HEAPU8.subarray(pixels, pixels + bytes);
+ case 5126:
+  return HEAPF32.subarray(pixels >> 2, pixels + bytes >> 2);
+ case 5125:
+ case 34042:
+  return HEAPU32.subarray(pixels >> 2, pixels + bytes >> 2);
+ case 5123:
+ case 33635:
+ case 32819:
+ case 32820:
+ case 36193:
+  return HEAPU16.subarray(pixels >> 1, pixels + bytes >> 1);
+ default:
+  GL.recordError(1280);
+  return null;
+ }
+}
+function _glTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels) {
+ var pixelData = null;
+ if (pixels) pixelData = emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat);
+ GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixelData);
+}
+function _glStencilMask(x0) {
+ GLctx["stencilMask"](x0);
+}
+function _abort() {
+ Module["abort"]();
+}
+function _glDeleteBuffers(n, buffers) {
+ for (var i = 0; i < n; i++) {
+  var id = HEAP32[buffers + i * 4 >> 2];
+  var buffer = GL.buffers[id];
+  if (!buffer) continue;
+  GLctx.deleteBuffer(buffer);
+  buffer.name = 0;
+  GL.buffers[id] = null;
+  if (id == GL.currArrayBuffer) GL.currArrayBuffer = 0;
+  if (id == GL.currElementArrayBuffer) GL.currElementArrayBuffer = 0;
+ }
+}
 function ___unlock() {}
-function _glCullFace(x0) {
- GLctx["cullFace"](x0);
-}
-function _glScissor(x0, x1, x2, x3) {
- GLctx["scissor"](x0, x1, x2, x3);
+function _emscripten_set_canvas_size(width, height) {
+ Browser.setCanvasSize(width, height);
 }
 function _glEnable(x0) {
  GLctx["enable"](x0);
-}
-function _glUniform4fv(location, count, value) {
- location = GL.uniforms[location];
- var view;
- if (4 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
-  view = GL.miniTempBufferViews[4 * count - 1];
-  for (var i = 0; i < 4 * count; i += 4) {
-   view[i] = HEAPF32[value + 4 * i >> 2];
-   view[i + 1] = HEAPF32[value + (4 * i + 4) >> 2];
-   view[i + 2] = HEAPF32[value + (4 * i + 8) >> 2];
-   view[i + 3] = HEAPF32[value + (4 * i + 12) >> 2];
-  }
- } else {
-  view = HEAPF32.subarray(value >> 2, value + count * 16 >> 2);
- }
- GLctx.uniform4fv(location, view);
-}
-function _emscripten_set_keyup_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerKeyEventCallback(target, userData, useCapture, callbackfunc, 3, "keyup");
- return 0;
 }
 function _glBlendEquationSeparate(x0, x1) {
  GLctx["blendEquationSeparate"](x0, x1);
@@ -3983,36 +4202,6 @@ function _glGenBuffers(n, buffers) {
   HEAP32[buffers + i * 4 >> 2] = id;
  }
 }
-function _glDeleteProgram(id) {
- if (!id) return;
- var program = GL.programs[id];
- if (!program) {
-  GL.recordError(1281);
-  return;
- }
- GLctx.deleteProgram(program);
- program.name = 0;
- GL.programs[id] = null;
- GL.programInfos[id] = null;
-}
-function _glVertexAttribDivisor(index, divisor) {
- GLctx["vertexAttribDivisor"](index, divisor);
-}
-function _emscripten_set_wheel_callback(target, userData, useCapture, callbackfunc) {
- target = JSEvents.findEventTarget(target);
- if (typeof target.onwheel !== "undefined") {
-  JSEvents.registerWheelEventCallback(target, userData, useCapture, callbackfunc, 9, "wheel");
-  return 0;
- } else if (typeof target.onmousewheel !== "undefined") {
-  JSEvents.registerWheelEventCallback(target, userData, useCapture, callbackfunc, 9, "mousewheel");
-  return 0;
- } else {
-  return -1;
- }
-}
-function _glAttachShader(program, shader) {
- GLctx.attachShader(GL.programs[program], GL.shaders[shader]);
-}
 function _glDeleteShader(id) {
  if (!id) return;
  var shader = GL.shaders[id];
@@ -4029,13 +4218,6 @@ function _glCreateProgram() {
  program.name = id;
  GL.programs[id] = program;
  return id;
-}
-function _emscripten_set_canvas_size(width, height) {
- Browser.setCanvasSize(width, height);
-}
-function _emscripten_set_mousemove_callback(target, userData, useCapture, callbackfunc) {
- JSEvents.registerMouseEventCallback(target, userData, useCapture, callbackfunc, 8, "mousemove");
- return 0;
 }
 function _glViewport(x0, x1, x2, x3) {
  GLctx["viewport"](x0, x1, x2, x3);
@@ -4060,7 +4242,6 @@ function __hideEverythingExceptGivenElement(onlyVisibleElement) {
  }
  return hiddenElements;
 }
-var __restoreOldWindowedStyle = null;
 function __restoreHiddenElements(hiddenElements) {
  for (var i = 0; i < hiddenElements.length; ++i) {
   hiddenElements[i].node.style.display = hiddenElements[i].displayState;
@@ -4107,7 +4288,7 @@ function __softFullscreenResizeWebGLRenderTarget() {
   __setLetterbox(canvas, topMargin, b);
  }
  if (!inCenteredWithoutScalingFullscreenMode && __currentFullscreenStrategy.canvasResizedCallback) {
-  Runtime.dynCall("iiii", __currentFullscreenStrategy.canvasResizedCallback, [ 37, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData ]);
+  Module["dynCall_iiii"](__currentFullscreenStrategy.canvasResizedCallback, 37, 0, __currentFullscreenStrategy.canvasResizedCallbackUserData);
  }
 }
 function _emscripten_enter_soft_fullscreen(target, fullscreenStrategy) {
@@ -4132,61 +4313,21 @@ function _emscripten_enter_soft_fullscreen(target, fullscreenStrategy) {
   __restoreHiddenElements(hiddenElements);
   window.removeEventListener("resize", __softFullscreenResizeWebGLRenderTarget);
   if (strategy.canvasResizedCallback) {
-   Runtime.dynCall("iiii", strategy.canvasResizedCallback, [ 37, 0, strategy.canvasResizedCallbackUserData ]);
+   Module["dynCall_iiii"](strategy.canvasResizedCallback, 37, 0, strategy.canvasResizedCallbackUserData);
   }
  }
  __restoreOldWindowedStyle = restoreWindowedState;
  __currentFullscreenStrategy = strategy;
  window.addEventListener("resize", __softFullscreenResizeWebGLRenderTarget);
  if (strategy.canvasResizedCallback) {
-  Runtime.dynCall("iiii", strategy.canvasResizedCallback, [ 37, 0, strategy.canvasResizedCallbackUserData ]);
+  Module["dynCall_iiii"](strategy.canvasResizedCallback, 37, 0, strategy.canvasResizedCallbackUserData);
  }
  return 0;
 }
-function _glUniform3f(location, v0, v1, v2) {
- location = GL.uniforms[location];
- GLctx.uniform3f(location, v0, v1, v2);
-}
-function _glBindAttribLocation(program, index, name) {
- name = Pointer_stringify(name);
- GLctx.bindAttribLocation(GL.programs[program], index, name);
-}
-function _emscripten_get_canvas_size(width, height, isFullscreen) {
- var canvas = Module["canvas"];
- HEAP32[width >> 2] = canvas.width;
- HEAP32[height >> 2] = canvas.height;
- HEAP32[isFullscreen >> 2] = Browser.isFullscreen ? 1 : 0;
-}
-function _glDrawElements(mode, count, type, indices) {
- GLctx.drawElements(mode, count, type, indices);
-}
-function _emscripten_webgl_init_context_attributes(attributes) {
- HEAP32[attributes >> 2] = 1;
- HEAP32[attributes + 4 >> 2] = 1;
- HEAP32[attributes + 8 >> 2] = 0;
- HEAP32[attributes + 12 >> 2] = 1;
- HEAP32[attributes + 16 >> 2] = 1;
- HEAP32[attributes + 20 >> 2] = 0;
- HEAP32[attributes + 24 >> 2] = 0;
- HEAP32[attributes + 28 >> 2] = 0;
- HEAP32[attributes + 32 >> 2] = 1;
- HEAP32[attributes + 36 >> 2] = 0;
- HEAP32[attributes + 40 >> 2] = 1;
- HEAP32[attributes + 44 >> 2] = 0;
-}
-function ___syscall5(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  var pathname = SYSCALLS.getStr(), flags = SYSCALLS.get(), mode = SYSCALLS.get();
-  var stream = FS.open(pathname, flags, mode);
-  return stream.fd;
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
+function _glDepthMask(flag) {
+ GLctx.depthMask(!!flag);
 }
 function _glUniformMatrix4fv(location, count, transpose, value) {
- location = GL.uniforms[location];
  var view;
  if (16 * count <= GL.MINI_TEMP_BUFFER_SIZE) {
   view = GL.miniTempBufferViews[16 * count - 1];
@@ -4211,24 +4352,10 @@ function _glUniformMatrix4fv(location, count, transpose, value) {
  } else {
   view = HEAPF32.subarray(value >> 2, value + count * 64 >> 2);
  }
- GLctx.uniformMatrix4fv(location, transpose, view);
+ GLctx.uniformMatrix4fv(GL.uniforms[location], !!transpose, view);
 }
-function ___syscall6(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  var stream = SYSCALLS.getStreamFromFD();
-  FS.close(stream);
-  return 0;
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
-}
-Module["___udivdi3"] = ___udivdi3;
-function _glBufferSubData(target, offset, size, data) {
- GLctx.bufferSubData(target, offset, HEAPU8.subarray(data, data + size));
-}
-Module["_bitshift64Shl"] = _bitshift64Shl;
+Module["___muldsi3"] = ___muldsi3;
+Module["___muldi3"] = ___muldi3;
 function _glTexParameteri(x0, x1, x2) {
  GLctx["texParameteri"](x0, x1, x2);
 }
@@ -4236,96 +4363,25 @@ function _emscripten_webgl_make_context_current(contextHandle) {
  var success = GL.makeContextCurrent(contextHandle);
  return success ? 0 : -5;
 }
-function _pthread_cleanup_pop() {
- assert(_pthread_cleanup_push.level == __ATEXIT__.length, "cannot pop if something else added meanwhile!");
- __ATEXIT__.pop();
- _pthread_cleanup_push.level = __ATEXIT__.length;
-}
-function _glBufferData(target, size, data, usage) {
- switch (usage) {
- case 35041:
- case 35042:
-  usage = 35040;
-  break;
- case 35045:
- case 35046:
-  usage = 35044;
-  break;
- case 35049:
- case 35050:
-  usage = 35048;
-  break;
- }
- if (!data) {
-  GLctx.bufferData(target, size, usage);
+function _emscripten_set_wheel_callback(target, userData, useCapture, callbackfunc) {
+ target = JSEvents.findEventTarget(target);
+ if (typeof target.onwheel !== "undefined") {
+  JSEvents.registerWheelEventCallback(target, userData, useCapture, callbackfunc, 9, "wheel");
+  return 0;
+ } else if (typeof target.onmousewheel !== "undefined") {
+  JSEvents.registerWheelEventCallback(target, userData, useCapture, callbackfunc, 9, "mousewheel");
+  return 0;
  } else {
-  GLctx.bufferData(target, HEAPU8.subarray(data, data + size), usage);
+  return -1;
  }
+}
+function _glScissor(x0, x1, x2, x3) {
+ GLctx["scissor"](x0, x1, x2, x3);
 }
 function _llvm_trap() {
  abort("trap!");
 }
-function _glGetShaderiv(shader, pname, p) {
- if (!p) {
-  GL.recordError(1281);
-  return;
- }
- if (pname == 35716) {
-  var log = GLctx.getShaderInfoLog(GL.shaders[shader]);
-  if (log === null) log = "(unknown error)";
-  HEAP32[p >> 2] = log.length + 1;
- } else {
-  HEAP32[p >> 2] = GLctx.getShaderParameter(GL.shaders[shader], pname);
- }
-}
 Module["_pthread_self"] = _pthread_self;
-function ___syscall140(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  var stream = SYSCALLS.getStreamFromFD(), offset_high = SYSCALLS.get(), offset_low = SYSCALLS.get(), result = SYSCALLS.get(), whence = SYSCALLS.get();
-  var offset = offset_low;
-  assert(offset_high === 0);
-  FS.llseek(stream, offset, whence);
-  HEAP32[result >> 2] = stream.position;
-  if (stream.getdents && offset === 0 && whence === 0) stream.getdents = null;
-  return 0;
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
-}
-function ___syscall146(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  var stream = SYSCALLS.get(), iov = SYSCALLS.get(), iovcnt = SYSCALLS.get();
-  var ret = 0;
-  if (!___syscall146.buffer) {
-   ___syscall146.buffers = [ null, [], [] ];
-   ___syscall146.printChar = (function(stream, curr) {
-    var buffer = ___syscall146.buffers[stream];
-    assert(buffer);
-    if (curr === 0 || curr === 10) {
-     (stream === 1 ? Module["print"] : Module["printErr"])(UTF8ArrayToString(buffer, 0));
-     buffer.length = 0;
-    } else {
-     buffer.push(curr);
-    }
-   });
-  }
-  for (var i = 0; i < iovcnt; i++) {
-   var ptr = HEAP32[iov + i * 8 >> 2];
-   var len = HEAP32[iov + (i * 8 + 4) >> 2];
-   for (var j = 0; j < len; j++) {
-    ___syscall146.printChar(stream, HEAPU8[ptr + j]);
-   }
-   ret += len;
-  }
-  return ret;
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
-}
 function ___syscall221(which, varargs) {
  SYSCALLS.varargs = varargs;
  try {
@@ -4381,18 +4437,9 @@ function ___syscall221(which, varargs) {
   return -e.errno;
  }
 }
-function ___syscall145(which, varargs) {
- SYSCALLS.varargs = varargs;
- try {
-  var stream = SYSCALLS.getStreamFromFD(), iov = SYSCALLS.get(), iovcnt = SYSCALLS.get();
-  return SYSCALLS.doReadv(stream, iov, iovcnt);
- } catch (e) {
-  if (typeof FS === "undefined" || !(e instanceof FS.ErrnoError)) abort(e);
-  return -e.errno;
- }
-}
 var GLctx;
 GL.init();
+JSEvents.staticInit();
 if (ENVIRONMENT_IS_NODE) {
  _emscripten_get_now = function _emscripten_get_now_actual() {
   var t = process["hrtime"]();
@@ -4453,12 +4500,13 @@ DYNAMIC_BASE = Runtime.alignMemory(STACK_MAX);
 HEAP32[DYNAMICTOP_PTR >> 2] = DYNAMIC_BASE;
 staticSealed = true;
 Module["wasmTableSize"] = 247;
+Module["wasmMaxTableSize"] = 247;
 function invoke_iiii(index, a1, a2, a3) {
  try {
   return Module["dynCall_iiii"](index, a1, a2, a3);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_i(index) {
@@ -4466,7 +4514,7 @@ function invoke_i(index) {
   return Module["dynCall_i"](index);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_vi(index, a1) {
@@ -4474,7 +4522,7 @@ function invoke_vi(index, a1) {
   Module["dynCall_vi"](index, a1);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_vii(index, a1, a2) {
@@ -4482,7 +4530,7 @@ function invoke_vii(index, a1, a2) {
   Module["dynCall_vii"](index, a1, a2);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_ii(index, a1) {
@@ -4490,7 +4538,7 @@ function invoke_ii(index, a1) {
   return Module["dynCall_ii"](index, a1);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_viii(index, a1, a2, a3) {
@@ -4498,7 +4546,7 @@ function invoke_viii(index, a1, a2, a3) {
   Module["dynCall_viii"](index, a1, a2, a3);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_v(index) {
@@ -4506,7 +4554,7 @@ function invoke_v(index) {
   Module["dynCall_v"](index);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_iii(index, a1, a2) {
@@ -4514,7 +4562,7 @@ function invoke_iii(index, a1, a2) {
   return Module["dynCall_iii"](index, a1, a2);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 function invoke_viiii(index, a1, a2, a3, a4) {
@@ -4522,7 +4570,7 @@ function invoke_viiii(index, a1, a2, a3, a4) {
   Module["dynCall_viiii"](index, a1, a2, a3, a4);
  } catch (e) {
   if (typeof e !== "number" && e !== "longjmp") throw e;
-  asm["setThrew"](1, 0);
+  Module["setThrew"](1, 0);
  }
 }
 Module.asmGlobalArg = {
@@ -4578,11 +4626,11 @@ Module.asmLibraryArg = {
  "_glGenBuffers": _glGenBuffers,
  "_glShaderSource": _glShaderSource,
  "_pthread_cleanup_push": _pthread_cleanup_push,
- "___syscall140": ___syscall140,
+ "_llvm_trap": _llvm_trap,
  "___syscall145": ___syscall145,
- "___syscall146": ___syscall146,
+ "_emscripten_set_devicemotion_callback": _emscripten_set_devicemotion_callback,
  "_pthread_cleanup_pop": _pthread_cleanup_pop,
- "_glVertexAttribPointer": _glVertexAttribPointer,
+ "_emscripten_set_keyup_callback": _emscripten_set_keyup_callback,
  "__restoreHiddenElements": __restoreHiddenElements,
  "_glDrawElements": _glDrawElements,
  "_glDepthMask": _glDepthMask,
@@ -4598,12 +4646,12 @@ Module.asmLibraryArg = {
  "_nanosleep": _nanosleep,
  "_glCompressedTexImage2D": _glCompressedTexImage2D,
  "_glEnable": _glEnable,
- "_llvm_trap": _llvm_trap,
+ "___syscall140": ___syscall140,
  "_glGenTextures": _glGenTextures,
  "_glGetIntegerv": _glGetIntegerv,
  "_glGetString": _glGetString,
  "emscriptenWebGLGet": emscriptenWebGLGet,
- "_glStencilMaskSeparate": _glStencilMaskSeparate,
+ "_emscripten_set_mouseup_callback": _emscripten_set_mouseup_callback,
  "_emscripten_get_now": _emscripten_get_now,
  "_glAttachShader": _glAttachShader,
  "__registerRestoreOldStyle": __registerRestoreOldStyle,
@@ -4612,18 +4660,19 @@ Module.asmLibraryArg = {
  "___syscall6": ___syscall6,
  "___syscall5": ___syscall5,
  "_glBindFramebuffer": _glBindFramebuffer,
- "_emscripten_set_devicemotion_callback": _emscripten_set_devicemotion_callback,
+ "___syscall146": ___syscall146,
  "_glUniform2f": _glUniform2f,
+ "_emscripten_set_resize_callback": _emscripten_set_resize_callback,
  "_glCullFace": _glCullFace,
  "_emscripten_set_keypress_callback": _emscripten_set_keypress_callback,
  "_glDeleteFramebuffers": _glDeleteFramebuffers,
  "_emscripten_webgl_create_context": _emscripten_webgl_create_context,
- "_emscripten_set_deviceorientation_callback": _emscripten_set_deviceorientation_callback,
- "_emscripten_set_keyup_callback": _emscripten_set_keyup_callback,
- "_glBlendFuncSeparate": _glBlendFuncSeparate,
- "_emscripten_set_mouseup_callback": _emscripten_set_mouseup_callback,
- "_glClearDepthf": _glClearDepthf,
  "_glClearColor": _glClearColor,
+ "_glVertexAttribPointer": _glVertexAttribPointer,
+ "_glBlendFuncSeparate": _glBlendFuncSeparate,
+ "_glStencilMaskSeparate": _glStencilMaskSeparate,
+ "_glClearDepthf": _glClearDepthf,
+ "_emscripten_set_deviceorientation_callback": _emscripten_set_deviceorientation_callback,
  "_glBindTexture": _glBindTexture,
  "_glUniform1f": _glUniform1f,
  "_glUniform1i": _glUniform1i,
@@ -4653,6 +4702,7 @@ Module.asmLibraryArg = {
  "_usleep": _usleep,
  "_glLinkProgram": _glLinkProgram,
  "_emscripten_set_touchend_callback": _emscripten_set_touchend_callback,
+ "_emscripten_get_element_css_size": _emscripten_get_element_css_size,
  "_glGetShaderiv": _glGetShaderiv,
  "_glGetUniformLocation": _glGetUniformLocation,
  "_emscripten_cancel_main_loop": _emscripten_cancel_main_loop,
@@ -4664,6 +4714,7 @@ Module.asmLibraryArg = {
  "_glVertexAttribDivisor": _glVertexAttribDivisor,
  "_emscripten_enter_soft_fullscreen": _emscripten_enter_soft_fullscreen,
  "_emscripten_set_wheel_callback": _emscripten_set_wheel_callback,
+ "_emscripten_exit_soft_fullscreen": _emscripten_exit_soft_fullscreen,
  "___syscall54": ___syscall54,
  "___unlock": ___unlock,
  "_emscripten_set_main_loop": _emscripten_set_main_loop,
@@ -4676,53 +4727,142 @@ Module.asmLibraryArg = {
  "_glBlendEquationSeparate": _glBlendEquationSeparate,
  "_glStencilFuncSeparate": _glStencilFuncSeparate,
  "_emscripten_do_request_fullscreen": _emscripten_do_request_fullscreen,
- "STACKTOP": STACKTOP,
- "STACK_MAX": STACK_MAX,
  "DYNAMICTOP_PTR": DYNAMICTOP_PTR,
  "tempDoublePtr": tempDoublePtr,
  "ABORT": ABORT,
+ "STACKTOP": STACKTOP,
+ "STACK_MAX": STACK_MAX,
  "cttz_i8": cttz_i8
 };
 // EMSCRIPTEN_START_ASM
 
 var asm =Module["asm"]// EMSCRIPTEN_END_ASM
 (Module.asmGlobalArg, Module.asmLibraryArg, buffer);
-var ___muldsi3 = Module["___muldsi3"] = asm["___muldsi3"];
-var _malloc = Module["_malloc"] = asm["_malloc"];
-var _i64Subtract = Module["_i64Subtract"] = asm["_i64Subtract"];
-var _free = Module["_free"] = asm["_free"];
-var _main = Module["_main"] = asm["_main"];
-var _enter_fullscreen = Module["_enter_fullscreen"] = asm["_enter_fullscreen"];
-var _memmove = Module["_memmove"] = asm["_memmove"];
-var _pthread_self = Module["_pthread_self"] = asm["_pthread_self"];
-var _memset = Module["_memset"] = asm["_memset"];
-var ___udivdi3 = Module["___udivdi3"] = asm["___udivdi3"];
-var _sbrk = Module["_sbrk"] = asm["_sbrk"];
-var _i64Add = Module["_i64Add"] = asm["_i64Add"];
-var _memcpy = Module["_memcpy"] = asm["_memcpy"];
-var _enter_soft_fullscreen = Module["_enter_soft_fullscreen"] = asm["_enter_soft_fullscreen"];
-var runPostSets = Module["runPostSets"] = asm["runPostSets"];
-var ___muldi3 = Module["___muldi3"] = asm["___muldi3"];
-var _bitshift64Lshr = Module["_bitshift64Lshr"] = asm["_bitshift64Lshr"];
-var __GLOBAL__sub_I_imgui_cpp = Module["__GLOBAL__sub_I_imgui_cpp"] = asm["__GLOBAL__sub_I_imgui_cpp"];
-var ___uremdi3 = Module["___uremdi3"] = asm["___uremdi3"];
-var ___udivmoddi4 = Module["___udivmoddi4"] = asm["___udivmoddi4"];
-var _bitshift64Shl = Module["_bitshift64Shl"] = asm["_bitshift64Shl"];
-var dynCall_iiii = Module["dynCall_iiii"] = asm["dynCall_iiii"];
-var dynCall_i = Module["dynCall_i"] = asm["dynCall_i"];
-var dynCall_vi = Module["dynCall_vi"] = asm["dynCall_vi"];
-var dynCall_vii = Module["dynCall_vii"] = asm["dynCall_vii"];
-var dynCall_ii = Module["dynCall_ii"] = asm["dynCall_ii"];
-var dynCall_viii = Module["dynCall_viii"] = asm["dynCall_viii"];
-var dynCall_v = Module["dynCall_v"] = asm["dynCall_v"];
-var dynCall_iii = Module["dynCall_iii"] = asm["dynCall_iii"];
-var dynCall_viiii = Module["dynCall_viiii"] = asm["dynCall_viiii"];
-Runtime.stackAlloc = asm["stackAlloc"];
-Runtime.stackSave = asm["stackSave"];
-Runtime.stackRestore = asm["stackRestore"];
-Runtime.establishStackSpace = asm["establishStackSpace"];
-Runtime.setTempRet0 = asm["setTempRet0"];
-Runtime.getTempRet0 = asm["getTempRet0"];
+Module["asm"] = asm;
+var _main = Module["_main"] = (function() {
+ return Module["asm"]["_main"].apply(null, arguments);
+});
+var getTempRet0 = Module["getTempRet0"] = (function() {
+ return Module["asm"]["getTempRet0"].apply(null, arguments);
+});
+var ___udivdi3 = Module["___udivdi3"] = (function() {
+ return Module["asm"]["___udivdi3"].apply(null, arguments);
+});
+var setThrew = Module["setThrew"] = (function() {
+ return Module["asm"]["setThrew"].apply(null, arguments);
+});
+var _enter_soft_fullscreen = Module["_enter_soft_fullscreen"] = (function() {
+ return Module["asm"]["_enter_soft_fullscreen"].apply(null, arguments);
+});
+var _bitshift64Lshr = Module["_bitshift64Lshr"] = (function() {
+ return Module["asm"]["_bitshift64Lshr"].apply(null, arguments);
+});
+var _bitshift64Shl = Module["_bitshift64Shl"] = (function() {
+ return Module["asm"]["_bitshift64Shl"].apply(null, arguments);
+});
+var _memset = Module["_memset"] = (function() {
+ return Module["asm"]["_memset"].apply(null, arguments);
+});
+var _sbrk = Module["_sbrk"] = (function() {
+ return Module["asm"]["_sbrk"].apply(null, arguments);
+});
+var _i64Add = Module["_i64Add"] = (function() {
+ return Module["asm"]["_i64Add"].apply(null, arguments);
+});
+var _memcpy = Module["_memcpy"] = (function() {
+ return Module["asm"]["_memcpy"].apply(null, arguments);
+});
+var stackAlloc = Module["stackAlloc"] = (function() {
+ return Module["asm"]["stackAlloc"].apply(null, arguments);
+});
+var ___muldi3 = Module["___muldi3"] = (function() {
+ return Module["asm"]["___muldi3"].apply(null, arguments);
+});
+var ___uremdi3 = Module["___uremdi3"] = (function() {
+ return Module["asm"]["___uremdi3"].apply(null, arguments);
+});
+var _i64Subtract = Module["_i64Subtract"] = (function() {
+ return Module["asm"]["_i64Subtract"].apply(null, arguments);
+});
+var ___udivmoddi4 = Module["___udivmoddi4"] = (function() {
+ return Module["asm"]["___udivmoddi4"].apply(null, arguments);
+});
+var setTempRet0 = Module["setTempRet0"] = (function() {
+ return Module["asm"]["setTempRet0"].apply(null, arguments);
+});
+var _enter_fullscreen = Module["_enter_fullscreen"] = (function() {
+ return Module["asm"]["_enter_fullscreen"].apply(null, arguments);
+});
+var _pthread_self = Module["_pthread_self"] = (function() {
+ return Module["asm"]["_pthread_self"].apply(null, arguments);
+});
+var _leave_soft_fullscreen = Module["_leave_soft_fullscreen"] = (function() {
+ return Module["asm"]["_leave_soft_fullscreen"].apply(null, arguments);
+});
+var stackRestore = Module["stackRestore"] = (function() {
+ return Module["asm"]["stackRestore"].apply(null, arguments);
+});
+var _is_soft_fullscreen_active = Module["_is_soft_fullscreen_active"] = (function() {
+ return Module["asm"]["_is_soft_fullscreen_active"].apply(null, arguments);
+});
+var __GLOBAL__sub_I_imgui_cpp = Module["__GLOBAL__sub_I_imgui_cpp"] = (function() {
+ return Module["asm"]["__GLOBAL__sub_I_imgui_cpp"].apply(null, arguments);
+});
+var stackSave = Module["stackSave"] = (function() {
+ return Module["asm"]["stackSave"].apply(null, arguments);
+});
+var ___muldsi3 = Module["___muldsi3"] = (function() {
+ return Module["asm"]["___muldsi3"].apply(null, arguments);
+});
+var _free = Module["_free"] = (function() {
+ return Module["asm"]["_free"].apply(null, arguments);
+});
+var runPostSets = Module["runPostSets"] = (function() {
+ return Module["asm"]["runPostSets"].apply(null, arguments);
+});
+var establishStackSpace = Module["establishStackSpace"] = (function() {
+ return Module["asm"]["establishStackSpace"].apply(null, arguments);
+});
+var _memmove = Module["_memmove"] = (function() {
+ return Module["asm"]["_memmove"].apply(null, arguments);
+});
+var _malloc = Module["_malloc"] = (function() {
+ return Module["asm"]["_malloc"].apply(null, arguments);
+});
+var dynCall_iiii = Module["dynCall_iiii"] = (function() {
+ return Module["asm"]["dynCall_iiii"].apply(null, arguments);
+});
+var dynCall_i = Module["dynCall_i"] = (function() {
+ return Module["asm"]["dynCall_i"].apply(null, arguments);
+});
+var dynCall_vi = Module["dynCall_vi"] = (function() {
+ return Module["asm"]["dynCall_vi"].apply(null, arguments);
+});
+var dynCall_vii = Module["dynCall_vii"] = (function() {
+ return Module["asm"]["dynCall_vii"].apply(null, arguments);
+});
+var dynCall_ii = Module["dynCall_ii"] = (function() {
+ return Module["asm"]["dynCall_ii"].apply(null, arguments);
+});
+var dynCall_viii = Module["dynCall_viii"] = (function() {
+ return Module["asm"]["dynCall_viii"].apply(null, arguments);
+});
+var dynCall_v = Module["dynCall_v"] = (function() {
+ return Module["asm"]["dynCall_v"].apply(null, arguments);
+});
+var dynCall_iii = Module["dynCall_iii"] = (function() {
+ return Module["asm"]["dynCall_iii"].apply(null, arguments);
+});
+var dynCall_viiii = Module["dynCall_viiii"] = (function() {
+ return Module["asm"]["dynCall_viiii"].apply(null, arguments);
+});
+Runtime.stackAlloc = Module["stackAlloc"];
+Runtime.stackSave = Module["stackSave"];
+Runtime.stackRestore = Module["stackRestore"];
+Runtime.establishStackSpace = Module["establishStackSpace"];
+Runtime.setTempRet0 = Module["setTempRet0"];
+Runtime.getTempRet0 = Module["getTempRet0"];
+Module["asm"] = asm;
 if (memoryInitializer) {
  if (typeof Module["locateFile"] === "function") {
   memoryInitializer = Module["locateFile"](memoryInitializer);

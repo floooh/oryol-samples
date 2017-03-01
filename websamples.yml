@@ -33,11 +33,6 @@
   type: emscripten,pnacl
   image: /Users/floh/projects/oryol-samples/src/ImGuiDemo/ImGuiDemo.jpg
   src: ImGuiDemo/ImGuiDemo.cc
-- name: ImGuiAdvanced
-  desc: ImGui with fonts and images
-  type: emscripten,pnacl
-  image: /Users/floh/projects/oryol-samples/src/ImGuiAdvanced/ImGuiAdvanced.jpg
-  src: ImGuiAdvanced/ImGuiAdvanced.cc
 - name: NuklearUIBasic
   desc: Nuklear UI basic demo
   type: emscripten,pnacl
