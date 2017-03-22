@@ -143,6 +143,21 @@ PacloneApp::getInput() {
         else if (Input::KeyPressed(Key::Up))    this->input = Up;
         else if (Input::KeyPressed(Key::Down))  this->input = Down;
     }
+    if (Input::GamepadAttached(0)) {
+        const float deadZone = 0.3f;
+        float hori = Input::GamepadAxisValue(0, GamepadAxis::LeftStickHori) +
+                     Input::GamepadAxisValue(0, GamepadAxis::RightStickHori);
+        float vert = Input::GamepadAxisValue(0, GamepadAxis::LeftStickVert) +
+                     Input::GamepadAxisValue(0, GamepadAxis::RightStickVert);
+        if (hori < -deadZone) this->input = Left;
+        else if (hori > deadZone) this->input = Right;
+        else if (vert < -deadZone) this->input = Up;
+        else if (vert > deadZone) this->input = Down;
+        if (Input::GamepadButtonPressed(0, GamepadButton::DPadLeft)) this->input = Left;
+        else if (Input::GamepadButtonPressed(0, GamepadButton::DPadRight)) this->input = Right;
+        else if (Input::GamepadButtonPressed(0, GamepadButton::DPadUp)) this->input = Up;
+        else if (Input::GamepadButtonPressed(0, GamepadButton::DPadDown)) this->input = Down;
+    }
     if (Input::TouchpadAttached() || Input::MouseAttached()) {
         if (Input::TouchTapped() || Input::TouchPanning() || Input::MouseButtonPressed(MouseButton::Left)) {
             glm::vec2 pos;
