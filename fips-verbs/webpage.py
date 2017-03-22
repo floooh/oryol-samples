@@ -12,7 +12,7 @@ from mod import log, util, project, emscripten, android, nacl
 GitHubSamplesURL = 'https://github.com/floooh/oryol-samples/tree/master/src/'
 
 BuildEmscripten = True
-BuildPNaCl = True 
+BuildPNaCl = False 
 BuildWasm = True
 ExportAssets = True
 
