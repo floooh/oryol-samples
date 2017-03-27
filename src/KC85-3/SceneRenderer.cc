@@ -113,8 +113,8 @@ SceneRenderer::createIndexMesh() {
     meshSetup.NumVertices = 0;
     meshSetup.NumIndices  = MaxNumIndices;
     meshSetup.IndicesType = IndexType::Index16;
-    meshSetup.DataVertexOffset = InvalidIndex;
-    meshSetup.DataIndexOffset = 0;
+    meshSetup.VertexDataOffset = InvalidIndex;
+    meshSetup.IndexDataOffset = 0;
     return Gfx::CreateResource(meshSetup, indices, sizeof(indices));
 }
 

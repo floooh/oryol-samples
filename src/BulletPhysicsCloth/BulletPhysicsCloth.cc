@@ -66,6 +66,7 @@ OryolMain(BulletPhysicsClothApp);
 AppState::Code
 BulletPhysicsClothApp::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f));
     Gfx::Setup(gfxSetup);
     this->colorFSParams.ShadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
@@ -163,16 +164,16 @@ BulletPhysicsClothApp::OnRunning() {
     }
 
     // the shadow pass
+    Gfx::BeginPass(this->shapeRenderer.ShadowPass);
     this->shadowVSParams.MVP = this->lightProjView;
-    this->shapeRenderer.DrawShadowPass(this->shadowVSParams);
-
-    // draw cloth shadow pass
+    this->shapeRenderer.DrawShadows(this->shadowVSParams);
     Gfx::ApplyDrawState(this->clothShadowDrawState);
     Gfx::ApplyUniformBlock(this->shadowVSParams);
     Gfx::Draw();
+    Gfx::EndPass();
 
     // begin color pass rendering
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f), 1.0f, 0));
+    Gfx::BeginPass();
 
     // draw ground
     const glm::mat4 model = Physics::Transform(this->groundRigidBody);
@@ -215,6 +216,7 @@ BulletPhysicsClothApp::OnRunning() {
                 clothUpdTime.AsMilliSeconds(),
                 this->numBodies);
     Dbg::DrawTextBuffer();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

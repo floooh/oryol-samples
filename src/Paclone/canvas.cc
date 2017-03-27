@@ -55,7 +55,7 @@ canvas::Setup(const TextureSetup& rtSetup, int tilesX, int tilesY, int tileW, in
     this->drawState.Pipeline = Gfx::CreateResource(ps);
     
     // setup sprite texture
-    auto texSetup = TextureSetup::FromPixelData(Sheet::Width, Sheet::Height, 1, TextureType::Texture2D, PixelFormat::RGBA8);
+    auto texSetup = TextureSetup::FromPixelData2D(Sheet::Width, Sheet::Height, 1, PixelFormat::RGBA8);
     texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
     texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
     texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;

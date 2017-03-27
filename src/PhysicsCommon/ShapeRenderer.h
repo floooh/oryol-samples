@@ -25,8 +25,8 @@ public:
     void Setup(const GfxSetup& gfxSetup);
     /// discard the shape renderer
     void Discard();
-    /// draw the shadow pass (no ground)
-    template<class VSPARAMS> void DrawShadowPass(const VSPARAMS& vsParams);
+    /// draw the shadow shapes
+    template<class VSPARAMS> void DrawShadows(const VSPARAMS& vsParams);
     /// draw the ground
     template<class VSPARAMS, class FSPARAMS> void DrawGround(const VSPARAMS& vsParams, const FSPARAMS& fsParams);
     /// draw the dynamic shapes
@@ -42,6 +42,7 @@ public:
 
     static const int MaxNumInstances = 1024;
     Id ShadowMap;
+    Id ShadowPass;
     DrawState ColorDrawState;
     DrawState ShadowDrawState;
     DrawState ColorInstancedDrawState;
@@ -63,8 +64,7 @@ public:
 
 //------------------------------------------------------------------------------
 template<class VSPARAMS> inline void
-ShapeRenderer::DrawShadowPass(const VSPARAMS& vsParams) {
-    Gfx::ApplyRenderTarget(this->ShadowMap, ClearState::ClearAll(glm::vec4(1.0f), 1.0f, 0));
+ShapeRenderer::DrawShadows(const VSPARAMS& vsParams) {
     if (this->NumSpheres > 0) {
         this->ShadowInstancedDrawState.Mesh[1] = this->SphereInstMesh;
         Gfx::ApplyDrawState(this->ShadowInstancedDrawState);

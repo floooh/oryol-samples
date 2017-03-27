@@ -44,9 +44,8 @@ private:
     /// re-create offscreen render-target if window size has changed (FIXME)
     void recreateRenderTargets(const DisplayAttrs& attrs);
 
-    ClearState fractalClearState = ClearState::ClearColor(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-    ClearState noClearState = ClearState::ClearNone();
-    ResourceLabel offscreenRenderTargetLabel;
+    ResourceLabel offscreenLabel;
+    Id offscreenPass[2];
     Id offscreenRenderTarget[2];
     DrawState dispDrawState;
     DisplayShader::FSParams dispFSParams;
@@ -74,18 +73,20 @@ FractalApp::OnRunning() {
     // reset current fractal state if requested
     if (this->clearFlag) {
         this->clearFlag = false;
-        Gfx::ApplyRenderTarget(this->offscreenRenderTarget[0], this->fractalClearState);
-        Gfx::ApplyRenderTarget(this->offscreenRenderTarget[1], this->fractalClearState);
+        Gfx::BeginPass(offscreenPass[0], PassAction::Clear(glm::vec4(0.0f)));
+        Gfx::EndPass();
+        Gfx::BeginPass(offscreenPass[1], PassAction::Clear(glm::vec4(0.0f)));
+        Gfx::EndPass();
     }
 
     this->frameIndex++;
     const int index0 = this->frameIndex % 2;
     const int index1 = (this->frameIndex + 1) % 2;
-    const Id& curTarget = this->offscreenRenderTarget[index0];
+    const Id& curPass = this->offscreenPass[index0];
     const Id& curTexture = this->offscreenRenderTarget[index1];
 
     // render next fractal iteration
-    Gfx::ApplyRenderTarget(curTarget, this->noClearState);
+    Gfx::BeginPass(curPass, PassAction::Load());
     if (Mandelbrot == this->fractalType) {
         this->mandelbrot.drawState.FSTexture[Textures::Texture] = curTexture;
         Gfx::ApplyDrawState(this->mandelbrot.drawState);
@@ -98,15 +99,17 @@ FractalApp::OnRunning() {
         Gfx::ApplyUniformBlock(this->julia.fsParams);
     }
     Gfx::Draw();
+    Gfx::EndPass();
 
     // map fractal state to display
-    Gfx::ApplyDefaultRenderTarget(this->noClearState);
-    this->dispDrawState.FSTexture[Textures::Texture] = curTarget;
+    Gfx::BeginPass(PassAction::DontCare());
+    this->dispDrawState.FSTexture[Textures::Texture] = this->offscreenRenderTarget[index0];
     Gfx::ApplyDrawState(this->dispDrawState);
     Gfx::ApplyUniformBlock(this->dispFSParams);
     Gfx::Draw();
 
     this->drawUI();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     
     // continue running or quit?
@@ -354,18 +357,20 @@ FractalApp::recreateRenderTargets(const DisplayAttrs& attrs) {
     Log::Info("(re-)create render targets\n");
 
     // first destroy previous render targets
-    if (ResourceLabel::Invalid != this->offscreenRenderTargetLabel) {
-        Gfx::DestroyResources(this->offscreenRenderTargetLabel);
+    if (ResourceLabel::Invalid != this->offscreenLabel) {
+        Gfx::DestroyResources(this->offscreenLabel);
     }
-    this->offscreenRenderTargetLabel = Gfx::PushResourceLabel();
-    auto offscreenRTSetup = TextureSetup::RenderTarget(attrs.FramebufferWidth, attrs.FramebufferHeight);
-    offscreenRTSetup.ColorFormat = PixelFormat::RGBA32F;
-    offscreenRTSetup.DepthFormat = PixelFormat::None;
+    this->offscreenLabel = Gfx::PushResourceLabel();
+    auto offscreenRTSetup = TextureSetup::RenderTarget2D(
+        attrs.FramebufferWidth, attrs.FramebufferHeight,
+        PixelFormat::RGBA32F, PixelFormat::None);
     offscreenRTSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
     offscreenRTSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
-    offscreenRTSetup.ClearHint = this->fractalClearState;
-    this->offscreenRenderTarget[0] = Gfx::CreateResource(offscreenRTSetup);
-    this->offscreenRenderTarget[1] = Gfx::CreateResource(offscreenRTSetup);
+    for (int i = 0; i < 2; i++) {
+        this->offscreenRenderTarget[i] = Gfx::CreateResource(offscreenRTSetup);
+        auto passSetup = PassSetup::From(this->offscreenRenderTarget[i]);
+        this->offscreenPass[i] = Gfx::CreateResource(passSetup);
+    }
     this->clearFlag = true;
 
     Gfx::PopResourceLabel();

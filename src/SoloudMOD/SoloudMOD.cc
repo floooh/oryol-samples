@@ -47,7 +47,7 @@ OryolMain(SoloudMODApp);
 AppState::Code
 SoloudMODApp::OnRunning() {
 
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearColor(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f)));
+    Gfx::BeginPass(PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f)));
     IMUI::NewFrame();
 
     float* buf = this->soloud.getWave();
@@ -95,6 +95,7 @@ SoloudMODApp::OnRunning() {
     ImGui::End();
 
     ImGui::Render();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

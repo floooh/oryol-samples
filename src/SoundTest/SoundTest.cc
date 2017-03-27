@@ -18,7 +18,6 @@ public:
     AppState::Code OnRunning();
     AppState::Code OnCleanup();
 
-    ClearState clearState;
     struct Effect {
         Id id;
         float* samples = nullptr;   // duplicate for visualization via imgui!
@@ -68,11 +67,12 @@ const char* SoundTestApp::uiEffectNames[SoundTestApp::NumEffects] = {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(1024, 480, "Sound Test"));
+    auto gfxSetup = GfxSetup::Window(1024, 480, "Sound Test");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.75f, 0.75f, 0.75f, 1.0f));
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     Sound::Setup(SoundSetup());
     IMUI::Setup();
-    this->clearState.Color = glm::vec4(0.75f, 0.75f, 0.75f, 1.0f);
 
     this->effects[Waka].id = Sound::CreateResource(SoundEffectSetup::FromSampleFunc(1, 0.25f, 44100, [this](float dt, int16_t* samples, int numSamples) {
 
@@ -374,7 +374,7 @@ SoundTestApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnRunning() {
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
+    Gfx::BeginPass();
     IMUI::NewFrame();
 
     // draw UI
@@ -394,6 +394,7 @@ SoundTestApp::OnRunning() {
     ImGui::End();
 
     ImGui::Render();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

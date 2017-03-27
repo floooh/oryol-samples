@@ -30,8 +30,8 @@ GeomPool::Setup(const GfxSetup& gfxSetup) {
     meshSetup.NumVertices = 0;
     meshSetup.NumIndices  = Config::GeomMaxNumIndices;
     meshSetup.IndicesType = IndexType::Index16;
-    meshSetup.DataVertexOffset = InvalidIndex;
-    meshSetup.DataIndexOffset = 0;
+    meshSetup.VertexDataOffset = InvalidIndex;
+    meshSetup.IndexDataOffset = 0;
     this->IndexMesh = Gfx::CreateResource(meshSetup, indices, sizeof(indices));
 
     // setup shader params template

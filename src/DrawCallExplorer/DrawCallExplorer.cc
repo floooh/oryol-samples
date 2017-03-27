@@ -91,7 +91,7 @@ DrawCallExplorerApp::OnRunning() {
     afterUpdate = Clock::Now();
 
     // render block
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f), 1.0f, 0));
+    Gfx::BeginPass();
     afterApplyRt = Clock::Now();
     int batchCount = this->numParticlesPerBatch;
     int curBatch = 0;
@@ -117,6 +117,7 @@ DrawCallExplorerApp::OnRunning() {
     this->drawUI();
     afterUi = Clock::Now();
     this->frameInfoBeforeCommit = Gfx::FrameInfo();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     afterCommit = Clock::Now();
 
@@ -191,6 +192,7 @@ AppState::Code
 DrawCallExplorerApp::OnInit() {
     // setup rendering system
     GfxSetup gfxSetup = GfxSetup::Window(620, 500, "Oryol DrawCallExplorer");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
     gfxSetup.GlobalUniformBufferSize = 1024 * 1024 * 32;
     Gfx::Setup(gfxSetup);
     Input::Setup();
