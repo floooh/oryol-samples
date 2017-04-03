@@ -8,6 +8,7 @@
 #include "NKUI/NKUI.h"
 #include <math.h>
 #include <limits.h>
+#include <time.h>
 
 using namespace Oryol;
 
