@@ -9,6 +9,7 @@
 #include <math.h>
 #include <limits.h>
 #include <time.h>
+#include <string.h>
 
 using namespace Oryol;
 
