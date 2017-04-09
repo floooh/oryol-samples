@@ -28,7 +28,6 @@ private:
     Array<URL> getInitResources(const TBUISetup& setup);
 
     TimePoint lastFrameTimePoint;
-    ClearState clearState;
 };
 OryolMain(TurboBadgerDemoApp);
 
@@ -65,11 +64,12 @@ TurboBadgerDemoApp::OnInit() {
     ioSetup.Assigns.Add("ui:", "res:tbui/");
     IO::Setup(ioSetup);
 
-    Gfx::Setup(GfxSetup::Window(1000, 650, "TurboBadger UI Demo"));
+    auto gfxSetup = GfxSetup::Window(1000, 650, "TurboBadger UI Demo");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.0f, 1.0f, 1.0f));
+    Gfx::Setup(gfxSetup);
     Dbg::Setup();
     Input::Setup();
-    this->clearState.Color = glm::vec4(0.5f, 0.0f, 1.0f, 1.0f);
-    
+
     // TBSelectList and TBSelectDropdown widgets have a default item source that are fed with any items
     // specified in the resource files. But it is also possible to set any source which can save memory
     // and improve performance. Then you don't have to populate each instance with its own set of items,
@@ -135,9 +135,10 @@ TurboBadgerDemoApp::OnInit() {
 AppState::Code
 TurboBadgerDemoApp::OnRunning() {
 
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
+    Gfx::BeginPass();
     TBUI::Draw();
     Dbg::DrawTextBuffer();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     
     Duration frameTime = Clock::LapTime(this->lastFrameTimePoint);

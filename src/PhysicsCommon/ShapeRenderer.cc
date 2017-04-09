@@ -63,10 +63,12 @@ ShapeRenderer::Setup(const GfxSetup& gfxSetup) {
     this->ColorInstancedDrawState.Pipeline = Gfx::CreateResource(ps);
 
     // create shadow map, use RGBA8 format and encode/decode depth in pixel shader
-    auto smSetup = TextureSetup::RenderTarget(this->ShadowMapSize, this->ShadowMapSize);
-    smSetup.ColorFormat = PixelFormat::RGBA8;
-    smSetup.DepthFormat = PixelFormat::DEPTH;
+    const int smSize = this->ShadowMapSize;
+    auto smSetup = TextureSetup::RenderTarget2D(smSize, smSize, PixelFormat::RGBA8, PixelFormat::DEPTH);
     this->ShadowMap = Gfx::CreateResource(smSetup);
+    auto smPassSetup = PassSetup::From(this->ShadowMap, this->ShadowMap);
+    smPassSetup.DefaultAction = PassAction::Clear(glm::vec4(1.0f), 1.0f, 0);
+    this->ShadowPass = Gfx::CreateResource(smPassSetup);
     this->ColorDrawState.FSTexture[0] = this->ShadowMap;
 
     // create shadow pass pipeline states (one for non-instanced, one for instanced rendering)

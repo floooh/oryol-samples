@@ -75,7 +75,7 @@ DemoApp::load_icon(const char* url, struct nk_image* img) {
         uint8_t* imgData = stbi_load_from_memory(loadResult.Data.Data(), loadResult.Data.Size(), &w, &h, &n, 0);
 
         // create an Oryol texture from the loaded data
-        auto texSetup = TextureSetup::FromPixelData(w, h, 1, TextureType::Texture2D, PixelFormat::RGBA8);
+        auto texSetup = TextureSetup::FromPixelData2D(w, h, 1, PixelFormat::RGBA8);
         // hmm... no mipmaps will not look good
         texSetup.Sampler.MinFilter = TextureFilterMode::Linear;
         texSetup.Sampler.MagFilter = TextureFilterMode::Linear;
@@ -98,7 +98,9 @@ DemoApp::OnInit() {
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
     ioSetup.Assigns.Add("data:", ORYOL_SAMPLE_URL "nkui/");
     IO::Setup(ioSetup);
-    Gfx::Setup(GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo"));
+    auto gfxSetup = GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f));
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     NKUI::Setup();
     Memory::Clear(&media, sizeof(media));
@@ -155,7 +157,7 @@ DemoApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnRunning() {
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f), 1.0f, 0));
+    Gfx::BeginPass();
     if (this->fontValid) {
         nk_context* ctx = NKUI::NewFrame();
         button_demo(ctx, &media);
@@ -163,6 +165,7 @@ DemoApp::OnRunning() {
         grid_demo(ctx, &media);
         NKUI::Draw();
     }
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

@@ -32,7 +32,6 @@ public:
     int frameIndex = 0;
     int lastFrameIndex = -1;
     glm::vec3 lightDir;
-    ClearState clearState;
 
     Camera camera;
     GeomPool geomPool;
@@ -45,11 +44,10 @@ OryolMain(VoxelTest);
 //------------------------------------------------------------------------------
 AppState::Code
 VoxelTest::OnInit() {
-    this->clearState = ClearState::ClearAll(glm::vec4(0.2f, 0.2f, 0.5f, 1.0f), 1.0f, 0);
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "Oryol Voxel Test");
-    gfxSetup.SetPoolSize(GfxResourceType::Pipeline, 1024);
-    gfxSetup.SetPoolSize(GfxResourceType::Mesh, 1024);
-    gfxSetup.ClearHint = this->clearState;
+    gfxSetup.ResourcePoolSize[GfxResourceType::Pipeline] = 1024;
+    gfxSetup.ResourcePoolSize[GfxResourceType::Mesh] = 1024;
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.2f, 0.5f, 1.0f));
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::SetPointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
@@ -107,8 +105,6 @@ VoxelTest::OnRunning() {
     this->frameIndex++;
     this->handle_input();
 
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
-
     // traverse the vis-tree
     this->visTree.Traverse(this->camera);
     // free any geoms to be freed
@@ -147,6 +143,7 @@ VoxelTest::OnRunning() {
     }
 
     // render visible geoms
+    Gfx::BeginPass();    
     const int numDrawNodes = this->visTree.drawNodes.Size();
     int numQuads = 0;
     int numGeoms = 0;
@@ -181,6 +178,7 @@ VoxelTest::OnRunning() {
                 this->visTree.freeNodes.Size(),
                 this->visTree.geomGenJobs.Size());
     Dbg::DrawTextBuffer();
+    Gfx::EndPass();
     Gfx::CommitFrame();
 
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;

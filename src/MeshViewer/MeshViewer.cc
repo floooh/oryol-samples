@@ -41,7 +41,6 @@ private:
     glm::mat4 proj;
     glm::mat4 model;
     glm::mat4 modelViewProj;
-    ClearState clearState = ClearState::ClearAll(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
 
     int curMeshIndex = 0;
     static const int numMeshes = 3;
@@ -124,7 +123,7 @@ MeshViewerApp::OnInit() {
     // setup rendering and input system
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Oryol Mesh Viewer");
     gfxSetup.HighDPI = true;
-    gfxSetup.ClearHint = this->clearState;
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
@@ -193,7 +192,7 @@ MeshViewerApp::OnRunning() {
     this->updateCamera();
     this->updateLight();
 
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
+    Gfx::BeginPass();
     this->drawUI();
     DrawState drawState;
     drawState.Mesh[0] = this->mesh;
@@ -204,6 +203,7 @@ MeshViewerApp::OnRunning() {
         Gfx::Draw(i);
     }
     ImGui::Render();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

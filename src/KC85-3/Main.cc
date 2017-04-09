@@ -14,6 +14,7 @@
 #include "SceneRenderer.h"
 #include "RayCheck.h"
 #include "glm/gtc/matrix_transform.hpp"
+#include <cstring>
 
 using namespace Oryol;
 
@@ -42,7 +43,6 @@ public:
     void handleInput();
     void tooltip(const DisplayAttrs& disp, const char* str);
 
-    ClearState clearState = ClearState::ClearAll(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f), 1.0f, 0);
     TimePoint lapTime;
     KC85Emu kc85Emu;
     SceneRenderer scene;
@@ -62,6 +62,7 @@ KC853App::OnInit() {
     ioSetup.Assigns.Add("kcc:", ORYOL_SAMPLE_URL);
     IO::Setup(ioSetup);
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f));
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Dbg::Setup();
@@ -113,11 +114,12 @@ KC853App::OnRunning() {
     this->kc85Emu.Update(Clock::LapTime(this->lapTime));
 
     // render the voxel scene and emulator screen
-    Gfx::ApplyDefaultRenderTarget(this->clearState);
+    Gfx::BeginPass();
     this->scene.Render(this->camera.ViewProj);
     this->kc85Emu.Render(this->camera.ViewProj * this->kcModelMatrix);
 //    this->rayChecker.RenderDebug(this->camera.ViewProj);
     Dbg::DrawTextBuffer();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

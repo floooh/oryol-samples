@@ -5,7 +5,7 @@
     @brief a pool of reusable voxel meshes
 */
 #include "Volume.h"
-#include "Gfx/Setup/GfxSetup.h"
+#include "Gfx/Gfx.h"
 #include "Core/Containers/StaticArray.h"
 #include "Core/Containers/Array.h"
 #include "shaders.h"

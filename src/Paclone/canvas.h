@@ -4,9 +4,7 @@
     XY-Canvas for sprite tiles.
 */
 #include "Core/Assertion.h"
-#include "Gfx/Setup/MeshSetup.h"
-#include "Gfx/Setup/TextureSetup.h"
-#include "Gfx/Core/DrawState.h"
+#include "Gfx/Gfx.h"
 #include "sprites.h"
 #include "shaders.h"
 

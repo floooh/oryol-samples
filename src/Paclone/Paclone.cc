@@ -31,8 +31,8 @@ private:
     Direction getInput();
     void applyViewPort();
 
-    Id crtRenderTarget;
-    DrawState crtDrawState;
+    Id canvasPass;
+    DrawState canvasDrawState;
 
     canvas spriteCanvas;
     game gameState;
@@ -61,21 +61,22 @@ PacloneApp::OnInit() {
     Dbg::Setup();
     
     // setup a offscreen render target, copy-shader and texture block
-    auto rtSetup = TextureSetup::RenderTarget(canvasWidth, canvasHeight);
+    auto rtSetup = TextureSetup::RenderTarget2D(canvasWidth, canvasHeight);
     rtSetup.Sampler.MinFilter = TextureFilterMode::Linear;
     rtSetup.Sampler.MagFilter = TextureFilterMode::Linear;
-    this->crtRenderTarget = Gfx::CreateResource(rtSetup);
+    Id canvasTexture = Gfx::CreateResource(rtSetup);
+    this->canvasPass = Gfx::CreateResource(PassSetup::From(canvasTexture));
 
     auto quadSetup = MeshSetup::FullScreenQuad(Gfx::QueryFeature(GfxFeature::OriginTopLeft));
-    this->crtDrawState.Mesh[0] = Gfx::CreateResource(quadSetup);
+    this->canvasDrawState.Mesh[0] = Gfx::CreateResource(quadSetup);
     #if USE_CRTEFFECT
     Id shd = Gfx::CreateResource(CRTShader::Setup());
     #else
     Id shd = Gfx::CreateResource(NoCRTShader::Setup());
     #endif
     auto ps = PipelineSetup::FromLayoutAndShader(quadSetup.Layout, shd);
-    this->crtDrawState.Pipeline = Gfx::CreateResource(ps);
-    this->crtDrawState.FSTexture[CRTTextures::Canvas] = this->crtRenderTarget;
+    this->canvasDrawState.Pipeline = Gfx::CreateResource(ps);
+    this->canvasDrawState.FSTexture[CRTTextures::Canvas] = canvasTexture;
 
     // setup canvas and game state
     this->spriteCanvas.Setup(rtSetup, Width, Height, 8, 8, NumSprites);
@@ -106,15 +107,17 @@ PacloneApp::OnRunning() {
     this->gameState.Update(this->tick, &this->spriteCanvas, &this->sounds, input);
 
     // render into offscreen render target
-    Gfx::ApplyRenderTarget(this->crtRenderTarget);
+    Gfx::BeginPass(this->canvasPass);
     this->spriteCanvas.Render();
     Dbg::DrawTextBuffer();
+    Gfx::EndPass();
     
     // copy offscreen render target into backbuffer
-    Gfx::ApplyDefaultRenderTarget();
+    Gfx::BeginPass();
     this->applyViewPort();
-    Gfx::ApplyDrawState(this->crtDrawState);
+    Gfx::ApplyDrawState(this->canvasDrawState);
     Gfx::Draw();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     this->tick++;
 

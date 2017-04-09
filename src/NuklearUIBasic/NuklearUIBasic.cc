@@ -8,6 +8,8 @@
 #include "NKUI/NKUI.h"
 #include <math.h>
 #include <limits.h>
+#include <time.h>
+#include <string.h>
 
 using namespace Oryol;
 
@@ -27,7 +29,9 @@ OryolMain(DemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo"));
+    auto gfxSetup = GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo");
+    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f));
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     NKUI::Setup();
     return AppState::Running;
@@ -36,10 +40,11 @@ DemoApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnRunning() {
-    Gfx::ApplyDefaultRenderTarget(ClearState::ClearAll(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f), 1.0f, 0));
+    Gfx::BeginPass();
     nk_context* ctx = NKUI::NewFrame();
     drawOverviewWindow(ctx);
     NKUI::Draw();
+    Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
