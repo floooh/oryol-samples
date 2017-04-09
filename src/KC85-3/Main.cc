@@ -14,6 +14,7 @@
 #include "SceneRenderer.h"
 #include "RayCheck.h"
 #include "glm/gtc/matrix_transform.hpp"
+#include <cstring>
 
 using namespace Oryol;
 
