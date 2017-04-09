@@ -13,6 +13,7 @@
 #include "shaders.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/random.hpp"
+#include <string.h>
 
 using namespace Oryol;
 
