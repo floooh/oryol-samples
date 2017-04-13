@@ -8,5 +8,5 @@ fips_begin_app(NuklearUIAdvanced windowed)
         stb_image.h
     )
     fips_deps(IO HTTP Gfx Dbg NKUI)
-    oryol_add_web_sample(NuklearUIAdvanced "Nuklear UI advanced demo" "emscripten,pnacl" "NuklearUIAdvanced.jpg" "NuklearUIAdvanced/NuklearUIAdvanced.cc")
+    oryol_add_web_sample(NuklearUIAdvanced "Nuklear UI advanced demo" "emscripten" "NuklearUIAdvanced.jpg" "NuklearUIAdvanced/NuklearUIAdvanced.cc")
 fips_end_app()

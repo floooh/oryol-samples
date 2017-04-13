@@ -10,7 +10,7 @@ fips_begin_app(StbVoxelDemo windowed)
         Camera.h Camera.cc)
     oryol_shader(shaders.shd)
     fips_deps(Gfx Input Dbg Common)
-    oryol_add_web_sample(StbVoxelDemo "Voxel Demo using stb_voxel_render.h" "emscripten,pnacl" StbVoxelDemo.jpg "StbVoxelDemo/")
+    oryol_add_web_sample(StbVoxelDemo "Voxel Demo using stb_voxel_render.h" "emscripten" StbVoxelDemo.jpg "StbVoxelDemo/")
 fips_end_app()
 
 # silence some stb_voxel_render warnings

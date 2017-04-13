@@ -7,5 +7,5 @@ fips_begin_app(NuklearUIBasic windowed)
         NuklearUIBasic.cc
     )
     fips_deps(Gfx Dbg NKUI)
-    oryol_add_web_sample(NuklearUIBasic "Nuklear UI basic demo" "emscripten,pnacl" "NuklearUIBasic.jpg" "NuklearUIBasic/NuklearUIBasic.cc")
+    oryol_add_web_sample(NuklearUIBasic "Nuklear UI basic demo" "emscripten" "NuklearUIBasic.jpg" "NuklearUIBasic/NuklearUIBasic.cc")
 fips_end_app()
