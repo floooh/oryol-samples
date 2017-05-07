@@ -101,9 +101,9 @@ RayCheck::RenderDebug(const glm::mat4& viewProj) {
     static const glm::vec4 red(1.0f, 0.0f, 0.0f, 1.0f);
     static const glm::vec4 green(0.0f, 1.0f, 0.0f, 1.0f);
     glm::mat4 m = glm::translate(glm::mat4(1.0f), this->dbgMouseRayPos + this->dbgMouseRayVec*50.0f);
-    DbgShader::KCDBGVSParams vsParams;
-    vsParams.ModelViewProjection = viewProj * m;
-    vsParams.Color = this->dbgIntersectId == -1 ? red : green;
+    DbgShader::vsParams vsParams;
+    vsParams.mvp = viewProj * m;
+    vsParams.color = this->dbgIntersectId == -1 ? red : green;
     Gfx::ApplyDrawState(this->dbgDrawState);
     Gfx::ApplyUniformBlock(vsParams);
     Gfx::Draw();

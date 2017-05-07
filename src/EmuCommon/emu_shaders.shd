@@ -1,25 +1,24 @@
-@uniform_block kcVSParams KCVSParams
-mat4 mvp ModelViewProjection
-@end
-
-@texture_block kcTextures KCTextures
-sampler2D irm IRM
-@end
-
 @vs kc_vs
-@use_uniform_block kcVSParams
-@in vec4 position
-@in vec2 texcoord0
-@out vec2 uv
-    _position = mul(mvp, position);
+uniform vsParams {
+    mat4 mvp;
+};
+in vec4 position;
+in vec2 texcoord0;
+out vec2 uv;
+
+void main() {
+    gl_Position = mvp * position;
     uv = texcoord0;
+}
 @end
 
 @fs kc_fs
-@use_texture_block kcTextures
-@in vec2 uv
-{
-    _color = tex2D(irm, uv);
+uniform sampler2D irm;
+in vec2 uv;
+out vec4 fragColor;
+
+void main() {
+    fragColor = texture(irm, uv);
 }
 @end
 

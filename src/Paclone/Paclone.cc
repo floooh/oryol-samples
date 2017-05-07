@@ -76,7 +76,7 @@ PacloneApp::OnInit() {
     #endif
     auto ps = PipelineSetup::FromLayoutAndShader(quadSetup.Layout, shd);
     this->canvasDrawState.Pipeline = Gfx::CreateResource(ps);
-    this->canvasDrawState.FSTexture[CRTTextures::Canvas] = canvasTexture;
+    this->canvasDrawState.FSTexture[0] = canvasTexture;
 
     // setup canvas and game state
     this->spriteCanvas.Setup(rtSetup, Width, Height, 8, 8, NumSprites);

@@ -1,24 +1,24 @@
 //------------------------------------------------------------------------------
 //  draw voxel mesh
 //
-@uniform_block voxelVSParams VoxelVSParams
-mat4 mvp ModelViewProjection
-mat4 model Model
-vec4[6] normal_table NormalTable
-vec4[32] color_table ColorTable
-vec3 light_dir LightDir
-float light_intensity LightIntensity
-vec3 scale Scale
-vec3 translate Translate
-vec3 tex_translate TexTranslate
-@end
-
 @vs voxel_vs
-@use_uniform_block voxelVSParams
-@in vec4 position
-@in vec4 normal
-@out vec3 color
+uniform vsParams {
+    mat4 mvp;
+    mat4 model;
+    vec4[6] normal_table;
+    vec4[32] color_table;
+    vec3 light_dir;
+    float light_intensity;
+    vec3 scale;
+    vec3 translate;
+    vec3 tex_translate;
+};
 
+in vec4 position;
+in vec4 normal;
+out vec3 color;
+
+void main() {
     // manually extract position and normal into range 0..255
     vec4 p = position * 255.0;
     vec4 n = normal * 255.0;
@@ -30,41 +30,47 @@ vec3 tex_translate TexTranslate
     vec3 voxelspace_pos = offset * scale.xzy;
 
     int normal_index = int(mod(n.w / 4.0, 6.0));
-    vec3 face_normal = mul(model, normal_table[normal_index]).xzy;
+    vec3 face_normal = (model * normal_table[normal_index]).xzy;
     float l = clamp(dot(face_normal, light_dir), 0.0, 1.0) + 0.4;
     int color_index = int(mod(facedata.z, 32.0));
     color = color_table[color_index].xyz * l * light_intensity * amb_occ;
 
     vec4 wp = vec4(voxelspace_pos + translate.xzy, 1.0);
-    _position = mul(mvp, wp);
+    gl_Position = mvp * wp;
+}
 @end
 
 @fs voxel_fs
-@in vec3 color
-    _color = vec4(color, 1.0);
+in vec3 color;
+out vec4 fragColor;
+void main() {
+    fragColor = vec4(color, 1.0);
+}
 @end
 
 @program VoxelShader voxel_vs voxel_fs
 
 //------------------------------------------------------------------------------
 //  debugging helper shader
-@uniform_block kcDbgVSParams KCDBGVSParams
-mat4 mvp ModelViewProjection
-vec4 color Color
-@end
-
 @vs dbg_vs
-@use_uniform_block kcDbgVSParams
-@in vec4 position
-@out vec4 dbgColor
-    _position = mul(mvp, position);
+uniform vsParams {
+    mat4 mvp;
+    vec4 color;
+};
+in vec4 position;
+out vec4 dbgColor;
+
+void main() {
+    gl_Position = mvp * position;
     dbgColor = color;
+}
 @end
 
 @fs dbg_fs
-@in vec4 dbgColor
-{
-    _color = dbgColor;
+in vec4 dbgColor;
+out vec4 fragColor;
+void main() {
+    fragColor = dbgColor;
 }
 @end
 

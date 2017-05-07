@@ -48,7 +48,7 @@ private:
     Id offscreenPass[2];
     Id offscreenRenderTarget[2];
     DrawState dispDrawState;
-    DisplayShader::FSParams dispFSParams;
+    DisplayShader::fsParams dispFSParams;
     int frameIndex = 0;
     bool clearFlag = true;
     bool dragStarted = false;
@@ -56,12 +56,12 @@ private:
     Type fractalType = Mandelbrot;
     struct {
         DrawState drawState;
-        Mandelbrot::VSParams vsParams;
+        Mandelbrot::vsParams vsParams;
     } mandelbrot;
     struct {
         DrawState drawState;
-        Julia::VSParams vsParams;
-        Julia::FSParams fsParams;
+        Julia::vsParams vsParams;
+        Julia::fsParams fsParams;
     } julia;
 };
 OryolMain(FractalApp);
@@ -88,12 +88,12 @@ FractalApp::OnRunning() {
     // render next fractal iteration
     Gfx::BeginPass(curPass, PassAction::Load());
     if (Mandelbrot == this->fractalType) {
-        this->mandelbrot.drawState.FSTexture[Textures::Texture] = curTexture;
+        this->mandelbrot.drawState.FSTexture[Mandelbrot::tex] = curTexture;
         Gfx::ApplyDrawState(this->mandelbrot.drawState);
         Gfx::ApplyUniformBlock(this->mandelbrot.vsParams);
     }
     else {
-        this->julia.drawState.FSTexture[Textures::Texture] = curTexture;
+        this->julia.drawState.FSTexture[Julia::tex] = curTexture;
         Gfx::ApplyDrawState(this->julia.drawState);
         Gfx::ApplyUniformBlock(this->julia.vsParams);
         Gfx::ApplyUniformBlock(this->julia.fsParams);
@@ -103,7 +103,7 @@ FractalApp::OnRunning() {
 
     // map fractal state to display
     Gfx::BeginPass(PassAction::DontCare());
-    this->dispDrawState.FSTexture[Textures::Texture] = this->offscreenRenderTarget[index0];
+    this->dispDrawState.FSTexture[DisplayShader::tex] = this->offscreenRenderTarget[index0];
     Gfx::ApplyDrawState(this->dispDrawState);
     Gfx::ApplyUniformBlock(this->dispFSParams);
     Gfx::Draw();
@@ -224,7 +224,7 @@ FractalApp::drawUI() {
         this->clearFlag |= true;
         this->reset();
     }
-    ImGui::SliderFloat("Colors", &this->dispFSParams.NumColors, 2.0f, 256.0f);
+    ImGui::SliderFloat("Colors", &this->dispFSParams.numColors, 2.0f, 256.0f);
     ImGui::Separator();
     glm::vec2 curPos = this->convertPos(mousePos.x, mousePos.y, this->getBounds(this->fractalType));
     ImGui::Text("X: %f, Y: %f\n", curPos.x, curPos.y);
@@ -232,21 +232,21 @@ FractalApp::drawUI() {
     if (Mandelbrot == this->fractalType) {
         ImGui::Text("Type: Mandelbrot\n"
                     "x0: %f\ny0: %f\nx0: %f\ny1: %f",
-                    this->mandelbrot.vsParams.Rect.x,
-                    this->mandelbrot.vsParams.Rect.y,
-                    this->mandelbrot.vsParams.Rect.w,
-                    this->mandelbrot.vsParams.Rect.z);
+                    this->mandelbrot.vsParams.rect.x,
+                    this->mandelbrot.vsParams.rect.y,
+                    this->mandelbrot.vsParams.rect.w,
+                    this->mandelbrot.vsParams.rect.z);
     }
     else {
         ImGui::Text("Type: Julia\n"
                     "Pos: %f, %f\n"
                     "x0: %f\ny0: %f\nx0: %f\ny1: %f",
-                    this->julia.fsParams.JuliaPos.x,
-                    this->julia.fsParams.JuliaPos.y,
-                    this->julia.vsParams.Rect.x,
-                    this->julia.vsParams.Rect.y,
-                    this->julia.vsParams.Rect.w,
-                    this->julia.vsParams.Rect.z);
+                    this->julia.fsParams.juliaPos.x,
+                    this->julia.fsParams.juliaPos.y,
+                    this->julia.vsParams.rect.x,
+                    this->julia.vsParams.rect.y,
+                    this->julia.vsParams.rect.w,
+                    this->julia.vsParams.rect.z);
     }
 
     // handle dragging
@@ -293,7 +293,7 @@ FractalApp::zoomOut() {
 void
 FractalApp::reset() {
     this->fractalType = Mandelbrot;
-    this->dispFSParams.NumColors = 8.0f;
+    this->dispFSParams.numColors = 8.0f;
     this->zoomOut();
 }
 
@@ -301,10 +301,10 @@ FractalApp::reset() {
 void
 FractalApp::setBounds(Type type, const glm::vec4& bounds) {
     if (Mandelbrot == type) {
-        this->mandelbrot.vsParams.Rect = bounds;
+        this->mandelbrot.vsParams.rect = bounds;
     }
     else {
-        this->julia.vsParams.Rect = bounds;
+        this->julia.vsParams.rect = bounds;
     }
 }
 
@@ -312,10 +312,10 @@ FractalApp::setBounds(Type type, const glm::vec4& bounds) {
 glm::vec4
 FractalApp::getBounds(Type type) const {
     if (Mandelbrot == type) {
-        return this->mandelbrot.vsParams.Rect;
+        return this->mandelbrot.vsParams.rect;
     }
     else {
-        return this->julia.vsParams.Rect;
+        return this->julia.vsParams.rect;
     }
 }
 
@@ -347,7 +347,7 @@ FractalApp::updateFractalRect(float x0, float y0, float x1, float y1) {
 //------------------------------------------------------------------------------
 void
 FractalApp::updateJuliaPos(float x, float y) {
-    this->julia.fsParams.JuliaPos = this->convertPos(x, y, this->getBounds(this->fractalType));
+    this->julia.fsParams.juliaPos = this->convertPos(x, y, this->getBounds(this->fractalType));
 }
 
 //------------------------------------------------------------------------------

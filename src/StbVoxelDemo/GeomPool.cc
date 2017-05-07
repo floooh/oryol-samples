@@ -35,15 +35,15 @@ GeomPool::Setup(const GfxSetup& gfxSetup) {
     this->IndexMesh = Gfx::CreateResource(meshSetup, indices, sizeof(indices));
 
     // setup shader params template
-    Shader::VSParams vsParams;
-    vsParams.NormalTable[0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-    vsParams.NormalTable[1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-    vsParams.NormalTable[2] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
-    vsParams.NormalTable[3] = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
-    vsParams.NormalTable[4] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-    vsParams.NormalTable[5] = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-    for (int i = 0; i < int(sizeof(vsParams.ColorTable)/sizeof(glm::vec4)); i++) {
-        vsParams.ColorTable[i] = glm::linearRand(glm::vec4(0.25f), glm::vec4(1.0f));
+    Shader::vsParams vsParams;
+    vsParams.normal_table[0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+    vsParams.normal_table[1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+    vsParams.normal_table[2] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
+    vsParams.normal_table[3] = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+    vsParams.normal_table[4] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+    vsParams.normal_table[5] = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+    for (int i = 0; i < int(sizeof(vsParams.color_table)/sizeof(glm::vec4)); i++) {
+        vsParams.color_table[i] = glm::linearRand(glm::vec4(0.25f), glm::vec4(1.0f));
     }
 
     // setup shader and drawstate
