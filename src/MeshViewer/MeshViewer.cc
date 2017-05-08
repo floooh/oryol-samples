@@ -424,7 +424,7 @@ MeshViewerApp::applyVariables(int matIndex) {
                 fsParams.lightColor = this->lightColor * this->lightIntensity;
                 fsParams.lightDir = this->lightDir;
                 fsParams.matDiffuse = this->materials[matIndex].diffuse;
-                fsParams.gammaCorrect = this->gammaCorrect;
+                fsParams.gammaCorrect = this->gammaCorrect ? 1.0f : 0.0f;
                 Gfx::ApplyUniformBlock(fsParams);
             }
             break;
@@ -443,7 +443,7 @@ MeshViewerApp::applyVariables(int matIndex) {
                 fsParams.matDiffuse = this->materials[matIndex].diffuse;
                 fsParams.matSpecular = this->materials[matIndex].specular;
                 fsParams.matSpecularPower = this->materials[matIndex].specPower;
-                fsParams.gammaCorrect = this->gammaCorrect;
+                fsParams.gammaCorrect = this->gammaCorrect ? 1.0f : 0.0f;
                 Gfx::ApplyUniformBlock(fsParams);
             }
             break;

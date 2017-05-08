@@ -62,7 +62,7 @@ uniform fsParams {
     vec3 lightDir;
     vec4 lightColor;
     vec4 matDiffuse;
-    int gammaCorrect;
+    float gammaCorrect;
 };
 in vec3 N;
 out vec4 fragColor;
@@ -72,12 +72,7 @@ void main() {
     vec3 n = normalize(N);
     float n_dot_l = max(dot(n, l), 0.0);
     vec4 col = vec4(lightColor.xyz * matDiffuse.xyz * n_dot_l, 1.0);
-    if (gammaCorrect != 0) {
-        fragColor = gamma(col);
-    }
-    else {
-        fragColor = col;
-    }
+    fragColor = mix(gamma(col), col, gammaCorrect);
 }
 @end
 
@@ -112,7 +107,7 @@ uniform fsParams {
     vec4 lightColor;
     vec4 matDiffuse;
     vec4 matSpecular;
-    int gammaCorrect;
+    float gammaCorrect;
     float matSpecularPower;
 };
 
@@ -131,11 +126,7 @@ void main() {
     float diff = n_dot_l;
     float spec = pow(r_dot_v, matSpecularPower) * n_dot_l;
     vec4 col = vec4(lightColor.xyz * (matSpecular.xyz*spec + matDiffuse.xyz*diff), 1.0);
-    if (gammaCorrect != 0) {
-        fragColor = gamma(col);
-    } else {
-        fragColor = col;
-    }
+    fragColor = mix(gamma(col), col, gammaCorrect);
 }
 @end
 
