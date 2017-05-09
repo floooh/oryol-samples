@@ -72,7 +72,7 @@ void main() {
     vec3 n = normalize(N);
     float n_dot_l = max(dot(n, l), 0.0);
     vec4 col = vec4(lightColor.xyz * matDiffuse.xyz * n_dot_l, 1.0);
-    fragColor = mix(gamma(col), col, gammaCorrect);
+    fragColor = mix(col, gamma(col), gammaCorrect);
 }
 @end
 
@@ -126,7 +126,7 @@ void main() {
     float diff = n_dot_l;
     float spec = pow(r_dot_v, matSpecularPower) * n_dot_l;
     vec4 col = vec4(lightColor.xyz * (matSpecular.xyz*spec + matDiffuse.xyz*diff), 1.0);
-    fragColor = mix(gamma(col), col, gammaCorrect);
+    fragColor = mix(col, gamma(col), gammaCorrect);
 }
 @end
 
