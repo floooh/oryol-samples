@@ -2,7 +2,7 @@
 //  shaders.shd
 //------------------------------------------------------------------------------
 
-@code_block util
+@block util
 vec4 hue2rgb(float h) {
     float r = abs(h * 6.0 - 4.0) - 1.0;
     float g = 2.0 - abs(h * 6.0 - 2.0);
@@ -97,7 +97,7 @@ void main() {
 @end
 
 @fs DisplayFS
-@use_code_block util
+@include util
 uniform fsParams {
     float numColors;
 };

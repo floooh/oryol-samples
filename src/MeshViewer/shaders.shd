@@ -6,7 +6,7 @@
 //------------------------------------------------------------------------------
 //  common utility functions
 //
-@code_block Util
+@block Util
 vec4 gamma(vec4 c) {
     float p = 1.0/2.2;
     return vec4(pow(c.xyz, vec3(p, p, p)), c.w);
@@ -57,7 +57,7 @@ void main() {
 @end
 
 @fs lambertFS
-@use_code_block Util
+@include Util
 uniform fsParams {
     vec3 lightDir;
     vec4 lightColor;
@@ -100,7 +100,7 @@ void main() {
 @end
 
 @fs phongFS
-@use_code_block Util
+@include Util
 uniform fsParams {
     vec3 lightDir;
     vec3 eyePos;

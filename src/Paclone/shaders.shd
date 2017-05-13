@@ -28,7 +28,7 @@ void main() {
 //  Timothy Lottes CRT effect shader:
 //  https://www.shadertoy.com/view/XsjSzR#
 
-@code_block TL_CRT
+@block TL_CRT
 //
 //
 // PUBLIC DOMAIN CRT STYLED SCAN-LINE SHADER
@@ -174,7 +174,7 @@ void main() {
 @end
 
 @fs crtFS
-@use_code_block TL_CRT
+@include TL_CRT
 uniform sampler2D canvas;
 in vec2 uv;
 out vec4 fragColor;
