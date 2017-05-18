@@ -29,7 +29,7 @@ public:
     struct Geom {
         Oryol::Id Mesh;
         int NumQuads = 0;
-        Oryol::Shader::vsParams VSParams;
+        Shader::vsParams VSParams;
     };
     static const int NumGeoms = 700;
     Oryol::StaticArray<Geom, NumGeoms> Geoms;
