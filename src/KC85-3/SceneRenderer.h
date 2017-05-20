@@ -34,7 +34,7 @@ public:
     void setupShaderParams();
 
     DrawState drawState;
-    VoxelShader::VoxelVSParams vsParams;
+    VoxelShader::vsParams vsParams;
     Id indexMesh;
     Array<voxMesh> voxelMeshes;
 };

@@ -407,43 +407,43 @@ MeshViewerApp::applyVariables(int matIndex) {
         case Normals:
             // Normals shader
             {
-                NormalsShader::VSParams vsParams;
-                vsParams.ModelViewProjection = this->modelViewProj;
+                NormalsShader::vsParams vsParams;
+                vsParams.mvp = this->modelViewProj;
                 Gfx::ApplyUniformBlock(vsParams);
             }
             break;
         case Lambert:
             // Lambert shader
             {
-                LambertShader::VSParams vsParams;
-                vsParams.ModelViewProjection = this->modelViewProj;
-                vsParams.Model = this->model;
+                LambertShader::vsParams vsParams;
+                vsParams.mvp = this->modelViewProj;
+                vsParams.model = this->model;
                 Gfx::ApplyUniformBlock(vsParams);
 
-                LambertShader::FSParams fsParams;
-                fsParams.LightColor = this->lightColor * this->lightIntensity;
-                fsParams.LightDir = this->lightDir;
-                fsParams.MatDiffuse = this->materials[matIndex].diffuse;
-                fsParams.GammaCorrect = this->gammaCorrect;
+                LambertShader::fsParams fsParams;
+                fsParams.lightColor = this->lightColor * this->lightIntensity;
+                fsParams.lightDir = this->lightDir;
+                fsParams.matDiffuse = this->materials[matIndex].diffuse;
+                fsParams.gammaCorrect = this->gammaCorrect ? 1.0f : 0.0f;
                 Gfx::ApplyUniformBlock(fsParams);
             }
             break;
         case Phong:
             // Phong shader
             {
-                PhongShader::VSParams vsParams;
-                vsParams.ModelViewProjection = this->modelViewProj;
-                vsParams.Model = this->model;
+                PhongShader::vsParams vsParams;
+                vsParams.mvp = this->modelViewProj;
+                vsParams.model = this->model;
                 Gfx::ApplyUniformBlock(vsParams);
 
-                PhongShader::FSParams fsParams;
-                fsParams.EyePos = this->eyePos;
-                fsParams.LightColor = this->lightColor * this->lightIntensity;
-                fsParams.LightDir = this->lightDir;
-                fsParams.MatDiffuse = this->materials[matIndex].diffuse;
-                fsParams.MatSpecular = this->materials[matIndex].specular;
-                fsParams.MatSpecularPower = this->materials[matIndex].specPower;
-                fsParams.GammaCorrect = this->gammaCorrect;
+                PhongShader::fsParams fsParams;
+                fsParams.eyePos = this->eyePos;
+                fsParams.lightColor = this->lightColor * this->lightIntensity;
+                fsParams.lightDir = this->lightDir;
+                fsParams.matDiffuse = this->materials[matIndex].diffuse;
+                fsParams.matSpecular = this->materials[matIndex].specular;
+                fsParams.matSpecularPower = this->materials[matIndex].specPower;
+                fsParams.gammaCorrect = this->gammaCorrect ? 1.0f : 0.0f;
                 Gfx::ApplyUniformBlock(fsParams);
             }
             break;

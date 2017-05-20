@@ -162,9 +162,9 @@ KC85Emu::Render(const glm::mat4& mvp, bool onlyUpdateTexture) {
             if (this->draw.texture.IsValid()) {
                 Gfx::UpdateTexture(this->draw.texture, fb, this->draw.texUpdateAttrs);
                 if (!onlyUpdateTexture) {
-                    this->drawState.FSTexture[KCTextures::IRM] = this->draw.texture;
-                    KCShader::KCVSParams vsParams;
-                    vsParams.ModelViewProjection = mvp;
+                    this->drawState.FSTexture[KCShader::irm] = this->draw.texture;
+                    KCShader::vsParams vsParams;
+                    vsParams.mvp = mvp;
                     Gfx::ApplyDrawState(this->drawState);
                     Gfx::ApplyUniformBlock(vsParams);
                     Gfx::Draw();

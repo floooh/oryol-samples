@@ -42,7 +42,7 @@ void
 SceneRenderer::Render(const glm::mat4& viewProj) {
     for (int i = 0; i < voxelMeshes.Size(); i++) {
         this->drawState.Mesh[1] = this->voxelMeshes[i].mesh;
-        this->vsParams.ModelViewProjection = viewProj;
+        this->vsParams.mvp = viewProj;
         Gfx::ApplyDrawState(this->drawState);
         Gfx::ApplyUniformBlock(this->vsParams);
         Gfx::Draw(PrimitiveGroup(0, this->voxelMeshes[i].numQuads*6));
@@ -69,17 +69,17 @@ SceneRenderer::setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layo
 void
 SceneRenderer::setupShaderParams() {
 
-    this->vsParams.NormalTable[0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
-    this->vsParams.NormalTable[1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-    this->vsParams.NormalTable[2] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
-    this->vsParams.NormalTable[3] = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
-    this->vsParams.NormalTable[4] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
-    this->vsParams.NormalTable[5] = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+    this->vsParams.normal_table[0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
+    this->vsParams.normal_table[1] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+    this->vsParams.normal_table[2] = glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f);
+    this->vsParams.normal_table[3] = glm::vec4(0.0f, -1.0f, 0.0f, 0.0f);
+    this->vsParams.normal_table[4] = glm::vec4(0.0f, 0.0f, 1.0f, 0.0f);
+    this->vsParams.normal_table[5] = glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
 
     const int numPaletteEntries = sizeof(Emu::Vox::Palette)/4;
     o_assert_dbg(numPaletteEntries < 32);
     for (int i = 0; i < numPaletteEntries; i++) {
-        this->vsParams.ColorTable[i] = glm::vec4(
+        this->vsParams.color_table[i] = glm::vec4(
             Emu::Vox::Palette[i][0] / 255.0f,
             Emu::Vox::Palette[i][1] / 255.0f,
             Emu::Vox::Palette[i][2] / 255.0f,
@@ -87,9 +87,9 @@ SceneRenderer::setupShaderParams() {
         );
     }
 
-    this->vsParams.LightDir = glm::normalize(glm::vec3(0.5f, 1.0f, -0.25f));
-    this->vsParams.LightIntensity = 1.0f;
-    this->vsParams.Scale = glm::vec3(1.0f);
+    this->vsParams.light_dir = glm::normalize(glm::vec3(0.5f, 1.0f, -0.25f));
+    this->vsParams.light_intensity = 1.0f;
+    this->vsParams.scale = glm::vec3(1.0f);
 }
 
 //------------------------------------------------------------------------------

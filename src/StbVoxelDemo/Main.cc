@@ -87,11 +87,11 @@ VoxelTest::bake_geom(const GeomMesher::Result& meshResult) {
         auto& geom = this->geomPool.Geoms[geomIndex];
         Gfx::UpdateVertices(geom.Mesh, meshResult.Vertices, meshResult.NumBytes);
         geom.NumQuads = meshResult.NumQuads;
-        geom.VSParams.Model = glm::mat4();
-        geom.VSParams.LightDir = this->lightDir;
-        geom.VSParams.Scale = meshResult.Scale;
-        geom.VSParams.Translate = meshResult.Translate;
-        geom.VSParams.TexTranslate = meshResult.TexTranslate;
+        geom.VSParams.model = glm::mat4();
+        geom.VSParams.light_dir = this->lightDir;
+        geom.VSParams.scale = meshResult.Scale;
+        geom.VSParams.translate = meshResult.Translate;
+        geom.VSParams.tex_translate = meshResult.TexTranslate;
         return geomIndex;
     }
     else {
@@ -156,7 +156,7 @@ VoxelTest::OnRunning() {
             if (node.geoms[geomIndex] >= 0) {
                 auto& geom = this->geomPool.Geoms[node.geoms[geomIndex]];
                 drawState.Mesh[1] = geom.Mesh;
-                geom.VSParams.ModelViewProjection = this->camera.ViewProj;
+                geom.VSParams.mvp = this->camera.ViewProj;
                 Gfx::ApplyDrawState(drawState);
                 Gfx::ApplyUniformBlock(geom.VSParams);
                 Gfx::Draw(PrimitiveGroup(0, geom.NumQuads*6));

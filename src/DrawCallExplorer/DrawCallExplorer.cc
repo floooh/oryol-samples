@@ -41,8 +41,8 @@ private:
     glm::mat4 model;
 
     // FIXME: hmm these param blocks are actually compatibel across shaders
-    RedShader::PerFrameParams perFrameParams;
-    RedShader::PerParticleParams perParticleParams;
+    RedShader::perFrameParams perFrameParams;
+    RedShader::perParticleParams perParticleParams;
 
     static const int ParticleBufferSize = 1000000;
     bool updateEnabled = true;
@@ -107,7 +107,7 @@ DrawCallExplorerApp::OnRunning() {
                 curBatch = 0;
             }
         }
-        this->perParticleParams.Translate = this->particles[i].pos;
+        this->perParticleParams.particleTranslate = this->particles[i].pos;
         Gfx::ApplyUniformBlock(this->perParticleParams);
         Gfx::Draw();
     }
@@ -142,7 +142,7 @@ DrawCallExplorerApp::updateCamera() {
     float angle = this->frameCount * 0.01f;
     glm::vec3 pos(glm::sin(angle) * 10.0f, 2.5f, glm::cos(angle) * 10.0f);
     this->view = glm::lookAt(pos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    this->perFrameParams.ModelViewProjection = this->proj * this->view * this->model;
+    this->perFrameParams.mvp = this->proj * this->view * this->model;
 }
 
 //------------------------------------------------------------------------------

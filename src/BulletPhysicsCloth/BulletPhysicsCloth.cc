@@ -42,9 +42,9 @@ public:
     Id clothMesh;
     DrawState clothColorDrawState;
     DrawState clothShadowDrawState;
-    ColorShader::ColorVSParams colorVSParams;
-    ColorShader::ColorFSParams colorFSParams;
-    ShadowShader::ShadowVSParams shadowVSParams;
+    ColorShader::vsParams colorVSParams;
+    ColorShader::fsParams colorFSParams;
+    ShadowShader::vsParams shadowVSParams;
     glm::mat4 lightProjView;
 
     Id planeShape;
@@ -66,10 +66,10 @@ OryolMain(BulletPhysicsClothApp);
 //------------------------------------------------------------------------------
 AppState::Code
 BulletPhysicsClothApp::OnInit() {
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
+    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsCloth");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f));
     Gfx::Setup(gfxSetup);
-    this->colorFSParams.ShadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
+    this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
     // instanced shape rendering helper class
     const Id colorShader = Gfx::CreateResource(ColorShader::Setup());
@@ -121,7 +121,7 @@ BulletPhysicsClothApp::OnInit() {
     lightProj = glm::scale(lightProj, glm::vec3(1.0f, 1.0f, 0.5f));
     lightProj = lightProj * glm::ortho(-75.0f, +75.0f, -75.0f, +75.0f, 1.0f, 400.0f);
     this->lightProjView = lightProj * lightView;
-    this->colorFSParams.LightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
+    this->colorFSParams.lightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
 
     // setup the initial physics world
     Physics::Setup();
@@ -166,7 +166,7 @@ BulletPhysicsClothApp::OnRunning() {
 
     // the shadow pass
     Gfx::BeginPass(this->shapeRenderer.ShadowPass);
-    this->shadowVSParams.MVP = this->lightProjView;
+    this->shadowVSParams.mvp = this->lightProjView;
     this->shapeRenderer.DrawShadows(this->shadowVSParams);
     Gfx::ApplyDrawState(this->clothShadowDrawState);
     Gfx::ApplyUniformBlock(this->shadowVSParams);
@@ -178,24 +178,24 @@ BulletPhysicsClothApp::OnRunning() {
 
     // draw ground
     const glm::mat4 model = Physics::Transform(this->groundRigidBody);
-    this->colorVSParams.Model = model;
-    this->colorVSParams.MVP = this->camera.ViewProj * model;
-    this->colorVSParams.LightMVP = lightProjView * model;
-    this->colorVSParams.DiffColor = glm::vec3(0.5, 0.5, 0.5);
-    this->colorFSParams.EyePos = this->camera.EyePos;
-    this->colorFSParams.SpecIntensity = 1.0f;
+    this->colorVSParams.model = model;
+    this->colorVSParams.mvp = this->camera.ViewProj * model;
+    this->colorVSParams.lightMVP = lightProjView * model;
+    this->colorVSParams.diffColor = glm::vec3(0.5, 0.5, 0.5);
+    this->colorFSParams.eyePos = this->camera.EyePos;
+    this->colorFSParams.specIntensity = 1.0f;
     this->shapeRenderer.DrawGround(this->colorVSParams, this->colorFSParams);
 
     // draw the dynamic shapes
-    this->colorVSParams.Model = glm::mat4();
-    this->colorVSParams.MVP = this->camera.ViewProj;
-    this->colorVSParams.LightMVP = lightProjView;
-    this->colorVSParams.DiffColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    this->colorVSParams.model = glm::mat4();
+    this->colorVSParams.mvp = this->camera.ViewProj;
+    this->colorVSParams.lightMVP = lightProjView;
+    this->colorVSParams.diffColor = glm::vec3(1.0f, 1.0f, 1.0f);
     this->shapeRenderer.DrawShapes(this->colorVSParams, this->colorFSParams);
 
     // draw the cloth patch
-    this->colorVSParams.DiffColor = glm::vec3(0.6f, 0.0f, 0.05f);
-    this->colorFSParams.SpecIntensity = 0.15f;
+    this->colorVSParams.diffColor = glm::vec3(0.6f, 0.0f, 0.05f);
+    this->colorFSParams.specIntensity = 0.15f;
     Gfx::ApplyDrawState(this->clothColorDrawState);
     Gfx::ApplyUniformBlock(this->colorVSParams);
     Gfx::ApplyUniformBlock(this->colorFSParams);
