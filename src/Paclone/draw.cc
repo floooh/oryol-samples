@@ -79,7 +79,7 @@ draw::drawChrome(const state& state, canvas* canvas) {
     
     // draw the playfield chrome (highscore, lives, ...)
     Dbg::CursorPos(9, 0);
-    Dbg::TextColor(glm::vec4(1.0f));
+    Dbg::TextColor(1.0f, 1.0f, 1.0f, 1.0f);
     Dbg::Print("HIGH SCORE");
     
     // current score and hiscore
@@ -91,7 +91,7 @@ draw::drawChrome(const state& state, canvas* canvas) {
     // READY! string
     if (0 == state.gameTick) {
         Dbg::CursorPos(11, 20);
-        Dbg::TextColor(glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
+        Dbg::TextColor(1.0f, 1.0f, 0.0f, 1.0f);
         Dbg::Print("READY!");
     }
     

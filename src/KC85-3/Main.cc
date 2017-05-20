@@ -66,7 +66,7 @@ KC853App::OnInit() {
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Dbg::Setup();
-    Dbg::SetTextScale(glm::vec2(2.0f));
+    Dbg::TextScale(2.0f, 2.0f);
 
     // setup the scene and ray collide checker
     this->scene.Setup(gfxSetup);
