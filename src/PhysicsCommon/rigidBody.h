@@ -4,7 +4,7 @@
     @class Oryol::_priv::rigidBody
     @brief physics rigid body wrapper
 */
-#include "Resource/Core/resourceBase.h"
+#include "Resource/ResourceBase.h"
 #include "PhysicsCommon/RigidBodySetup.h"
 #include "btBulletDynamicsCommon.h"
 
@@ -13,7 +13,7 @@ namespace _priv {
 
 class collideShape;
 
-class rigidBody : public resourceBase<RigidBodySetup> {
+class rigidBody : public ResourceBase<RigidBodySetup> {
 public:
     /// destructor
     ~rigidBody();

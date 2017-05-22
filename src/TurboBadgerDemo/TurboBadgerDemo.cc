@@ -5,7 +5,7 @@
 #include "Core/Main.h"
 #include "Core/Time/Clock.h"
 #include "IO/IO.h"
-#include "HTTP/HTTPFileSystem.h"
+#include "HttpFS/HTTPFileSystem.h"
 #include "Gfx/Gfx.h"
 #include "Dbg/Dbg.h"
 #include "Input/Input.h"

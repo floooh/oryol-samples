@@ -3,6 +3,6 @@ fips_begin_app(SoloudMOD windowed)
     fips_files(
         SoloudMOD.cc
     )
-    fips_deps(Gfx IMUI IO HTTP soloud libmodplug)
+    fips_deps(Gfx IMUI IO HttpFS soloud libmodplug)
     oryol_add_web_sample(SoloudMOD "Soloud MOD sample" "emscripten" SoloudMOD.jpg "SoloudMOD/SoloudMOD.cc")
 fips_end_app()

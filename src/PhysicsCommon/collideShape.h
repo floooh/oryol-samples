@@ -4,14 +4,14 @@
     @class Oryol::_priv::collideShape
     @brief Bullet collide shape wrapper
 */
-#include "Resource/Core/resourceBase.h"
+#include "Resource/ResourceBase.h"
 #include "PhysicsCommon/CollideShapeSetup.h"
 #include "btBulletDynamicsCommon.h"
 
 namespace Oryol {
 namespace _priv {
 
-class collideShape : public resourceBase<CollideShapeSetup> {
+class collideShape : public ResourceBase<CollideShapeSetup> {
 public:
     /// destructor
     ~collideShape();

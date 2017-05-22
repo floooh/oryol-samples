@@ -8,7 +8,7 @@
 #include "IO/IO.h"
 #include "IMUI/IMUI.h"
 #include "Input/Input.h"
-#include "HTTP/HTTPFileSystem.h"
+#include "HttpFS/HTTPFileSystem.h"
 #include "Assets/Gfx/MeshLoader.h"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"

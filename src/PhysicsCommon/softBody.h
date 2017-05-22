@@ -4,14 +4,14 @@
     @class Oryol::_priv::softBody
     @brief wrapper for Bullet soft body
 */
-#include "Resource/Core/resourceBase.h"
+#include "Resource/ResourceBase.h"
 #include "PhysicsCommon/SoftBodySetup.h"
 #include "BulletSoftBody/btSoftBody.h"
 
 namespace Oryol {
 namespace _priv {
 
-class softBody : public resourceBase<SoftBodySetup> {
+class softBody : public ResourceBase<SoftBodySetup> {
 public:
     /// destructor
     ~softBody();

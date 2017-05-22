@@ -4,7 +4,7 @@
 #include "Pre.h"
 #include "Core/Main.h"
 #include "IO/IO.h"
-#include "HTTP/HTTPFileSystem.h"
+#include "HttpFS/HTTPFileSystem.h"
 #include "Core/Time/Clock.h"
 #include "Gfx/Gfx.h"
 #include "Dbg/Dbg.h"

@@ -12,7 +12,7 @@
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
 #include "BulletSoftBody/btDefaultSoftBodySolver.h"
 #include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
-#include "Resource/Core/ResourcePool.h"
+#include "Resource/ResourcePool.h"
 #include "PhysicsCommon/CollideShapeSetup.h"
 #include "PhysicsCommon/collideShape.h"
 #include "PhysicsCommon/RigidBodySetup.h"

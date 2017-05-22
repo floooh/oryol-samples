@@ -6,6 +6,6 @@ fips_begin_app(TurboBadgerDemo windowed)
         TBDemoWindows.cc TBDemoWindows.h
     )
     fips_dir(tbdemo)
-    fips_deps(Gfx HTTP Dbg TBUI)
+    fips_deps(Gfx HttpFS Dbg TBUI)
     oryol_add_web_sample(TurboBadgerDemo "Turbobadger UI integration" "emscripten" TurboBadgerDemo.jpg "TurboBadgerDemo/TurboBadgerDemo.cc")
 fips_end_app()
