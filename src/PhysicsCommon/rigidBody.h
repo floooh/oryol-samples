@@ -13,7 +13,7 @@ namespace _priv {
 
 class collideShape;
 
-class rigidBody : public ResourceBase<RigidBodySetup> {
+class rigidBody : public ResourceBase {
 public:
     /// destructor
     ~rigidBody();
@@ -22,6 +22,7 @@ public:
     /// discard the rigid body object
     void discard();
 
+    RigidBodySetup Setup;
     btRigidBody* body = nullptr;
     btDefaultMotionState* motionState = nullptr;
 };

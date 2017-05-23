@@ -73,9 +73,9 @@ private:
         btDefaultSoftBodySolver* softBodySolver = nullptr;
         btSoftRigidDynamicsWorld* dynamicsWorld = nullptr;
         btSoftBodyWorldInfo softBodyWorldInfo;
-        ResourcePool<_priv::collideShape, CollideShapeSetup> shapePool;
-        ResourcePool<_priv::rigidBody, RigidBodySetup> rigidBodyPool;
-        ResourcePool<_priv::softBody, SoftBodySetup> softBodyPool;
+        ResourcePool<_priv::collideShape> shapePool;
+        ResourcePool<_priv::rigidBody> rigidBodyPool;
+        ResourcePool<_priv::softBody> softBodyPool;
     };
     static _state* state;
 };

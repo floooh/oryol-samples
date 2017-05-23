@@ -22,6 +22,7 @@ rigidBody::setup(const RigidBodySetup& setup, collideShape* shape) {
     o_assert_dbg(!this->body);
     o_assert_dbg(!this->motionState);
     o_assert_dbg(shape);
+    this->Setup = setup;
 
     // transform 4x4 transform to btTransform
     btTransform tform;

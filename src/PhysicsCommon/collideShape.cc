@@ -17,6 +17,7 @@ collideShape::~collideShape() {
 void
 collideShape::setup(const CollideShapeSetup& setup) {
     o_assert_dbg(!this->shape);
+    this->Setup = setup;
     switch (setup.Type) {
         case CollideShapeSetup::PlaneShape:
             this->shape = new btStaticPlaneShape(

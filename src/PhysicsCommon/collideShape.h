@@ -11,7 +11,7 @@
 namespace Oryol {
 namespace _priv {
 
-class collideShape : public ResourceBase<CollideShapeSetup> {
+class collideShape : public ResourceBase {
 public:
     /// destructor
     ~collideShape();
@@ -20,6 +20,7 @@ public:
     /// discard the collide shape
     void discard();
 
+    CollideShapeSetup Setup;
     btCollisionShape* shape = nullptr;
 };
 

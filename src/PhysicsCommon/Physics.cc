@@ -70,7 +70,7 @@ Id
 Physics::Create(const CollideShapeSetup& setup) {
     o_assert_dbg(nullptr != state);
     Id id = state->shapePool.AllocId();
-    collideShape& shape = state->shapePool.Assign(id, setup, ResourceState::Valid);
+    collideShape& shape = state->shapePool.Assign(id, ResourceState::Valid);
     shape.setup(setup);
     return id;
 }
@@ -80,7 +80,7 @@ Id
 Physics::Create(const RigidBodySetup& setup) {
     o_assert_dbg(nullptr != state);
     Id id = state->rigidBodyPool.AllocId();
-    rigidBody& body = state->rigidBodyPool.Assign(id, setup, ResourceState::Valid);
+    rigidBody& body = state->rigidBodyPool.Assign(id, ResourceState::Valid);
     collideShape* shape = state->shapePool.Get(setup.Shape);
     o_assert(shape);
     body.setup(setup, shape);
@@ -92,7 +92,7 @@ Id
 Physics::Create(const SoftBodySetup& setup) {
     o_assert_dbg(nullptr != state);
     Id id = state->softBodyPool.AllocId();
-    softBody& body = state->softBodyPool.Assign(id, setup, ResourceState::Valid);
+    softBody& body = state->softBodyPool.Assign(id, ResourceState::Valid);
     body.setup(setup, state->softBodyWorldInfo);
     return id;
 }

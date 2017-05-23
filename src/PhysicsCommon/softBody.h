@@ -11,7 +11,7 @@
 namespace Oryol {
 namespace _priv {
 
-class softBody : public ResourceBase<SoftBodySetup> {
+class softBody : public ResourceBase {
 public:
     /// destructor
     ~softBody();
