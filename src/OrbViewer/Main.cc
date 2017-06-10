@@ -11,7 +11,9 @@
 #include "OrbFileFormat.h"
 #include "Core/Containers/InlineArray.h"
 #include "OrbFile.h"
-#include <glm/mat4x4.hpp>
+#include "Common/CameraHelper.h"
+#include "glm/mat4x4.hpp"
+#include "glm/geometric.hpp"
 #include "shaders.h"
 
 using namespace Oryol;
@@ -32,6 +34,7 @@ public:
     struct SubMesh {
         int material = 0;
         int primGroupIndex = 0;
+        bool visible = false;
     };
     struct Model {
         Id mesh;
@@ -48,6 +51,7 @@ public:
     Id shader;
     Array<Model> models;
     Array<Instance> instances;
+    CameraHelper camera;
 };
 OryolMain(Main);
 
@@ -66,6 +70,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 
     Input::Setup();
     IMUI::Setup();
+    this->camera.Setup(false);
 
     // can setup the shader before loading any assets
     this->shader = Gfx::CreateResource(LambertShader::Setup());
@@ -79,8 +84,32 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnRunning() {
+    this->camera.Update();
     Gfx::BeginPass();
     this->drawUI();
+
+    // FIXME: change to instance rendering
+    if (!this->models.Empty()) {
+        const auto& model = this->models[0];
+        DrawState drawState;
+        drawState.Pipeline = model.pipeline;
+        drawState.Mesh[0] = model.mesh;
+        Gfx::ApplyDrawState(drawState);
+        LambertShader::lightParams lightParams;
+        lightParams.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+        lightParams.lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
+        Gfx::ApplyUniformBlock(lightParams);
+        LambertShader::vsParams vsParams;
+        vsParams.model = glm::mat4();
+        vsParams.mvp = this->camera.ViewProj * vsParams.model;
+        Gfx::ApplyUniformBlock(vsParams);
+        for (const auto& subMesh : model.subMeshes) {
+            if (subMesh.visible) {
+                Gfx::ApplyUniformBlock(model.materials[subMesh.material].matParams);
+                Gfx::Draw(subMesh.primGroupIndex);
+            }
+        }
+    }
     Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
@@ -141,6 +170,7 @@ Main::loadModel(const Locator& loc) {
             subMesh.primGroupIndex = i;
             model.subMeshes.Add(subMesh);
         }
+        model.subMeshes[1].visible = true;
 
         // materials hold shader uniform blocks and textures
         for (int i = 0; i < orb.Materials.Size(); i++) {
