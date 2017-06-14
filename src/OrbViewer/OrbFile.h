@@ -13,6 +13,7 @@
 #include "Core/Containers/Slice.h"
 #include "Core/Containers/InlineArray.h"
 #include "Gfx/GfxTypes.h"
+#include "Anim/AnimTypes.h"
 
 namespace Oryol {
 
@@ -21,6 +22,10 @@ struct OrbFile {
     bool Parse(const uint8_t* orbFileData, int orbFileSize);
     /// create a mesh setup object for the mesh data in the orb file
     MeshSetup MakeMeshSetup() const;
+    /// test if the file contains a character
+    bool HasCharacter() const;
+    /// create an AnimSkeletonSetup object (must be a character)
+    AnimSkeletonSetup MakeSkeletonSetup(const StringAtom& name) const;
 
     Slice<OrbVertexComponent> VertexComps;
     Slice<OrbValueProperty> ValueProps;

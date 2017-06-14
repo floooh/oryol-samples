@@ -19,5 +19,8 @@ imports:
         git: https://github.com/floooh/fips-bullet.git
     oryol-fileformats:
         git: https://github.com/floooh/oryol-fileformats.git
+    oryol-animation:
+        git: https://github.com/floooh/oryol-animation.git
+
 
 

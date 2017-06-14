@@ -7,6 +7,7 @@
 #include "Input/Input.h"
 #include "IO/IO.h"
 #include "IMUI/IMUI.h"
+#include "Anim/Anim.h"
 #include "HttpFS/HTTPFileSystem.h"
 #include "OrbFileFormat.h"
 #include "Core/Containers/InlineArray.h"
@@ -28,7 +29,7 @@ public:
     void loadModel(const Locator& loc);
 
     struct Material {
-        LambertShader::matParams matParams;
+        //LambertShader::matParams matParams;
         // FIXME: textures would go here
     };
     struct SubMesh {
@@ -39,6 +40,7 @@ public:
     struct Model {
         Id mesh;
         Id pipeline;
+        Id skeleton;
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
     };
@@ -67,7 +69,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Orb File Viewer");
     this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.3f, 0.3f, 0.4f, 1.0f));
     Gfx::Setup(this->gfxSetup);
-
+    Anim::Setup(AnimSetup());
     Input::Setup();
     IMUI::Setup();
     this->camera.Setup(false);
@@ -95,17 +97,19 @@ Main::OnRunning() {
         drawState.Pipeline = model.pipeline;
         drawState.Mesh[0] = model.mesh;
         Gfx::ApplyDrawState(drawState);
+        /*
         LambertShader::lightParams lightParams;
         lightParams.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         lightParams.lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
         Gfx::ApplyUniformBlock(lightParams);
+        */
         LambertShader::vsParams vsParams;
         vsParams.model = glm::mat4();
         vsParams.mvp = this->camera.ViewProj * vsParams.model;
         Gfx::ApplyUniformBlock(vsParams);
         for (const auto& subMesh : model.subMeshes) {
             if (subMesh.visible) {
-                Gfx::ApplyUniformBlock(model.materials[subMesh.material].matParams);
+                //Gfx::ApplyUniformBlock(model.materials[subMesh.material].matParams);
                 Gfx::Draw(subMesh.primGroupIndex);
             }
         }
@@ -120,6 +124,7 @@ AppState::Code
 Main::OnCleanup() {
     IMUI::Discard();
     Input::Discard();
+    Anim::Discard();
     Gfx::Discard();
     IO::Discard();
     return App::OnCleanup();
@@ -176,10 +181,14 @@ Main::loadModel(const Locator& loc) {
         for (int i = 0; i < orb.Materials.Size(); i++) {
             Material mat;
             // FIXME: setup textures here
-            mat.matParams.diffuseColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+            //mat.matParams.diffuseColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
             model.materials.Add(mat);
         }
-        Log::Info("Yay!\n");
+
+        // character stuff
+        if (orb.HasCharacter()) {
+            model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
+        }
     },
     [](const URL& url, IOStatus::Code ioStatus) {
         // loading failed, just display an error message and carry on

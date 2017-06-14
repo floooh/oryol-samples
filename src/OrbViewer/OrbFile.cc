@@ -4,8 +4,17 @@
 #include "Pre.h"
 #include <stdint.h>
 #include "OrbFile.h"
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace Oryol {
+
+//------------------------------------------------------------------------------
+bool
+OrbFile::HasCharacter() const {
+    return !this->Bones.Empty();
+}
 
 //------------------------------------------------------------------------------
 bool
@@ -110,6 +119,33 @@ OrbFile::MakeMeshSetup() const {
     meshSetup.VertexDataOffset = VertexDataOffset;
     meshSetup.IndexDataOffset = IndexDataOffset;
     return meshSetup;
+}
+
+//------------------------------------------------------------------------------
+AnimSkeletonSetup
+OrbFile::MakeSkeletonSetup(const StringAtom& name) const {
+    AnimSkeletonSetup skelSetup;
+    skelSetup.Name = name;
+    skelSetup.Bones.Reserve(this->Bones.Size());
+    for (const auto& src : this->Bones) {
+        skelSetup.Bones.Add();
+        auto& dst = skelSetup.Bones.Back();
+        dst.Name = this->Strings[src.Name];
+        dst.ParentIndex = src.Parent;
+        // FIXME: inv bind pose should already be in orb file!
+        glm::vec4 t(src.Translate[0], src.Translate[1], src.Translate[2], 1.0f);
+        glm::vec3 s(src.Scale[0], src.Scale[1], src.Scale[2]);
+        glm::quat r(src.Rotate[3], src.Rotate[0], src.Rotate[1], src.Rotate[2]);
+        glm::mat4 m = glm::scale(glm::mat4(), s);
+        m = m * glm::mat4_cast(r);
+        m[3] = t;
+        if (dst.ParentIndex != -1) {
+            m = skelSetup.Bones[dst.ParentIndex].BindPose * m;
+        }
+        dst.InvBindPose = glm::inverse(m);
+        dst.BindPose = m;
+    }
+    return skelSetup;
 }
 
 } // namespace Oryol
