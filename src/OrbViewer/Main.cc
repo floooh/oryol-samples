@@ -38,16 +38,15 @@ public:
         bool visible = false;
     };
     struct Model {
+        bool isValid = false;
         Id mesh;
         Id pipeline;
         Id skeleton;
         Id animLib;
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
-    };
-    struct Instance {
-        int model = 0;
         glm::mat4 transform;
+        int curClip = 0;
     };
 
     void drawUI();
@@ -57,8 +56,7 @@ public:
     int frameIndex = 0;
     GfxSetup gfxSetup;
     Id shader;
-    Array<Model> models;
-    Array<Instance> instances;
+    Model model;
     Wireframe wireframe;
     CameraHelper camera;
     Array<glm::mat4> dbgPose;
@@ -81,6 +79,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     Input::Setup();
     IMUI::Setup();
     this->camera.Setup(false);
+    this->camera.Center = glm::vec3(0.0f, 1.0f, 0.0f);
     this->wireframe.Setup(this->gfxSetup);
 
     // can setup the shader before loading any assets
@@ -95,17 +94,17 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnRunning() {
-    this->camera.Update();
+    if (!ImGui::IsMouseHoveringAnyWindow()) {
+        this->camera.Update();
+    }
     this->wireframe.ViewProj = this->camera.ViewProj;
     Gfx::BeginPass();
-    this->drawUI();
 
     // FIXME: change to instance rendering
-    if (!this->models.Empty()) {
-        const auto& model = this->models[0];
+    if (this->model.isValid) {
         DrawState drawState;
-        drawState.Pipeline = model.pipeline;
-        drawState.Mesh[0] = model.mesh;
+        drawState.Pipeline = this->model.pipeline;
+        drawState.Mesh[0] = this->model.mesh;
         Gfx::ApplyDrawState(drawState);
         /*
         LambertShader::lightParams lightParams;
@@ -117,15 +116,16 @@ Main::OnRunning() {
         vsParams.model = glm::mat4();
         vsParams.mvp = this->camera.ViewProj * vsParams.model;
         Gfx::ApplyUniformBlock(vsParams);
-        for (const auto& subMesh : model.subMeshes) {
+        for (const auto& subMesh : this->model.subMeshes) {
             if (subMesh.visible) {
-                //Gfx::ApplyUniformBlock(model.materials[subMesh.material].matParams);
+                //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
                 Gfx::Draw(subMesh.primGroupIndex);
             }
         }
-        this->drawModelDebug(model, glm::mat4());
+        this->drawModelDebug(this->model, glm::mat4());
     }
     this->wireframe.Render();
+    this->drawUI();    
     Gfx::EndPass();
     Gfx::CommitFrame();
     this->frameIndex++;
@@ -145,10 +145,25 @@ Main::OnCleanup() {
 }
 
 //------------------------------------------------------------------------------
+static bool getClipItem(void* data, int index, const char** name) {
+    Main* self = (Main*)data;
+    *name = Anim::Library(self->model.animLib).Clips[index].Name.AsCStr();
+    return true;
+}
+
+//------------------------------------------------------------------------------
 void
 Main::drawUI() {
     IMUI::NewFrame();
-    // FIXME
+    if (this->model.isValid && this->model.animLib.IsValid()) {
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(150, 200), ImGuiSetCond_Once);
+        if (ImGui::Begin("##ui", nullptr)) {
+            const int numClips = Anim::Library(this->model.animLib).Clips.Size();
+            ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6);
+        }
+        ImGui::End();
+    }
     ImGui::Render();
 }
 
@@ -174,13 +189,15 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         }
     }
 
-    // draw a clip's static curves
+    // draw current clip's static pose matrix
+    const AnimLibrary& lib = Anim::Library(model.animLib);
+    const AnimClip& clip = lib.Clips[this->model.curClip];
+    o_assert(clip.Curves.Size() == skel.NumBones * 3);
     this->dbgPose.Clear();
     this->dbgPose.Reserve(skel.NumBones);
     wf.Color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    const AnimClip& clip = Anim::Library(model.animLib).Clips[0];
-    o_assert(clip.Curves.Size() == skel.NumBones * 3);
-
+    glm::vec3 t, s;
+    glm::quat r;
     for (int i = 0; i < skel.NumBones; i++) {
         const AnimCurve& tCurve = clip.Curves[i*3 + 0];
         o_assert_dbg(tCurve.Format == AnimCurveFormat::Float3);
@@ -188,13 +205,55 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         o_assert_dbg(rCurve.Format == AnimCurveFormat::Quaternion);
         const AnimCurve& sCurve = clip.Curves[i*3 + 2];
         o_assert_dbg(sCurve.Format == AnimCurveFormat::Float3);
-        const glm::vec3 t(tCurve.StaticValue);
-        const glm::quat r(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
-        const glm::vec3 s(sCurve.StaticValue);
+        t = glm::vec3(tCurve.StaticValue);
+        r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
+        s = glm::vec3(sCurve.StaticValue);
         const glm::mat4 tm = glm::translate(glm::mat4(), t);
         const glm::mat4 rm = glm::mat4_cast(r);
-        //const glm::mat4 sm = glm::scale(glm::mat4(), s);
-        glm::mat4 m = tm * rm;// * sm;
+        const glm::mat4 sm = glm::scale(glm::mat4(), s);
+        glm::mat4 m = tm * rm * sm;
+        const int parent = skel.ParentIndices[i];
+        if (parent != -1) {
+            m = this->dbgPose[parent] * m;
+            wf.Line(m[3], this->dbgPose[parent][3]);
+        }
+        this->dbgPose.Add(m);
+    }
+
+    // draw current clip's animated pose
+    this->dbgPose.Clear();
+    wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    int keyIndex = clip.Length > 0 ? this->frameIndex % clip.Length : 0;
+    const float* keys = clip.Keys.begin() + keyIndex * clip.KeyStride;
+    for (int i = 0; i < skel.NumBones; i++) {
+        const AnimCurve& tCurve = clip.Curves[i*3 + 0];
+        const AnimCurve& rCurve = clip.Curves[i*3 + 1];
+        const AnimCurve& sCurve = clip.Curves[i*3 + 2];
+        if (tCurve.Static) {
+            t = glm::vec3(tCurve.StaticValue);
+        }
+        else {
+            t = glm::vec3(keys[0], keys[1], keys[2]);
+            keys += 3;
+        }
+        if (rCurve.Static) {
+            r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
+        }
+        else {
+            r = glm::quat(keys[3], keys[0], keys[1], keys[2]);
+            keys += 4;
+        }
+        if (sCurve.Static) {
+            s = glm::vec3(sCurve.StaticValue);
+        }
+        else {
+            s = glm::vec3(keys[0], keys[1], keys[2]);
+            keys += 3;
+        }
+        const glm::mat4 tm = glm::translate(glm::mat4(), t);
+        const glm::mat4 rm = glm::mat4_cast(r);
+        const glm::mat4 sm = glm::scale(glm::mat4(), s);
+        glm::mat4 m = tm * rm * sm;
         const int parent = skel.ParentIndices[i];
         if (parent != -1) {
             m = this->dbgPose[parent] * m;
@@ -217,12 +276,10 @@ Main::loadModel(const Locator& loc) {
         }
 
         // setup new model and its associated graphics resources
-        this->models.Add();
-        auto& model = this->models.Back();
 
         // one mesh for entire model
         auto meshSetup = orb.MakeMeshSetup();
-        model.mesh = Gfx::CreateResource(meshSetup, res.Data.Data(), res.Data.Size());
+        this->model.mesh = Gfx::CreateResource(meshSetup, res.Data.Data(), res.Data.Size());
 
         // one pipeline state object for all materials
         auto pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, this->shader);
@@ -232,30 +289,32 @@ Main::loadModel(const Locator& loc) {
         pipSetup.RasterizerState.SampleCount = this->gfxSetup.SampleCount;
         pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
         pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
-        model.pipeline = Gfx::CreateResource(pipSetup);
+        this->model.pipeline = Gfx::CreateResource(pipSetup);
 
         // submeshes link materials to mesh primitive groups
         for (int i = 0; i < orb.Meshes.Size(); i++) {
             SubMesh subMesh;
             subMesh.material = orb.Meshes[i].Material;
             subMesh.primGroupIndex = i;
-            model.subMeshes.Add(subMesh);
+            this->model.subMeshes.Add(subMesh);
         }
-        model.subMeshes[1].visible = true;
+        this->model.subMeshes[1].visible = true;
 
         // materials hold shader uniform blocks and textures
         for (int i = 0; i < orb.Materials.Size(); i++) {
             Material mat;
             // FIXME: setup textures here
             //mat.matParams.diffuseColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-            model.materials.Add(mat);
+            this->model.materials.Add(mat);
         }
 
         // character stuff
         if (orb.HasCharacter()) {
-            model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
-            model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
+            this->model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
+            this->model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
+            orb.CopyAnimKeys(this->model.animLib);
         }
+        model.isValid = true;
     },
     [](const URL& url, IOStatus::Code ioStatus) {
         // loading failed, just display an error message and carry on

@@ -66,6 +66,7 @@ Wireframe::Render() {
         vsParams.viewProj = this->ViewProj;
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::Draw({ 0, this->vertices.Size() });
+        this->vertices.Reset();
     }
 }
 

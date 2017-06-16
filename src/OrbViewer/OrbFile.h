@@ -28,7 +28,10 @@ struct OrbFile {
     AnimSkeletonSetup MakeSkeletonSetup(const StringAtom& name) const;
     /// create an AnimLibrarySetup object (must be a character)
     AnimLibrarySetup MakeAnimLibSetup(const StringAtom& name) const;
+    /// copy anim keys into animation system
+    void CopyAnimKeys(Id animLibId) const;
 
+    const uint8_t* Start = nullptr;
     Slice<OrbVertexComponent> VertexComps;
     Slice<OrbValueProperty> ValueProps;
     Slice<OrbTextureProperty> TexProps;

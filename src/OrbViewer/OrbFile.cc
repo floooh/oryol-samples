@@ -4,6 +4,7 @@
 #include "Pre.h"
 #include <stdint.h>
 #include "OrbFile.h"
+#include "Anim/Anim.h"
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -20,6 +21,7 @@ OrbFile::HasCharacter() const {
 bool
 OrbFile::Parse(const uint8_t* orbFileData, int orbFileSize) {
     const uint8_t* start = orbFileData;
+    this->Start = start;
     const uint8_t* end = orbFileData + orbFileSize;
 
     if ((start + sizeof(OrbHeader)) >= end) return false;
@@ -186,6 +188,12 @@ OrbFile::MakeAnimLibSetup(const StringAtom& name) const {
         }
     }
     return setup;
+}
+
+//------------------------------------------------------------------------------
+void
+OrbFile::CopyAnimKeys(Id animLibId) const {
+    Anim::WriteKeys(animLibId, this->Start+this->AnimDataOffset, this->AnimDataSize);
 }
 
 } // namespace Oryol
