@@ -31,6 +31,8 @@ struct Wireframe {
     void Line(const glm::vec3& p0, const glm::vec3& p1);
     /// add a wireframe line (vec4, w must be 1)
     void Line(const glm::vec4& p0, const glm::vec4& p1);
+    /// add a rectangle (vec3)
+    void Rect(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3);
 
     DrawState drawState;
     ResourceLabel label;

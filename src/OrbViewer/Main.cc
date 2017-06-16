@@ -39,6 +39,7 @@ public:
         Id mesh;
         Id pipeline;
         Id skeleton;
+        Id animLib;
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
     };
@@ -154,10 +155,9 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
 
     // a rectangle at the bottom
     wf.Color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-    wf.Line(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, -1.0f));
-    wf.Line(glm::vec3(+1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, +1.0f));
-    wf.Line(glm::vec3(+1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, +1.0f));
-    wf.Line(glm::vec3(-1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, -1.0f));
+    wf.Rect(
+        glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, -1.0f),
+        glm::vec3(+1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, +1.0f));
 
     /// the character bind pose
     wf.Color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -220,6 +220,7 @@ Main::loadModel(const Locator& loc) {
         // character stuff
         if (orb.HasCharacter()) {
             model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
+            model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
         }
     },
     [](const URL& url, IOStatus::Code ioStatus) {

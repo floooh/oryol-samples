@@ -26,6 +26,8 @@ struct OrbFile {
     bool HasCharacter() const;
     /// create an AnimSkeletonSetup object (must be a character)
     AnimSkeletonSetup MakeSkeletonSetup(const StringAtom& name) const;
+    /// create an AnimLibrarySetup object (must be a character)
+    AnimLibrarySetup MakeAnimLibSetup(const StringAtom& name) const;
 
     Slice<OrbVertexComponent> VertexComps;
     Slice<OrbValueProperty> ValueProps;

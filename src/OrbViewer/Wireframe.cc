@@ -52,6 +52,12 @@ Wireframe::Line(const glm::vec3& p0, const glm::vec3& p1) {
 
 //------------------------------------------------------------------------------
 void
+Wireframe::Rect(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3) {
+    this->Line(p0, p1); this->Line(p1, p2); this->Line(p2, p3); this->Line(p3, p0);
+}
+
+//------------------------------------------------------------------------------
+void
 Wireframe::Render() {
     if (!this->vertices.Empty()) {
         Gfx::UpdateVertices(this->drawState.Mesh[0], this->vertices.begin(), this->vertices.Size()*sizeof(Vertex));

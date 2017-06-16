@@ -26,7 +26,7 @@ OrbFile::Parse(const uint8_t* orbFileData, int orbFileSize) {
     const OrbHeader* hdr = (const OrbHeader*) start;
     if (hdr->Magic != 'ORB1') return false;
 
-    // struct arrays
+    // setup item array slices
     VertexComps = Slice<OrbVertexComponent>((OrbVertexComponent*)&start[hdr->VertexComponentOffset], hdr->NumVertexComponents);
     if ((const uint8_t*)VertexComps.end() > end) return false;
     ValueProps = Slice<OrbValueProperty>((OrbValueProperty*)&start[hdr->ValuePropOffset], hdr->NumValueProps);
@@ -44,9 +44,11 @@ OrbFile::Parse(const uint8_t* orbFileData, int orbFileSize) {
     AnimKeyComps = Slice<OrbAnimKeyComponent>((OrbAnimKeyComponent*)&start[hdr->AnimKeyComponentOffset], hdr->NumAnimKeyComponents);
     if ((const uint8_t*)AnimKeyComps.end() > end) return false;
     AnimCurves = Slice<OrbAnimCurve>((OrbAnimCurve*)&start[hdr->AnimCurveOffset], hdr->NumAnimCurves);
+    if ((const uint8_t*)AnimCurves.end() > end) return false;
+    AnimClips = Slice<OrbAnimClip>((OrbAnimClip*)&start[hdr->AnimClipOffset], hdr->NumAnimClips);
+    if ((const uint8_t*)AnimClips.end() > end) return false;
 
     // vertex-, index- and anim data blobs
-    if ((const uint8_t*)AnimCurves.end() >= end) return false;
     if ((start + hdr->VertexDataOffset + hdr->VertexDataSize) > end) return false;
     if ((start + hdr->IndexDataOffset + hdr->IndexDataSize) > end) return false;
     if ((start + hdr->AnimKeyDataOffset + hdr->AnimKeyDataSize) > end) return false;
@@ -75,7 +77,7 @@ OrbFile::Parse(const uint8_t* orbFileData, int orbFileSize) {
 //------------------------------------------------------------------------------
 MeshSetup
 OrbFile::MakeMeshSetup() const {
-    auto meshSetup = MeshSetup::FromData();
+    auto setup = MeshSetup::FromData();
     for (const auto& src : VertexComps) {
         VertexLayout::Component dst;
         switch (src.Attr) {
@@ -108,28 +110,28 @@ OrbFile::MakeMeshSetup() const {
             case OrbVertexFormat::Short4N:  dst.Format = VertexFormat::Short4N; break;
             default: break;
         }
-        meshSetup.Layout.Add(dst);
+        setup.Layout.Add(dst);
     }
     for (const auto& subMesh : Meshes) {
-        meshSetup.AddPrimitiveGroup(PrimitiveGroup(subMesh.FirstIndex, subMesh.NumIndices));
-        meshSetup.NumVertices += subMesh.NumVertices;
-        meshSetup.NumIndices += subMesh.NumIndices;
+        setup.AddPrimitiveGroup(PrimitiveGroup(subMesh.FirstIndex, subMesh.NumIndices));
+        setup.NumVertices += subMesh.NumVertices;
+        setup.NumIndices += subMesh.NumIndices;
     }
-    meshSetup.IndicesType = IndexType::Index16;
-    meshSetup.VertexDataOffset = VertexDataOffset;
-    meshSetup.IndexDataOffset = IndexDataOffset;
-    return meshSetup;
+    setup.IndicesType = IndexType::Index16;
+    setup.VertexDataOffset = VertexDataOffset;
+    setup.IndexDataOffset = IndexDataOffset;
+    return setup;
 }
 
 //------------------------------------------------------------------------------
 AnimSkeletonSetup
 OrbFile::MakeSkeletonSetup(const StringAtom& name) const {
-    AnimSkeletonSetup skelSetup;
-    skelSetup.Name = name;
-    skelSetup.Bones.Reserve(this->Bones.Size());
+    AnimSkeletonSetup setup;
+    setup.Name = name;
+    setup.Bones.Reserve(this->Bones.Size());
     for (const auto& src : this->Bones) {
-        skelSetup.Bones.Add();
-        auto& dst = skelSetup.Bones.Back();
+        setup.Bones.Add();
+        auto& dst = setup.Bones.Back();
         dst.Name = this->Strings[src.Name];
         dst.ParentIndex = src.Parent;
         // FIXME: inv bind pose should already be in orb file!
@@ -140,12 +142,50 @@ OrbFile::MakeSkeletonSetup(const StringAtom& name) const {
         m = m * glm::mat4_cast(r);
         m[3] = t;
         if (dst.ParentIndex != -1) {
-            m = skelSetup.Bones[dst.ParentIndex].BindPose * m;
+            m = setup.Bones[dst.ParentIndex].BindPose * m;
         }
         dst.InvBindPose = glm::inverse(m);
         dst.BindPose = m;
     }
-    return skelSetup;
+    return setup;
+}
+
+//------------------------------------------------------------------------------
+AnimLibrarySetup
+OrbFile::MakeAnimLibSetup(const StringAtom& name) const {
+    AnimLibrarySetup setup;
+    setup.Name = name;
+    setup.CurveLayout.Reserve(this->AnimKeyComps.Size());
+    for (const auto& src : this->AnimKeyComps) {
+        AnimCurveFormat::Enum dst;
+        switch (src.KeyFormat) {
+            case OrbAnimKeyFormat::Float:   dst = AnimCurveFormat::Float; break;
+            case OrbAnimKeyFormat::Float2:  dst = AnimCurveFormat::Float2; break;
+            case OrbAnimKeyFormat::Float3:  dst = AnimCurveFormat::Float3; break;
+            case OrbAnimKeyFormat::Float4:  dst = AnimCurveFormat::Float4; break;
+            case OrbAnimKeyFormat::Quaternion:  dst = AnimCurveFormat::Quaternion; break;
+            default: dst = AnimCurveFormat::Invalid; break;
+        }
+        o_assert_dbg(AnimCurveFormat::Invalid != dst);
+        setup.CurveLayout.Add(dst);
+    }
+    setup.Clips.Reserve(this->AnimClips.Size());
+    for (const auto& src : this->AnimClips) {
+        auto& dst = setup.Clips.Add();
+        dst.Name = this->Strings[src.Name];
+        dst.Length = src.Length;
+        dst.KeyDuration = src.KeyDuration;
+        Slice<OrbAnimCurve> srcCurves = this->AnimCurves.MakeSlice(src.FirstCurve, src.NumCurves);
+        dst.Curves.Reserve(srcCurves.Size());
+        for (const auto& srcCurve : srcCurves) {
+            auto& dstCurve = dst.Curves.Add();
+            dstCurve.Static = (-1 == srcCurve.KeyOffset);
+            for (int i = 0; i < 4; i++) {
+                dstCurve.StaticValue[i] = srcCurve.StaticKey[i];
+            }
+        }
+    }
+    return setup;
 }
 
 } // namespace Oryol
