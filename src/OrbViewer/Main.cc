@@ -16,6 +16,8 @@
 #include "Wireframe.h"
 #include "glm/mat4x4.hpp"
 #include "glm/geometric.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "shaders.h"
 
 using namespace Oryol;
@@ -52,12 +54,14 @@ public:
     void loadModel(const Locator& loc);
     void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
 
+    int frameIndex = 0;
     GfxSetup gfxSetup;
     Id shader;
     Array<Model> models;
     Array<Instance> instances;
     Wireframe wireframe;
     CameraHelper camera;
+    Array<glm::mat4> dbgPose;
 };
 OryolMain(Main);
 
@@ -124,6 +128,7 @@ Main::OnRunning() {
     this->wireframe.Render();
     Gfx::EndPass();
     Gfx::CommitFrame();
+    this->frameIndex++;
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
 
@@ -167,6 +172,35 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         if (parent != -1) {
             wf.Line(skel.BindPose[i][3], skel.BindPose[parent][3]);
         }
+    }
+
+    // draw a clip's static curves
+    this->dbgPose.Clear();
+    this->dbgPose.Reserve(skel.NumBones);
+    wf.Color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+    const AnimClip& clip = Anim::Library(model.animLib).Clips[0];
+    o_assert(clip.Curves.Size() == skel.NumBones * 3);
+
+    for (int i = 0; i < skel.NumBones; i++) {
+        const AnimCurve& tCurve = clip.Curves[i*3 + 0];
+        o_assert_dbg(tCurve.Format == AnimCurveFormat::Float3);
+        const AnimCurve& rCurve = clip.Curves[i*3 + 1];
+        o_assert_dbg(rCurve.Format == AnimCurveFormat::Quaternion);
+        const AnimCurve& sCurve = clip.Curves[i*3 + 2];
+        o_assert_dbg(sCurve.Format == AnimCurveFormat::Float3);
+        const glm::vec3 t(tCurve.StaticValue);
+        const glm::quat r(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
+        const glm::vec3 s(sCurve.StaticValue);
+        const glm::mat4 tm = glm::translate(glm::mat4(), t);
+        const glm::mat4 rm = glm::mat4_cast(r);
+        //const glm::mat4 sm = glm::scale(glm::mat4(), s);
+        glm::mat4 m = tm * rm;// * sm;
+        const int parent = skel.ParentIndices[i];
+        if (parent != -1) {
+            m = this->dbgPose[parent] * m;
+            wf.Line(m[3], this->dbgPose[parent][3]);
+        }
+        this->dbgPose.Add(m);
     }
 }
 
