@@ -1,8 +1,4 @@
 //------------------------------------------------------------------------------
-//  shaders.shd
-//  Annotated GLSL shaders for MeshViewer sample
-//------------------------------------------------------------------------------
-
 @block Util
 vec4 gamma(vec4 c) {
     float p = 1.0/2.2;
@@ -45,5 +41,30 @@ void main() {
 @end
 
 @program LambertShader lambertVS lambertFS
+
+//------------------------------------------------------------------------------
+@vs wireframeVS
+uniform vsParams {
+    mat4 viewProj;
+};
+in vec4 position;
+in vec4 color0;
+out vec4 color;
+void main() {
+    gl_Position = viewProj * position;
+    color = color0;
+}
+@end
+
+@fs wireframeFS
+in vec4 color;
+out vec4 fragColor;
+
+void main() {
+    fragColor = color;
+}
+@end
+
+@program WireframeShader wireframeVS wireframeFS
 
 

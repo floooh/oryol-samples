@@ -13,6 +13,7 @@
 #include "Core/Containers/InlineArray.h"
 #include "OrbFile.h"
 #include "Common/CameraHelper.h"
+#include "Wireframe.h"
 #include "glm/mat4x4.hpp"
 #include "glm/geometric.hpp"
 #include "shaders.h"
@@ -24,9 +25,6 @@ public:
     AppState::Code OnInit();
     AppState::Code OnRunning();
     AppState::Code OnCleanup();
-
-    void drawUI();
-    void loadModel(const Locator& loc);
 
     struct Material {
         //LambertShader::matParams matParams;
@@ -49,10 +47,15 @@ public:
         glm::mat4 transform;
     };
 
+    void drawUI();
+    void loadModel(const Locator& loc);
+    void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
+
     GfxSetup gfxSetup;
     Id shader;
     Array<Model> models;
     Array<Instance> instances;
+    Wireframe wireframe;
     CameraHelper camera;
 };
 OryolMain(Main);
@@ -73,6 +76,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     Input::Setup();
     IMUI::Setup();
     this->camera.Setup(false);
+    this->wireframe.Setup(this->gfxSetup);
 
     // can setup the shader before loading any assets
     this->shader = Gfx::CreateResource(LambertShader::Setup());
@@ -87,6 +91,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 AppState::Code
 Main::OnRunning() {
     this->camera.Update();
+    this->wireframe.ViewProj = this->camera.ViewProj;
     Gfx::BeginPass();
     this->drawUI();
 
@@ -113,7 +118,9 @@ Main::OnRunning() {
                 Gfx::Draw(subMesh.primGroupIndex);
             }
         }
+        this->drawModelDebug(model, glm::mat4());
     }
+    this->wireframe.Render();
     Gfx::EndPass();
     Gfx::CommitFrame();
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
@@ -122,6 +129,7 @@ Main::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnCleanup() {
+    this->wireframe.Discard();
     IMUI::Discard();
     Input::Discard();
     Anim::Discard();
@@ -136,6 +144,30 @@ Main::drawUI() {
     IMUI::NewFrame();
     // FIXME
     ImGui::Render();
+}
+
+//------------------------------------------------------------------------------
+void
+Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
+    auto& wf = this->wireframe;
+    wf.Model = modelTransform;
+
+    // a rectangle at the bottom
+    wf.Color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
+    wf.Line(glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, -1.0f));
+    wf.Line(glm::vec3(+1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, +1.0f));
+    wf.Line(glm::vec3(+1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, +1.0f));
+    wf.Line(glm::vec3(-1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, -1.0f));
+
+    /// the character bind pose
+    wf.Color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    const AnimSkeleton& skel = Anim::Skeleton(model.skeleton);
+    for (int i = 0; i < skel.NumBones; i++) {
+        const int parent = skel.ParentIndices[i];
+        if (parent != -1) {
+            wf.Line(skel.BindPose[i][3], skel.BindPose[parent][3]);
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
