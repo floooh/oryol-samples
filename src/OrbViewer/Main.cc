@@ -43,6 +43,7 @@ public:
         Id pipeline;
         Id skeleton;
         Id animLib;
+        Id animInstance;
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
         glm::mat4 transform;
@@ -98,6 +99,14 @@ Main::OnRunning() {
         this->camera.Update();
     }
     this->wireframe.ViewProj = this->camera.ViewProj;
+
+    // update the animation system
+    if (this->model.isValid) {
+        Anim::NewFrame();
+        Anim::AddActiveInstance(this->model.animInstance);
+        Anim::Evaluate(1.0 / 60.0);
+    }
+
     Gfx::BeginPass();
 
     // FIXME: change to instance rendering
@@ -312,7 +321,12 @@ Main::loadModel(const Locator& loc) {
         if (orb.HasCharacter()) {
             this->model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
             this->model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
+            this->model.animInstance = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(this->model.animLib, this->model.skeleton));
             orb.CopyAnimKeys(this->model.animLib);
+
+            AnimJob job;
+            job.ClipIndex = 0;
+            Anim::Play(model.animInstance, job);
         }
         model.isValid = true;
     },
