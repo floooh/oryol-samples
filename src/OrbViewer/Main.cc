@@ -48,6 +48,10 @@ public:
         InlineArray<SubMesh, 8> subMeshes;
         glm::mat4 transform;
         int curClip = 0;
+        bool drawMesh = true;
+        bool drawBindPose = true;
+        bool drawClipStaticPose = true;
+        bool drawAnimatedPose = true;
     };
 
     void drawUI();
@@ -111,24 +115,26 @@ Main::OnRunning() {
 
     // FIXME: change to instance rendering
     if (this->model.isValid) {
-        DrawState drawState;
-        drawState.Pipeline = this->model.pipeline;
-        drawState.Mesh[0] = this->model.mesh;
-        Gfx::ApplyDrawState(drawState);
-        /*
-        LambertShader::lightParams lightParams;
-        lightParams.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-        lightParams.lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
-        Gfx::ApplyUniformBlock(lightParams);
-        */
-        LambertShader::vsParams vsParams;
-        vsParams.model = glm::mat4();
-        vsParams.mvp = this->camera.ViewProj * vsParams.model;
-        Gfx::ApplyUniformBlock(vsParams);
-        for (const auto& subMesh : this->model.subMeshes) {
-            if (subMesh.visible) {
-                //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
-                Gfx::Draw(subMesh.primGroupIndex);
+        if (this->model.drawMesh) {
+            DrawState drawState;
+            drawState.Pipeline = this->model.pipeline;
+            drawState.Mesh[0] = this->model.mesh;
+            Gfx::ApplyDrawState(drawState);
+            /*
+            LambertShader::lightParams lightParams;
+            lightParams.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+            lightParams.lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
+            Gfx::ApplyUniformBlock(lightParams);
+            */
+            LambertShader::vsParams vsParams;
+            vsParams.model = glm::mat4();
+            vsParams.mvp = this->camera.ViewProj * vsParams.model;
+            Gfx::ApplyUniformBlock(vsParams);
+            for (const auto& subMesh : this->model.subMeshes) {
+                if (subMesh.visible) {
+                    //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
+                    Gfx::Draw(subMesh.primGroupIndex);
+                }
             }
         }
         this->drawModelDebug(this->model, glm::mat4());
@@ -168,8 +174,18 @@ Main::drawUI() {
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
         ImGui::SetNextWindowSize(ImVec2(150, 200), ImGuiSetCond_Once);
         if (ImGui::Begin("##ui", nullptr)) {
+            ImGui::Checkbox("draw mesh", &this->model.drawMesh);
+            ImGui::Checkbox("draw bind pose", &this->model.drawBindPose);
+            ImGui::Checkbox("draw clip static pose", &this->model.drawClipStaticPose);
+            ImGui::Checkbox("draw animated pose", &this->model.drawAnimatedPose);
             const int numClips = Anim::Library(this->model.animLib).Clips.Size();
-            ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6);
+            if (ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6)) {
+                AnimJob job;
+                job.ClipIndex = this->model.curClip;
+                job.FadeIn = 0.5f;
+                job.FadeOut = 0.5f;
+                Anim::Play(this->model.animInstance, job);
+            }
         }
         ImGui::End();
     }
@@ -179,6 +195,12 @@ Main::drawUI() {
 //------------------------------------------------------------------------------
 void
 Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
+    const AnimSkeleton& skel = Anim::Skeleton(model.skeleton);
+    const AnimLibrary& lib = Anim::Library(this->model.animLib);
+    const AnimClip& clip = lib.Clips[this->model.curClip];
+    glm::vec3 t, s;
+    glm::quat r;
+
     auto& wf = this->wireframe;
     wf.Model = modelTransform;
 
@@ -189,86 +211,65 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         glm::vec3(+1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, +1.0f));
 
     /// the character bind pose
-    wf.Color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    const AnimSkeleton& skel = Anim::Skeleton(model.skeleton);
-    for (int i = 0; i < skel.NumBones; i++) {
-        const int parent = skel.ParentIndices[i];
-        if (parent != -1) {
-            wf.Line(skel.BindPose[i][3], skel.BindPose[parent][3]);
+    if (this->model.drawBindPose) {
+        wf.Color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+        for (int i = 0; i < skel.NumBones; i++) {
+            const int parent = skel.ParentIndices[i];
+            if (parent != -1) {
+                wf.Line(skel.BindPose[i][3], skel.BindPose[parent][3]);
+            }
         }
     }
 
     // draw current clip's static pose matrix
-    const AnimLibrary& lib = Anim::Library(model.animLib);
-    const AnimClip& clip = lib.Clips[this->model.curClip];
-    o_assert(clip.Curves.Size() == skel.NumBones * 3);
-    this->dbgPose.Clear();
-    this->dbgPose.Reserve(skel.NumBones);
-    wf.Color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-    glm::vec3 t, s;
-    glm::quat r;
-    for (int i = 0; i < skel.NumBones; i++) {
-        const AnimCurve& tCurve = clip.Curves[i*3 + 0];
-        o_assert_dbg(tCurve.Format == AnimCurveFormat::Float3);
-        const AnimCurve& rCurve = clip.Curves[i*3 + 1];
-        o_assert_dbg(rCurve.Format == AnimCurveFormat::Quaternion);
-        const AnimCurve& sCurve = clip.Curves[i*3 + 2];
-        o_assert_dbg(sCurve.Format == AnimCurveFormat::Float3);
-        t = glm::vec3(tCurve.StaticValue);
-        r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
-        s = glm::vec3(sCurve.StaticValue);
-        const glm::mat4 tm = glm::translate(glm::mat4(), t);
-        const glm::mat4 rm = glm::mat4_cast(r);
-        const glm::mat4 sm = glm::scale(glm::mat4(), s);
-        glm::mat4 m = tm * rm * sm;
-        const int parent = skel.ParentIndices[i];
-        if (parent != -1) {
-            m = this->dbgPose[parent] * m;
-            wf.Line(m[3], this->dbgPose[parent][3]);
+    if (this->model.drawClipStaticPose) {
+        o_assert(clip.Curves.Size() == skel.NumBones * 3);
+        this->dbgPose.Clear();
+        this->dbgPose.Reserve(skel.NumBones);
+        wf.Color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
+        for (int i = 0; i < skel.NumBones; i++) {
+            const AnimCurve& tCurve = clip.Curves[i*3 + 0];
+            o_assert_dbg(tCurve.Format == AnimCurveFormat::Float3);
+            const AnimCurve& rCurve = clip.Curves[i*3 + 1];
+            o_assert_dbg(rCurve.Format == AnimCurveFormat::Quaternion);
+            const AnimCurve& sCurve = clip.Curves[i*3 + 2];
+            o_assert_dbg(sCurve.Format == AnimCurveFormat::Float3);
+            t = glm::vec3(tCurve.StaticValue);
+            r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
+            s = glm::vec3(sCurve.StaticValue);
+            const glm::mat4 tm = glm::translate(glm::mat4(), t);
+            const glm::mat4 rm = glm::mat4_cast(r);
+            const glm::mat4 sm = glm::scale(glm::mat4(), s);
+            glm::mat4 m = tm * rm * sm;
+            const int parent = skel.ParentIndices[i];
+            if (parent != -1) {
+                m = this->dbgPose[parent] * m;
+                wf.Line(m[3], this->dbgPose[parent][3]);
+            }
+            this->dbgPose.Add(m);
         }
-        this->dbgPose.Add(m);
     }
 
-    // draw current clip's animated pose
-    this->dbgPose.Clear();
-    wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    int keyIndex = clip.Length > 0 ? this->frameIndex % clip.Length : 0;
-    const float* keys = clip.Keys.begin() + keyIndex * clip.KeyStride;
-    for (int i = 0; i < skel.NumBones; i++) {
-        const AnimCurve& tCurve = clip.Curves[i*3 + 0];
-        const AnimCurve& rCurve = clip.Curves[i*3 + 1];
-        const AnimCurve& sCurve = clip.Curves[i*3 + 2];
-        if (tCurve.Static) {
-            t = glm::vec3(tCurve.StaticValue);
+    // draw current animation sampling/mixing result
+    if (this->model.drawAnimatedPose) {
+        this->dbgPose.Clear();
+        wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        const Slice<float>& samples = Anim::Samples(this->model.animInstance);
+        for (int boneIndex=0, i=0; boneIndex<skel.NumBones; boneIndex++, i+=10) {
+            t = glm::vec3(samples[i+0], samples[i+1], samples[i+2]);
+            r = glm::quat(samples[i+6], samples[i+3], samples[i+4], samples[i+5]);
+            s = glm::vec3(samples[i+7], samples[i+8], samples[i+9]);
+            const glm::mat4 tm = glm::translate(glm::mat4(), t);
+            const glm::mat4 rm = glm::mat4_cast(r);
+            const glm::mat4 sm = glm::scale(glm::mat4(), s);
+            glm::mat4 m = tm * rm * sm;
+            const int parent = skel.ParentIndices[boneIndex];
+            if (parent != -1) {
+                m = this->dbgPose[parent] * m;
+                wf.Line(m[3], this->dbgPose[parent][3]);
+            }
+            this->dbgPose.Add(m);
         }
-        else {
-            t = glm::vec3(keys[0], keys[1], keys[2]);
-            keys += 3;
-        }
-        if (rCurve.Static) {
-            r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
-        }
-        else {
-            r = glm::quat(keys[3], keys[0], keys[1], keys[2]);
-            keys += 4;
-        }
-        if (sCurve.Static) {
-            s = glm::vec3(sCurve.StaticValue);
-        }
-        else {
-            s = glm::vec3(keys[0], keys[1], keys[2]);
-            keys += 3;
-        }
-        const glm::mat4 tm = glm::translate(glm::mat4(), t);
-        const glm::mat4 rm = glm::mat4_cast(r);
-        const glm::mat4 sm = glm::scale(glm::mat4(), s);
-        glm::mat4 m = tm * rm * sm;
-        const int parent = skel.ParentIndices[i];
-        if (parent != -1) {
-            m = this->dbgPose[parent] * m;
-            wf.Line(m[3], this->dbgPose[parent][3]);
-        }
-        this->dbgPose.Add(m);
     }
 }
 
