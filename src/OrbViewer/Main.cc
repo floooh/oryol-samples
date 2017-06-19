@@ -237,7 +237,7 @@ Main::drawBoneTextureWindow() {
     ImGui::SetNextWindowPos(ImVec2(0, 220), ImGuiSetCond_Once);
     ImGui::SetNextWindowSize(ImVec2(150, 220), ImGuiSetCond_Once);
     if (ImGui::Begin("Bone Texture", nullptr)) {
-        ImGui::Image(this->imguiBoneTextureId, ImVec2(BoneTextureWidth, BoneTextureHeight));
+        ImGui::Image(this->imguiBoneTextureId, ImVec2(float(BoneTextureWidth), float(BoneTextureHeight)));
     }
     ImGui::End();
 }
