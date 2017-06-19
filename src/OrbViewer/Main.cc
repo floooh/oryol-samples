@@ -44,6 +44,7 @@ public:
         Id skeleton;
         Id animLib;
         Id animInstance;
+        LambertShader::vsParams vsParams;
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
         glm::mat4 transform;
@@ -55,12 +56,19 @@ public:
     };
 
     void drawUI();
+    void drawAnimControlWindow();
+    void drawBoneTextureWindow();
     void loadModel(const Locator& loc);
     void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
+
+    static const int BoneTextureWidth = 1024;
+    static const int BoneTextureHeight = 128;
 
     int frameIndex = 0;
     GfxSetup gfxSetup;
     Id shader;
+    Id boneTexture;
+    ImTextureID imguiBoneTextureId = nullptr;
     Model model;
     Wireframe wireframe;
     CameraHelper camera;
@@ -80,7 +88,10 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Orb File Viewer");
     this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.3f, 0.3f, 0.4f, 1.0f));
     Gfx::Setup(this->gfxSetup);
-    Anim::Setup(AnimSetup());
+    AnimSetup animSetup;
+    animSetup.SkinMatrixTableWidth = BoneTextureWidth;
+    animSetup.SkinMatrixTableHeight = BoneTextureHeight;
+    Anim::Setup(animSetup);
     Input::Setup();
     IMUI::Setup();
     this->camera.Setup(false);
@@ -89,6 +100,16 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 
     // can setup the shader before loading any assets
     this->shader = Gfx::CreateResource(LambertShader::Setup());
+
+    // RGBA32F texture for the animated skeleton bone info
+    auto texSetup = TextureSetup::Empty2D(BoneTextureWidth, BoneTextureHeight, 1, PixelFormat::RGBA32F, Usage::Stream);
+    texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
+    texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
+    texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
+    texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
+    this->boneTexture = Gfx::CreateResource(texSetup);
+    this->imguiBoneTextureId = IMUI::AllocImage();
+    IMUI::BindImage(this->imguiBoneTextureId, this->boneTexture);
 
     // load the dragon.orb file
     this->loadModel("orb:dragon.orb");
@@ -109,16 +130,26 @@ Main::OnRunning() {
         Anim::NewFrame();
         Anim::AddActiveInstance(this->model.animInstance);
         Anim::Evaluate(1.0 / 60.0);
+
+        // upload bone info to GPU texture
+        const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
+        this->model.vsParams.skin_info = boneInfo.InstanceInfos[0].ShaderInfo;
+        ImageDataAttrs imgAttrs;
+        imgAttrs.NumFaces = 1;
+        imgAttrs.NumMipMaps = 1;
+        imgAttrs.Offsets[0][0] = 0;
+        imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
+        Gfx::UpdateTexture(this->boneTexture, boneInfo.SkinMatrixTable, imgAttrs);
     }
 
-    Gfx::BeginPass();
-
     // FIXME: change to instance rendering
+    Gfx::BeginPass();
     if (this->model.isValid) {
         if (this->model.drawMesh) {
             DrawState drawState;
             drawState.Pipeline = this->model.pipeline;
             drawState.Mesh[0] = this->model.mesh;
+            drawState.VSTexture[LambertShader::boneTex] = this->boneTexture;
             Gfx::ApplyDrawState(drawState);
             /*
             LambertShader::lightParams lightParams;
@@ -126,10 +157,9 @@ Main::OnRunning() {
             lightParams.lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
             Gfx::ApplyUniformBlock(lightParams);
             */
-            LambertShader::vsParams vsParams;
-            vsParams.model = glm::mat4();
-            vsParams.mvp = this->camera.ViewProj * vsParams.model;
-            Gfx::ApplyUniformBlock(vsParams);
+            this->model.vsParams.model = glm::mat4();
+            this->model.vsParams.mvp = this->camera.ViewProj * this->model.vsParams.model;
+            Gfx::ApplyUniformBlock(this->model.vsParams);
             for (const auto& subMesh : this->model.subMeshes) {
                 if (subMesh.visible) {
                     //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
@@ -171,25 +201,43 @@ void
 Main::drawUI() {
     IMUI::NewFrame();
     if (this->model.isValid && this->model.animLib.IsValid()) {
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
-        ImGui::SetNextWindowSize(ImVec2(150, 200), ImGuiSetCond_Once);
-        if (ImGui::Begin("##ui", nullptr)) {
-            ImGui::Checkbox("draw mesh", &this->model.drawMesh);
-            ImGui::Checkbox("draw bind pose", &this->model.drawBindPose);
-            ImGui::Checkbox("draw clip static pose", &this->model.drawClipStaticPose);
-            ImGui::Checkbox("draw animated pose", &this->model.drawAnimatedPose);
-            const int numClips = Anim::Library(this->model.animLib).Clips.Size();
-            if (ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6)) {
-                AnimJob job;
-                job.ClipIndex = this->model.curClip;
-                job.FadeIn = 0.5f;
-                job.FadeOut = 0.5f;
-                Anim::Play(this->model.animInstance, job);
-            }
-        }
-        ImGui::End();
+        this->drawAnimControlWindow();
+        this->drawBoneTextureWindow();
     }
     ImGui::Render();
+}
+
+//------------------------------------------------------------------------------
+void
+Main::drawAnimControlWindow() {
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(150, 220), ImGuiSetCond_Once);
+    if (ImGui::Begin("##anim_ctrl", nullptr)) {
+        ImGui::Checkbox("draw mesh", &this->model.drawMesh);
+        ImGui::Checkbox("draw bind pose", &this->model.drawBindPose);
+        ImGui::Checkbox("draw clip static pose", &this->model.drawClipStaticPose);
+        ImGui::Checkbox("draw animated pose", &this->model.drawAnimatedPose);
+        const int numClips = Anim::Library(this->model.animLib).Clips.Size();
+        if (ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6)) {
+            AnimJob job;
+            job.ClipIndex = this->model.curClip;
+            job.FadeIn = 0.5f;
+            job.FadeOut = 0.5f;
+            Anim::Play(this->model.animInstance, job);
+        }
+    }
+    ImGui::End();
+}
+
+//------------------------------------------------------------------------------
+void
+Main::drawBoneTextureWindow() {
+    ImGui::SetNextWindowPos(ImVec2(0, 220), ImGuiSetCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(150, 220), ImGuiSetCond_Once);
+    if (ImGui::Begin("Bone Texture", nullptr)) {
+        ImGui::Image(this->imguiBoneTextureId, ImVec2(BoneTextureWidth, BoneTextureHeight));
+    }
+    ImGui::End();
 }
 
 //------------------------------------------------------------------------------
