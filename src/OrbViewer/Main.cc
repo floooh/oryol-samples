@@ -96,6 +96,8 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     IMUI::Setup();
     this->camera.Setup(false);
     this->camera.Center = glm::vec3(0.0f, 1.0f, 0.0f);
+    this->camera.Distance = 10.0f;
+    this->camera.Orbital = glm::vec2(glm::radians(25.0f), glm::radians(0.0f));
     this->wireframe.Setup(this->gfxSetup);
 
     // can setup the shader before loading any assets
