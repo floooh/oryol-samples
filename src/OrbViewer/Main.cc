@@ -122,6 +122,12 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     // load the dragon.orb file
     this->loadModel("orb:dragon.orb");
 
+    // write something useful into the anim job triggered by UI
+    this->ui.animJob.TrackIndex = 1;
+    this->ui.animJob.DurationIsLoopCount = true;
+    this->ui.animJob.Duration = 1.0f;
+    this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.2f;
+
     return App::OnInit();
 }
 
@@ -407,10 +413,9 @@ Main::loadModel(const Locator& loc) {
             this->model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
             this->model.animInstance = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(this->model.animLib, this->model.skeleton));
             orb.CopyAnimKeys(this->model.animLib);
-
             AnimJob job;
             job.ClipIndex = 0;
-            job.TrackIndex = 4;
+            job.TrackIndex = 0;
             Anim::Play(model.animInstance, job);
         }
         model.isValid = true;
