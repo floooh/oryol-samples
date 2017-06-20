@@ -48,14 +48,10 @@ public:
         InlineArray<Material, 8> materials;
         InlineArray<SubMesh, 8> subMeshes;
         glm::mat4 transform;
-        int curClip = 0;
-        bool drawMesh = true;
-        bool drawBindPose = true;
-        bool drawClipStaticPose = true;
-        bool drawAnimatedPose = true;
     };
 
     void drawUI();
+    void drawMainWindow();
     void drawAnimControlWindow();
     void drawBoneTextureWindow();
     void loadModel(const Locator& loc);
@@ -63,6 +59,16 @@ public:
 
     static const int BoneTextureWidth = 1024;
     static const int BoneTextureHeight = 128;
+
+    struct {
+        bool meshEnabled = true;
+        bool bindPoseEnabled = false;
+        bool staticPoseEnabled = false;
+        bool animatedPoseEnabled = false;
+        bool animWindowEnabled = false;
+        bool textureWindowEnabled = false;
+        AnimJob animJob;
+    } ui;
 
     int frameIndex = 0;
     GfxSetup gfxSetup;
@@ -85,7 +91,7 @@ Main::OnInit() {
 ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     IO::Setup(ioSetup);
 
-    this->gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Orb File Viewer");
+    this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
     this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.3f, 0.3f, 0.4f, 1.0f));
     Gfx::Setup(this->gfxSetup);
     AnimSetup animSetup;
@@ -147,7 +153,7 @@ Main::OnRunning() {
     // FIXME: change to instance rendering
     Gfx::BeginPass();
     if (this->model.isValid) {
-        if (this->model.drawMesh) {
+        if (this->ui.meshEnabled) {
             DrawState drawState;
             drawState.Pipeline = this->model.pipeline;
             drawState.Mesh[0] = this->model.mesh;
@@ -203,29 +209,58 @@ void
 Main::drawUI() {
     IMUI::NewFrame();
     if (this->model.isValid && this->model.animLib.IsValid()) {
-        this->drawAnimControlWindow();
-        this->drawBoneTextureWindow();
+        this->drawMainWindow();
+        if (this->ui.animWindowEnabled) {
+            this->drawAnimControlWindow();
+        }
+        if (this->ui.textureWindowEnabled) {
+            this->drawBoneTextureWindow();
+        }
     }
     ImGui::Render();
 }
 
 //------------------------------------------------------------------------------
 void
+Main::drawMainWindow() {
+    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    if (ImGui::Begin("##main_window", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Checkbox("draw mesh", &this->ui.meshEnabled);
+        ImGui::Checkbox("draw bind pose", &this->ui.bindPoseEnabled);
+        ImGui::Checkbox("draw clip static pose", &this->ui.staticPoseEnabled);
+        ImGui::Checkbox("draw animated pose", &this->ui.animatedPoseEnabled);
+        if (ImGui::Button("Anim Controls")) {
+            this->ui.animWindowEnabled = !this->ui.animWindowEnabled;
+        }
+        if (ImGui::Button("Bone Texture")) {
+            this->ui.textureWindowEnabled = !this->ui.textureWindowEnabled;
+        }
+    }
+    ImGui::End();
+}
+
+//------------------------------------------------------------------------------
+void
 Main::drawAnimControlWindow() {
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiSetCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(150, 220), ImGuiSetCond_Once);
-    if (ImGui::Begin("##anim_ctrl", nullptr)) {
-        ImGui::Checkbox("draw mesh", &this->model.drawMesh);
-        ImGui::Checkbox("draw bind pose", &this->model.drawBindPose);
-        ImGui::Checkbox("draw clip static pose", &this->model.drawClipStaticPose);
-        ImGui::Checkbox("draw animated pose", &this->model.drawAnimatedPose);
+    const float w = 210.0f;
+    const float h = 220.0f;
+    ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
+    if (ImGui::Begin("##anim_ctrl", &this->ui.animWindowEnabled)) {
         const int numClips = Anim::Library(this->model.animLib).Clips.Size();
-        if (ImGui::ListBox("Clips", &this->model.curClip, getClipItem, this, numClips, 6)) {
-            AnimJob job;
-            job.ClipIndex = this->model.curClip;
-            job.FadeIn = 0.5f;
-            job.FadeOut = 0.5f;
-            Anim::Play(this->model.animInstance, job);
+        ImGui::Combo("Clip", &this->ui.animJob.ClipIndex, getClipItem, this, numClips);
+        ImGui::InputInt("Track", &this->ui.animJob.TrackIndex);
+        ImGui::SliderFloat("Weight", &this->ui.animJob.MixWeight, 0.0f, 1.0f);
+        ImGui::SliderFloat("FadeIn", &this->ui.animJob.FadeIn, 0.0f, 1.0f);
+        ImGui::SliderFloat("FadeOut", &this->ui.animJob.FadeOut, 0.0f, 1.0f);
+        ImGui::Checkbox("Duration/LoopCount", &this->ui.animJob.DurationIsLoopCount);
+        ImGui::InputFloat(this->ui.animJob.DurationIsLoopCount ? "LoopCount##dur":"Duration##dur", &this->ui.animJob.Duration);
+        if (ImGui::Button("Play")) {
+            Anim::Play(this->model.animInstance, this->ui.animJob);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stop All")) {
+            Anim::StopAll(this->model.animInstance);
         }
     }
     ImGui::End();
@@ -234,10 +269,14 @@ Main::drawAnimControlWindow() {
 //------------------------------------------------------------------------------
 void
 Main::drawBoneTextureWindow() {
-    ImGui::SetNextWindowPos(ImVec2(0, 220), ImGuiSetCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(150, 220), ImGuiSetCond_Once);
-    if (ImGui::Begin("Bone Texture", nullptr)) {
-        ImGui::Image(this->imguiBoneTextureId, ImVec2(float(BoneTextureWidth), float(BoneTextureHeight)));
+    const float w = 800.0f;
+    const float h = 64.0f;
+    ImGui::SetNextWindowPos(ImVec2(5, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
+    if (ImGui::Begin("Bone Texture", &this->ui.textureWindowEnabled)) {
+        ImGui::Image(this->imguiBoneTextureId,
+            ImVec2(float(BoneTextureWidth), float(BoneTextureHeight)),
+            ImVec2(0, 0), ImVec2(0.25f, 0.25f));
     }
     ImGui::End();
 }
@@ -247,21 +286,15 @@ void
 Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
     const AnimSkeleton& skel = Anim::Skeleton(model.skeleton);
     const AnimLibrary& lib = Anim::Library(this->model.animLib);
-    const AnimClip& clip = lib.Clips[this->model.curClip];
+    const AnimClip& clip = lib.Clips[this->ui.animJob.ClipIndex];
     glm::vec3 t, s;
     glm::quat r;
 
     auto& wf = this->wireframe;
     wf.Model = modelTransform;
 
-    // a rectangle at the bottom
-    wf.Color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-    wf.Rect(
-        glm::vec3(-1.0f, 0.0f, -1.0f), glm::vec3(+1.0f, 0.0f, -1.0f),
-        glm::vec3(+1.0f, 0.0f, +1.0f), glm::vec3(-1.0f, 0.0f, +1.0f));
-
     /// the character bind pose
-    if (this->model.drawBindPose) {
+    if (this->ui.bindPoseEnabled) {
         wf.Color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
         for (int i = 0; i < skel.NumBones; i++) {
             const int parent = skel.ParentIndices[i];
@@ -272,7 +305,7 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
     }
 
     // draw current clip's static pose matrix
-    if (this->model.drawClipStaticPose) {
+    if (this->ui.staticPoseEnabled) {
         o_assert(clip.Curves.Size() == skel.NumBones * 3);
         this->dbgPose.Clear();
         this->dbgPose.Reserve(skel.NumBones);
@@ -301,7 +334,7 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
     }
 
     // draw current animation sampling/mixing result
-    if (this->model.drawAnimatedPose) {
+    if (this->ui.animatedPoseEnabled) {
         this->dbgPose.Clear();
         wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
         const Slice<float>& samples = Anim::Samples(this->model.animInstance);
@@ -377,6 +410,7 @@ Main::loadModel(const Locator& loc) {
 
             AnimJob job;
             job.ClipIndex = 0;
+            job.TrackIndex = 4;
             Anim::Play(model.animInstance, job);
         }
         model.isValid = true;
