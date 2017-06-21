@@ -42,7 +42,7 @@ struct Wireframe {
         Vertex(const glm::vec4& p, const glm::vec4& c):
             x(p.x), y(p.y), z(p.z), r(c.x), g(c.y), b(c.z), a(c.w) { };
     };
-    static const int MaxNumVertices = 4096;
+    static const int MaxNumVertices = (1<<15);
     InlineArray<Vertex, MaxNumVertices> vertices;
 };
 

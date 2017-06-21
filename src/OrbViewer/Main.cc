@@ -61,6 +61,8 @@ public:
     static const int BoneTextureHeight = 128;
 
     struct {
+        bool freezeTime = false;
+        float timeScale = 1.0f;
         bool meshEnabled = true;
         bool bindPoseEnabled = false;
         bool staticPoseEnabled = false;
@@ -79,6 +81,8 @@ public:
     Wireframe wireframe;
     CameraHelper camera;
     Array<glm::mat4> dbgPose;
+    static const uint32_t HistorySize = 256;
+    StaticArray<Array<glm::vec3>, HistorySize> dbgHistory;
 };
 OryolMain(Main);
 
@@ -92,7 +96,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
-    this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.3f, 0.3f, 0.4f, 1.0f));
+    this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.1f, 0.1f, 0.2f, 1.0f));
     Gfx::Setup(this->gfxSetup);
     AnimSetup animSetup;
     animSetup.SkinMatrixTableWidth = BoneTextureWidth;
@@ -101,9 +105,9 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     Input::Setup();
     IMUI::Setup();
     this->camera.Setup(false);
-    this->camera.Center = glm::vec3(0.0f, 1.0f, 0.0f);
+    this->camera.Center = glm::vec3(0.0f, 1.0f, -2.5f);
     this->camera.Distance = 10.0f;
-    this->camera.Orbital = glm::vec2(glm::radians(25.0f), glm::radians(0.0f));
+    this->camera.Orbital = glm::vec2(glm::radians(25.0f), glm::radians(-90.0f));
     this->wireframe.Setup(this->gfxSetup);
 
     // can setup the shader before loading any assets
@@ -123,9 +127,9 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->loadModel("orb:dragon.orb");
 
     // write something useful into the anim job triggered by UI
-    this->ui.animJob.TrackIndex = 1;
-    this->ui.animJob.DurationIsLoopCount = true;
-    this->ui.animJob.Duration = 1.0f;
+    this->ui.animJob.TrackIndex = 0;
+    this->ui.animJob.DurationIsLoopCount = false;
+    this->ui.animJob.Duration = 0.0f;
     this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.2f;
 
     return App::OnInit();
@@ -143,7 +147,7 @@ Main::OnRunning() {
     if (this->model.isValid) {
         Anim::NewFrame();
         Anim::AddActiveInstance(this->model.animInstance);
-        Anim::Evaluate(1.0 / 60.0);
+        Anim::Evaluate(this->ui.freezeTime ? 0.0 : (1.0/60.0)*this->ui.timeScale);
 
         // upload bone info to GPU texture
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
@@ -187,7 +191,9 @@ Main::OnRunning() {
     this->drawUI();    
     Gfx::EndPass();
     Gfx::CommitFrame();
-    this->frameIndex++;
+    if (!this->ui.freezeTime) {
+        this->frameIndex++;
+    }
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
 
@@ -231,6 +237,12 @@ void
 Main::drawMainWindow() {
     ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
     if (ImGui::Begin("##main_window", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Checkbox("freeze time", &this->ui.freezeTime);
+        ImGui::SliderFloat("time scale", &this->ui.timeScale, 0.001f, 2.0f);
+        if (ImGui::Button("0.5x")) { this->ui.timeScale = 0.5f; }; ImGui::SameLine();
+        if (ImGui::Button("1.0x")) { this->ui.timeScale = 1.0f; }; ImGui::SameLine();
+        if (ImGui::Button("1.5x")) { this->ui.timeScale = 1.5f; }; ImGui::SameLine();
+        if (ImGui::Button("2.0x")) { this->ui.timeScale = 2.0f; };
         ImGui::Checkbox("draw mesh", &this->ui.meshEnabled);
         ImGui::Checkbox("draw bind pose", &this->ui.bindPoseEnabled);
         ImGui::Checkbox("draw clip static pose", &this->ui.staticPoseEnabled);
@@ -339,8 +351,11 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         }
     }
 
-    // draw current animation sampling/mixing result
-    if (this->ui.animatedPoseEnabled) {
+    // draw current animation sampling/mixing result (with history)
+    const int histIndex = this->frameIndex % HistorySize;
+    this->dbgHistory[histIndex].Clear();
+    this->dbgHistory[histIndex].Reserve(skel.NumBones);
+//    if (this->ui.animatedPoseEnabled) {
         this->dbgPose.Clear();
         wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
         const Slice<float>& samples = Anim::Samples(this->model.animInstance);
@@ -358,6 +373,24 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
                 wf.Line(m[3], this->dbgPose[parent][3]);
             }
             this->dbgPose.Add(m);
+            this->dbgHistory[histIndex].Add(m[3]);
+        }
+//    }
+
+    // draw the bone history
+    glm::vec3 move(0.0f, 0.0f, -0.05f);
+    glm::vec4 fade(-1.0f/float(HistorySize), 0.0f, 0.0f, -1.0/float(HistorySize));
+    for (uint32_t boneIndex = 0; boneIndex < (uint32_t)skel.NumBones; boneIndex++) {
+        for (uint32_t i = 0; i < HistorySize-1; i++) {
+            uint32_t hi0 = (histIndex - i) & (HistorySize-1);
+            uint32_t hi1 = (hi0 - 1) & (HistorySize-1);
+            glm::vec3 d0 = move * float(i);
+            glm::vec3 d1 = move * float(i + 1);
+            wf.Color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f) + fade * float(i);
+            if (!this->dbgHistory[hi0].Empty() && !this->dbgHistory[hi1].Empty()) {
+                wf.Line(this->dbgHistory[hi0][boneIndex] + d0,
+                        this->dbgHistory[hi1][boneIndex] + d1);
+            }
         }
     }
 }
