@@ -66,6 +66,7 @@ public:
         bool meshEnabled = true;
         bool bindPoseEnabled = false;
         bool staticPoseEnabled = false;
+        bool jointTrailsEnabled = false;
         bool animatedPoseEnabled = false;
         bool animWindowEnabled = false;
         bool textureWindowEnabled = false;
@@ -81,7 +82,7 @@ public:
     Wireframe wireframe;
     CameraHelper camera;
     Array<glm::mat4> dbgPose;
-    static const uint32_t HistorySize = 256;
+    static const uint32_t HistorySize = 128;
     StaticArray<Array<glm::vec3>, HistorySize> dbgHistory;
 };
 OryolMain(Main);
@@ -247,6 +248,7 @@ Main::drawMainWindow() {
         ImGui::Checkbox("draw bind pose", &this->ui.bindPoseEnabled);
         ImGui::Checkbox("draw clip static pose", &this->ui.staticPoseEnabled);
         ImGui::Checkbox("draw animated pose", &this->ui.animatedPoseEnabled);
+        ImGui::Checkbox("draw joint trails", &this->ui.jointTrailsEnabled);
         if (ImGui::Button("Anim Controls")) {
             this->ui.animWindowEnabled = !this->ui.animWindowEnabled;
         }
@@ -330,11 +332,8 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         wf.Color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
         for (int i = 0; i < skel.NumBones; i++) {
             const AnimCurve& tCurve = clip.Curves[i*3 + 0];
-            o_assert_dbg(tCurve.Format == AnimCurveFormat::Float3);
             const AnimCurve& rCurve = clip.Curves[i*3 + 1];
-            o_assert_dbg(rCurve.Format == AnimCurveFormat::Quaternion);
             const AnimCurve& sCurve = clip.Curves[i*3 + 2];
-            o_assert_dbg(sCurve.Format == AnimCurveFormat::Float3);
             t = glm::vec3(tCurve.StaticValue);
             r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
             s = glm::vec3(sCurve.StaticValue);
@@ -351,34 +350,36 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
         }
     }
 
-    // draw current animation sampling/mixing result (with history)
+    // draw current animation sampling/mixing result and record history
     const int histIndex = this->frameIndex % HistorySize;
     this->dbgHistory[histIndex].Clear();
     this->dbgHistory[histIndex].Reserve(skel.NumBones);
-//    if (this->ui.animatedPoseEnabled) {
-        this->dbgPose.Clear();
-        wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-        const Slice<float>& samples = Anim::Samples(this->model.animInstance);
-        for (int boneIndex=0, i=0; boneIndex<skel.NumBones; boneIndex++, i+=10) {
-            t = glm::vec3(samples[i+0], samples[i+1], samples[i+2]);
-            r = glm::quat(samples[i+6], samples[i+3], samples[i+4], samples[i+5]);
-            s = glm::vec3(samples[i+7], samples[i+8], samples[i+9]);
-            const glm::mat4 tm = glm::translate(glm::mat4(), t);
-            const glm::mat4 rm = glm::mat4_cast(r);
-            const glm::mat4 sm = glm::scale(glm::mat4(), s);
-            glm::mat4 m = tm * rm * sm;
-            const int parent = skel.ParentIndices[boneIndex];
-            if (parent != -1) {
-                m = this->dbgPose[parent] * m;
+    this->dbgPose.Clear();
+    wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
+    const Slice<float>& samples = Anim::Samples(this->model.animInstance);
+    for (int boneIndex=0, i=0; boneIndex<skel.NumBones; boneIndex++, i+=10) {
+        t = glm::vec3(samples[i+0], samples[i+1], samples[i+2]);
+        r = glm::quat(samples[i+6], samples[i+3], samples[i+4], samples[i+5]);
+        s = glm::vec3(samples[i+7], samples[i+8], samples[i+9]);
+        const glm::mat4 tm = glm::translate(glm::mat4(), t);
+        const glm::mat4 rm = glm::mat4_cast(r);
+        const glm::mat4 sm = glm::scale(glm::mat4(), s);
+        glm::mat4 m = tm * rm * sm;
+        const int parent = skel.ParentIndices[boneIndex];
+        if (parent != -1) {
+            m = this->dbgPose[parent] * m;
+            if (this->ui.animatedPoseEnabled) {
                 wf.Line(m[3], this->dbgPose[parent][3]);
             }
-            this->dbgPose.Add(m);
+        }
+        this->dbgPose.Add(m);
+        if (this->ui.jointTrailsEnabled) {
             this->dbgHistory[histIndex].Add(m[3]);
         }
-//    }
+    }
 
     // draw the bone history
-    glm::vec3 move(0.0f, 0.0f, -0.05f);
+    glm::vec3 move(0.0f, 0.0f, -0.1f);
     glm::vec4 fade(-1.0f/float(HistorySize), 0.0f, 0.0f, -1.0/float(HistorySize));
     for (uint32_t boneIndex = 0; boneIndex < (uint32_t)skel.NumBones; boneIndex++) {
         for (uint32_t i = 0; i < HistorySize-1; i++) {
