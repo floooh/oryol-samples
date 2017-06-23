@@ -128,10 +128,10 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->loadModel("orb:dragon.orb");
 
     // write something useful into the anim job triggered by UI
-    this->ui.animJob.TrackIndex = 0;
-    this->ui.animJob.DurationIsLoopCount = false;
-    this->ui.animJob.Duration = 0.0f;
-    this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.2f;
+    this->ui.animJob.TrackIndex = 1;
+    this->ui.animJob.DurationIsLoopCount = true;
+    this->ui.animJob.Duration = 1.0f;
+    this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.5f;
 
     return App::OnInit();
 }
@@ -262,26 +262,72 @@ Main::drawMainWindow() {
 //------------------------------------------------------------------------------
 void
 Main::drawAnimControlWindow() {
-    const float w = 210.0f;
-    const float h = 220.0f;
+    const float w = 720.0f;
+    const float h = 230.0f;
+    const AnimLibrary& lib = Anim::Library(this->model.animLib);
     ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
-    if (ImGui::Begin("##anim_ctrl", &this->ui.animWindowEnabled)) {
-        const int numClips = Anim::Library(this->model.animLib).Clips.Size();
-        ImGui::Combo("Clip", &this->ui.animJob.ClipIndex, getClipItem, this, numClips);
-        ImGui::InputInt("Track", &this->ui.animJob.TrackIndex);
-        ImGui::SliderFloat("Weight", &this->ui.animJob.MixWeight, 0.0f, 1.0f);
-        ImGui::SliderFloat("FadeIn", &this->ui.animJob.FadeIn, 0.0f, 1.0f);
-        ImGui::SliderFloat("FadeOut", &this->ui.animJob.FadeOut, 0.0f, 1.0f);
-        ImGui::Checkbox("Duration/LoopCount", &this->ui.animJob.DurationIsLoopCount);
-        ImGui::InputFloat(this->ui.animJob.DurationIsLoopCount ? "LoopCount##dur":"Duration##dur", &this->ui.animJob.Duration);
-        if (ImGui::Button("Play")) {
-            Anim::Play(this->model.animInstance, this->ui.animJob);
+    if (ImGui::Begin("Anim Sequencer", &this->ui.animWindowEnabled)) {
+        ImGui::BeginChild("Controls", ImVec2(210, -1), true);
+        {
+            const int numClips = lib.Clips.Size();
+            ImGui::Combo("Clip", &this->ui.animJob.ClipIndex, getClipItem, this, numClips);
+            ImGui::InputInt("Track", &this->ui.animJob.TrackIndex);
+            ImGui::SliderFloat("Weight", &this->ui.animJob.MixWeight, 0.0f, 1.0f);
+            ImGui::SliderFloat("FadeIn", &this->ui.animJob.FadeIn, 0.0f, 1.0f);
+            ImGui::SliderFloat("FadeOut", &this->ui.animJob.FadeOut, 0.0f, 1.0f);
+            ImGui::Checkbox("Duration/LoopCount", &this->ui.animJob.DurationIsLoopCount);
+            ImGui::InputFloat(this->ui.animJob.DurationIsLoopCount ? "LoopCount##dur":"Duration##dur", &this->ui.animJob.Duration);
+            if (ImGui::Button("Play")) {
+                Anim::Play(this->model.animInstance, this->ui.animJob);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Stop All")) {
+                Anim::StopAll(this->model.animInstance);
+            }
         }
+        ImGui::EndChild();
         ImGui::SameLine();
-        if (ImGui::Button("Stop All")) {
-            Anim::StopAll(this->model.animInstance);
+
+        // this draw the track sequencer visualzation
+        ImGui::BeginChild("Tracks", ImVec2(-1, -1), true);
+        {
+            const ImVec2 clipMax = ImGui::GetWindowContentRegionMax();
+            const float clipWidth = ImGui::GetWindowContentRegionWidth();
+            const ImVec2 p = ImGui::GetCursorScreenPos();
+            const double t = Anim::CurrentTime();
+            const float pixelsPerSecond = 40.0f;
+            const float trackHeight = 16.0f;
+            const float trackDist = 17.0f;
+            const float playCursorX = 50.0f;
+            float cursorPos = 30.0f;
+            const auto& inst = Anim::instance(this->model.animInstance);
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            for (const auto& item : inst.sequencer.items) {
+                float x0 = playCursorX + (item.absStartTime - t) * pixelsPerSecond;
+                float x1 = playCursorX + (item.absEndTime - t) * pixelsPerSecond;
+                float f0 = playCursorX + (item.absFadeInTime - t) * pixelsPerSecond;
+                float f1 = playCursorX + (item.absFadeOutTime - t) * pixelsPerSecond;
+                float y0 = (item.trackIndex * trackDist);
+                float y1 = y0 + trackHeight;
+                x0 = glm::clamp(x0, 0.0f, clipWidth);
+                x1 = glm::clamp(x1, 0.0f, clipWidth);
+                f0 = glm::clamp(f0, 0.0f, clipWidth);
+                f1 = glm::clamp(f1, 0.0f, clipWidth);
+                dl->AddRectFilled(ImVec2(p.x+f0,p.y+y0), ImVec2(p.x+f1, p.y+y1), 0xFF007700);
+                if (f0 > x0) {
+                    // fade-in triangle
+                    dl->AddTriangleFilled(ImVec2(p.x+f0,p.y+y0), ImVec2(p.x+f0,p.y+y1), ImVec2(p.x+x0,p.y+y1), 0xFF007700);
+                }
+                if (f1 < x1) {
+                    // fade-in triangle
+                    dl->AddTriangleFilled(ImVec2(p.x+f1,p.y+y0), ImVec2(p.x+f1,p.y+y1), ImVec2(p.x+x1,p.y+y0), 0xFF007700);
+                }
+                dl->AddText(ImVec2(p.x+f0+5, p.y+y0+2), 0xFFFFFFFF, lib.Clips[item.clipIndex].Name.AsCStr());
+            }
+            dl->AddLine(ImVec2(p.x+playCursorX, p.y), ImVec2(p.x+playCursorX, p.y+clipMax.y), 0xFF00AAAA);
         }
+        ImGui::EndChild();
     }
     ImGui::End();
 }
