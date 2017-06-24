@@ -27,7 +27,7 @@ public:
 
     static const int MaxNumInstances = 128;
     static const int BoneTextureWidth = 1024;
-    static const int BoneTextureHeight = 128;
+    static const int BoneTextureHeight = MaxNumInstances/3 + 1;
 
     GfxSetup gfxSetup;
     CameraHelper camera;
@@ -35,11 +35,7 @@ public:
     OrbModel orbModel;
     DrawState drawState;
     Shader::vsParams vsParams;
-    struct Instance {
-        Id animInstance;
-        glm::mat4 modelMatrix;
-    };
-    InlineArray<Instance, MaxNumInstances> instances;
+    InlineArray<Id, MaxNumInstances> instances;
 
     // xxxx,yyyy,zzzz is transposed model matrix
     // boneInfo is position in bone texture
@@ -78,10 +74,10 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->camera.Distance = 10.0f;
     this->camera.Orbital = glm::vec2(glm::radians(25.0f), 0.0f);
 
-    // can setup the shader before loading any assets
+    // setup the shader now, pipeline setup happens when model file has loaded
     this->shader = Gfx::CreateResource(Shader::Setup());
 
-    // RGBA32F texture for the animated skeleton bone info
+    // RGBA32F texture for the animated skeleton bones
     auto texSetup = TextureSetup::Empty2D(BoneTextureWidth, BoneTextureHeight, 1, PixelFormat::RGBA32F, Usage::Stream);
     texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
     texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
@@ -92,10 +88,10 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     // vertex buffer for per-instance info
     auto meshSetup = MeshSetup::Empty(MaxNumInstances, Usage::Stream);
     meshSetup.Layout = {
-        { VertexAttr::Instance0, VertexFormat::Float4 },
-        { VertexAttr::Instance1, VertexFormat::Float4 },
-        { VertexAttr::Instance2, VertexFormat::Float4 },
-        { VertexAttr::Instance3, VertexFormat::Float4 }
+        { VertexAttr::Instance0, VertexFormat::Float4 }, // transposes model matrix xxxx
+        { VertexAttr::Instance1, VertexFormat::Float4 }, // transposes model matrix yyyy
+        { VertexAttr::Instance2, VertexFormat::Float4 }, // transposes model matrix zzzz
+        { VertexAttr::Instance3, VertexFormat::Float4 }  // bone texture location
     };
     meshSetup.Layout.EnableInstancing();
     this->instanceMeshLayout = meshSetup.Layout;
@@ -112,15 +108,15 @@ AppState::Code
 Dragons::OnRunning() {
     this->camera.Update();
 
-    // update the animation system
     if (this->orbModel.IsValid) {
+        // update the animation system
         Anim::NewFrame();
         for (const auto& inst : this->instances) {
-            Anim::AddActiveInstance(inst.animInstance);
+            Anim::AddActiveInstance(inst);
         }
         Anim::Evaluate(1.0/60.0);
 
-        // upload bone info to GPU texture
+        // upload animated skeleton bone info to GPU texture
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
         ImageDataAttrs imgAttrs;
         imgAttrs.NumFaces = 1;
@@ -129,16 +125,12 @@ Dragons::OnRunning() {
         imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
         Gfx::UpdateTexture(this->drawState.VSTexture[Shader::boneTex], boneInfo.SkinMatrixTable, imgAttrs);
 
-        // update the instance vertex buffer
+        // update the instance vertex buffer with bone texture locations
         int instIndex = 0;
         for (const auto& inst : this->instances) {
-            const glm::mat4& m = inst.modelMatrix;
             const auto& shdInfo = boneInfo.InstanceInfos[instIndex].ShaderInfo;
             auto& vtx = this->InstanceData[instIndex];
             for (int i = 0; i < 4; i++) {
-                vtx.xxxx[i] = m[i][0];
-                vtx.yyyy[i] = m[i][1];
-                vtx.zzzz[i] = m[i][2];
                 vtx.boneInfo[i] = shdInfo[i];
             }
             instIndex++;
@@ -146,6 +138,7 @@ Dragons::OnRunning() {
         Gfx::UpdateVertices(this->drawState.Mesh[1], this->InstanceData, sizeof(InstanceVertex)*instIndex);
     }
 
+    // all dragons rendered in a single draw call via hardware instancing
     Gfx::BeginPass();
     if (this->orbModel.IsValid) {
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
@@ -189,8 +182,9 @@ Dragons::loadModel(const Locator& loc) {
             pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
             this->drawState.Pipeline = Gfx::CreateResource(pipSetup);
 
-            this->addInstance(glm::vec3(2.5f, 0.0f, 0.0f), 0);
-            this->addInstance(glm::vec3(-5.0f, 0.0f, 0.0f), 6);
+            this->addInstance(glm::vec3(-5.0f, 0.0f, 0.0f), 0);
+            this->addInstance(glm::vec3(0.0f, 0.0f, 0.0f), 6);
+            this->addInstance(glm::vec3(+5.0f, 0.0f, 0.0f), 4);
         }
     },
     [](const URL& url, IOStatus::Code ioStatus) {
@@ -205,13 +199,21 @@ Dragons::addInstance(const glm::vec3& pos, int clipIndex) {
     if (!this->orbModel.IsValid) {
         return;
     }
-    auto& inst = this->instances.Add();
-    inst.modelMatrix = glm::translate(glm::mat4(), pos);
-    inst.animInstance = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(
+    // write the model matrix directly into the per-instance vertex buffer
+    const int instIndex = this->instances.Size();
+    glm::mat4 m = glm::translate(glm::mat4(), pos);
+    for (int i = 0; i < 4; i++) {
+        this->InstanceData[instIndex].xxxx[i] = m[i][0];
+        this->InstanceData[instIndex].yyyy[i] = m[i][1];
+        this->InstanceData[instIndex].zzzz[i] = m[i][2];
+    }
+    // setup a new anim instance, and start the anim clip on it
+    Id inst = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(
         this->orbModel.AnimLib,
         this->orbModel.Skeleton));
+    this->instances.Add(inst);
     AnimJob job;
     job.ClipIndex = clipIndex;
     job.TrackIndex = 0;
-    Anim::Play(inst.animInstance, job);
+    Anim::Play(inst, job);
 }
