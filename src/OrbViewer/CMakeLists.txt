@@ -2,8 +2,6 @@ fips_begin_app(OrbViewer windowed)
     fips_vs_warning_level(3)
     fips_files(
         Main.cc
-        OrbFile.h OrbFile.cc
-        Wireframe.h Wireframe.cc
     )
     oryol_shader(shaders.glsl)
     fips_deps(Gfx HttpFS Input IMUI Common Anim)

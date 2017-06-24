@@ -9,11 +9,10 @@
 #include "IMUI/IMUI.h"
 #include "Anim/Anim.h"
 #include "HttpFS/HTTPFileSystem.h"
-#include "OrbFileFormat.h"
 #include "Core/Containers/InlineArray.h"
-#include "OrbFile.h"
+#include "Common/OrbLoader.h"
 #include "Common/CameraHelper.h"
-#include "Wireframe.h"
+#include "Common/Wireframe.h"
 #include "glm/mat4x4.hpp"
 #include "glm/geometric.hpp"
 #include "glm/gtc/quaternion.hpp"
@@ -38,15 +37,10 @@ public:
         bool visible = false;
     };
     struct Model {
-        bool isValid = false;
-        Id mesh;
+        OrbModel orb;
         Id pipeline;
-        Id skeleton;
-        Id animLib;
         Id animInstance;
         LambertShader::vsParams vsParams;
-        InlineArray<Material, 8> materials;
-        InlineArray<SubMesh, 8> subMeshes;
         glm::mat4 transform;
     };
 
@@ -145,7 +139,7 @@ Main::OnRunning() {
     this->wireframe.ViewProj = this->camera.ViewProj;
 
     // update the animation system
-    if (this->model.isValid) {
+    if (this->model.orb.IsValid) {
         Anim::NewFrame();
         Anim::AddActiveInstance(this->model.animInstance);
         Anim::Evaluate(this->ui.freezeTime ? 0.0 : (1.0/60.0)*this->ui.timeScale);
@@ -163,11 +157,11 @@ Main::OnRunning() {
 
     // FIXME: change to instance rendering
     Gfx::BeginPass();
-    if (this->model.isValid) {
+    if (this->model.orb.IsValid) {
         if (this->ui.meshEnabled) {
             DrawState drawState;
             drawState.Pipeline = this->model.pipeline;
-            drawState.Mesh[0] = this->model.mesh;
+            drawState.Mesh[0] = this->model.orb.Mesh;
             drawState.VSTexture[LambertShader::boneTex] = this->boneTexture;
             Gfx::ApplyDrawState(drawState);
             /*
@@ -179,10 +173,10 @@ Main::OnRunning() {
             this->model.vsParams.model = glm::mat4();
             this->model.vsParams.mvp = this->camera.ViewProj * this->model.vsParams.model;
             Gfx::ApplyUniformBlock(this->model.vsParams);
-            for (const auto& subMesh : this->model.subMeshes) {
-                if (subMesh.visible) {
+            for (const auto& subMesh : this->model.orb.Submeshes) {
+                if (subMesh.Visible) {
                     //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
-                    Gfx::Draw(subMesh.primGroupIndex);
+                    Gfx::Draw(subMesh.PrimitiveGroupIndex);
                 }
             }
         }
@@ -213,7 +207,7 @@ Main::OnCleanup() {
 //------------------------------------------------------------------------------
 static bool getClipItem(void* data, int index, const char** name) {
     Main* self = (Main*)data;
-    *name = Anim::Library(self->model.animLib).Clips[index].Name.AsCStr();
+    *name = Anim::Library(self->model.orb.AnimLib).Clips[index].Name.AsCStr();
     return true;
 }
 
@@ -221,7 +215,7 @@ static bool getClipItem(void* data, int index, const char** name) {
 void
 Main::drawUI() {
     IMUI::NewFrame();
-    if (this->model.isValid && this->model.animLib.IsValid()) {
+    if (this->model.orb.IsValid && this->model.orb.AnimLib.IsValid()) {
         this->drawMainWindow();
         if (this->ui.animWindowEnabled) {
             this->drawAnimControlWindow();
@@ -264,7 +258,7 @@ void
 Main::drawAnimControlWindow() {
     const float w = 720.0f;
     const float h = 230.0f;
-    const AnimLibrary& lib = Anim::Library(this->model.animLib);
+    const AnimLibrary& lib = Anim::Library(this->model.orb.AnimLib);
     ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
     if (ImGui::Begin("Anim Sequencer", &this->ui.animWindowEnabled)) {
@@ -350,8 +344,8 @@ Main::drawBoneTextureWindow() {
 //------------------------------------------------------------------------------
 void
 Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
-    const AnimSkeleton& skel = Anim::Skeleton(model.skeleton);
-    const AnimLibrary& lib = Anim::Library(this->model.animLib);
+    const AnimSkeleton& skel = Anim::Skeleton(model.orb.Skeleton);
+    const AnimLibrary& lib = Anim::Library(model.orb.AnimLib);
     const AnimClip& clip = lib.Clips[this->ui.animJob.ClipIndex];
     glm::vec3 t, s;
     glm::quat r;
@@ -402,7 +396,7 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
     this->dbgHistory[histIndex].Reserve(skel.NumBones);
     this->dbgPose.Clear();
     wf.Color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f);
-    const Slice<float>& samples = Anim::Samples(this->model.animInstance);
+    const Slice<float>& samples = Anim::Samples(model.animInstance);
     for (int boneIndex=0, i=0; boneIndex<skel.NumBones; boneIndex++, i+=10) {
         t = glm::vec3(samples[i+0], samples[i+1], samples[i+2]);
         r = glm::quat(samples[i+6], samples[i+3], samples[i+4], samples[i+5]);
@@ -447,58 +441,28 @@ void
 Main::loadModel(const Locator& loc) {
     // start loading the .n3o file
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
-        // parse the .n3o file
-        OrbFile orb;
-        if (!orb.Parse(res.Data.Data(), res.Data.Size())) {
-            Log::Error("Failed to parse .orb file '%s'\n", res.Url.AsCStr());
-            return;
+        auto& orb = this->model.orb;
+        if (OrbLoader::Load(res.Data, "model", orb)) {
+            orb.Submeshes[1].Visible = true;
+
+            auto pipSetup = PipelineSetup::FromLayoutAndShader(orb.Layout, this->shader);
+            pipSetup.DepthStencilState.DepthWriteEnabled = true;
+            pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
+            pipSetup.RasterizerState.CullFaceEnabled = true;
+            pipSetup.RasterizerState.SampleCount = this->gfxSetup.SampleCount;
+            pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
+            pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
+            this->model.pipeline = Gfx::CreateResource(pipSetup);
+
+            if (orb.AnimLib.IsValid()) {
+                auto instSetup = AnimInstanceSetup::FromLibraryAndSkeleton(orb.AnimLib, orb.Skeleton);
+                this->model.animInstance = Anim::Create(instSetup);
+                AnimJob job;
+                job.ClipIndex = 0;
+                job.TrackIndex = 0;
+                Anim::Play(model.animInstance, job);
+            }
         }
-
-        // setup new model and its associated graphics resources
-
-        // one mesh for entire model
-        auto meshSetup = orb.MakeMeshSetup();
-        this->model.mesh = Gfx::CreateResource(meshSetup, res.Data.Data(), res.Data.Size());
-
-        // one pipeline state object for all materials
-        auto pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, this->shader);
-        pipSetup.DepthStencilState.DepthWriteEnabled = true;
-        pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-        pipSetup.RasterizerState.CullFaceEnabled = true;
-        pipSetup.RasterizerState.SampleCount = this->gfxSetup.SampleCount;
-        pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
-        pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
-        this->model.pipeline = Gfx::CreateResource(pipSetup);
-
-        // submeshes link materials to mesh primitive groups
-        for (int i = 0; i < orb.Meshes.Size(); i++) {
-            SubMesh subMesh;
-            subMesh.material = orb.Meshes[i].Material;
-            subMesh.primGroupIndex = i;
-            this->model.subMeshes.Add(subMesh);
-        }
-        this->model.subMeshes[1].visible = true;
-
-        // materials hold shader uniform blocks and textures
-        for (int i = 0; i < orb.Materials.Size(); i++) {
-            Material mat;
-            // FIXME: setup textures here
-            //mat.matParams.diffuseColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-            this->model.materials.Add(mat);
-        }
-
-        // character stuff
-        if (orb.HasCharacter()) {
-            this->model.skeleton = Anim::Create(orb.MakeSkeletonSetup("skeleton"));
-            this->model.animLib = Anim::Create(orb.MakeAnimLibSetup("animlib"));
-            this->model.animInstance = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(this->model.animLib, this->model.skeleton));
-            orb.CopyAnimKeys(this->model.animLib);
-            AnimJob job;
-            job.ClipIndex = 0;
-            job.TrackIndex = 0;
-            Anim::Play(model.animInstance, job);
-        }
-        model.isValid = true;
     },
     [](const URL& url, IOStatus::Code ioStatus) {
         // loading failed, just display an error message and carry on

@@ -4,7 +4,7 @@
 #include "Pre.h"
 #include "Wireframe.h"
 #include "Gfx/Gfx.h"
-#include "shaders.h"
+#include "wireframe_shaders.h"
 
 namespace Oryol {
 

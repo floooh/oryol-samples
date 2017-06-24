@@ -1,7 +1,7 @@
 #pragma once
 //------------------------------------------------------------------------------
 /**
-    @class OrbFile
+    @class Oryol::OrbFile
     @brief implement a safe loader for .orb files
     
     This parses an raw in-memory dump of an .orb file into array slices
@@ -20,16 +20,8 @@ namespace Oryol {
 struct OrbFile {
     /// parse from in-memory .orb file
     bool Parse(const uint8_t* orbFileData, int orbFileSize);
-    /// create a mesh setup object for the mesh data in the orb file
-    MeshSetup MakeMeshSetup() const;
     /// test if the file contains a character
     bool HasCharacter() const;
-    /// create an AnimSkeletonSetup object (must be a character)
-    AnimSkeletonSetup MakeSkeletonSetup(const StringAtom& name) const;
-    /// create an AnimLibrarySetup object (must be a character)
-    AnimLibrarySetup MakeAnimLibSetup(const StringAtom& name) const;
-    /// copy anim keys into animation system
-    void CopyAnimKeys(Id animLibId) const;
 
     const uint8_t* Start = nullptr;
     Slice<OrbVertexComponent> VertexComps;
