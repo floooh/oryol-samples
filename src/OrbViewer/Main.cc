@@ -9,7 +9,6 @@
 #include "IMUI/IMUI.h"
 #include "Anim/Anim.h"
 #include "HttpFS/HTTPFileSystem.h"
-#include "Core/Containers/InlineArray.h"
 #include "Common/OrbLoader.h"
 #include "Common/CameraHelper.h"
 #include "Common/Wireframe.h"
@@ -27,15 +26,6 @@ public:
     AppState::Code OnRunning();
     AppState::Code OnCleanup();
 
-    struct Material {
-        //LambertShader::matParams matParams;
-        // FIXME: textures would go here
-    };
-    struct SubMesh {
-        int material = 0;
-        int primGroupIndex = 0;
-        bool visible = false;
-    };
     struct Model {
         OrbModel orb;
         Id pipeline;
@@ -51,8 +41,8 @@ public:
     void loadModel(const Locator& loc);
     void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
 
-    static const int BoneTextureWidth = 1024;
-    static const int BoneTextureHeight = 128;
+    static const int BoneTextureWidth = 768;
+    static const int BoneTextureHeight = 1;
 
     struct {
         bool freezeTime = false;
@@ -155,7 +145,6 @@ Main::OnRunning() {
         Gfx::UpdateTexture(this->boneTexture, boneInfo.SkinMatrixTable, imgAttrs);
     }
 
-    // FIXME: change to instance rendering
     Gfx::BeginPass();
     if (this->model.orb.IsValid) {
         if (this->ui.meshEnabled) {
@@ -335,7 +324,7 @@ Main::drawBoneTextureWindow() {
     ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
     if (ImGui::Begin("Bone Texture", &this->ui.textureWindowEnabled)) {
         ImGui::Image(this->imguiBoneTextureId,
-            ImVec2(float(BoneTextureWidth), float(BoneTextureHeight)),
+            ImVec2(float(BoneTextureWidth), float(BoneTextureHeight) * 4),
             ImVec2(0, 0), ImVec2(0.25f, 0.25f));
     }
     ImGui::End();
