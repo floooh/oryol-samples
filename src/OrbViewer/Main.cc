@@ -76,8 +76,8 @@ AppState::Code
 Main::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-//    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
+    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+//ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
@@ -115,7 +115,7 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->ui.animJob.TrackIndex = 1;
     this->ui.animJob.DurationIsLoopCount = true;
     this->ui.animJob.Duration = 1.0f;
-    this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.5f;
+    this->ui.animJob.FadeIn = this->ui.animJob.FadeOut = 0.25f;
 
     return App::OnInit();
 }
@@ -363,9 +363,9 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
             const AnimCurve& tCurve = clip.Curves[i*3 + 0];
             const AnimCurve& rCurve = clip.Curves[i*3 + 1];
             const AnimCurve& sCurve = clip.Curves[i*3 + 2];
-            t = glm::vec3(tCurve.StaticValue);
-            r = glm::quat(rCurve.StaticValue.w, rCurve.StaticValue.x, rCurve.StaticValue.y, rCurve.StaticValue.z);
-            s = glm::vec3(sCurve.StaticValue);
+            t = glm::vec3(tCurve.StaticValue[0], tCurve.StaticValue[1], tCurve.StaticValue[2]);
+            r = glm::quat(rCurve.StaticValue[3], rCurve.StaticValue[0], rCurve.StaticValue[1], rCurve.StaticValue[2]);
+            s = glm::vec3(sCurve.StaticValue[0], sCurve.StaticValue[1], sCurve.StaticValue[2]);
             const glm::mat4 tm = glm::translate(glm::mat4(), t);
             const glm::mat4 rm = glm::mat4_cast(r);
             const glm::mat4 sm = glm::scale(glm::mat4(), s);
