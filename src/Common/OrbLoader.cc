@@ -140,9 +140,8 @@ OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
     }
 
     // one mesh for entire model
-    auto meshSetup = makeMeshSetup(orb, Locator(name, MeshSignature));
-    model.Layout = meshSetup.Layout;
-    model.Mesh = Gfx::CreateResource(meshSetup, data.Data(), data.Size());
+    model.MeshSetup = makeMeshSetup(orb, Locator(name, MeshSignature));
+    model.Mesh = Gfx::CreateResource(model.MeshSetup, data.Data(), data.Size());
 
     // materials hold shader uniform blocks and textures
     for (int i = 0; i < orb.Materials.Size(); i++) {

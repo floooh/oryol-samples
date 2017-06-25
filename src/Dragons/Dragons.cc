@@ -3,10 +3,12 @@
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "Core/Main.h"
+#include "Core/Time/Clock.h"
 #include "Gfx/Gfx.h"
 #include "Input/Input.h"
 #include "IO/IO.h"
 #include "Anim/Anim.h"
+#include "IMUI/IMUI.h"
 #include "HttpFS/HTTPFileSystem.h"
 #include "Core/Containers/InlineArray.h"
 #include "Common/CameraHelper.h"
@@ -23,11 +25,14 @@ public:
     AppState::Code OnCleanup();
 
     void loadModel(const Locator& loc);
-    void addInstance(const glm::vec3& pos, int animClipIndex);
+    void initInstances();
+    void updateNumInstances();
+    void drawUI();
 
-    static const int MaxNumInstances = 128;
+    static const int PrimGroupIndex = 1;
+    static const int MaxNumInstances = 1024;
     static const int BoneTextureWidth = 1024;
-    static const int BoneTextureHeight = MaxNumInstances/3 + 1;
+    static const int BoneTextureHeight = MaxNumInstances/4 + 1;
 
     GfxSetup gfxSetup;
     CameraHelper camera;
@@ -35,7 +40,9 @@ public:
     OrbModel orbModel;
     DrawState drawState;
     Shader::vsParams vsParams;
-    InlineArray<Id, MaxNumInstances> instances;
+    int numWantedInstances = 1;
+    int numActiveInstances = 0;
+    StaticArray<Id, MaxNumInstances> instances;
 
     // xxxx,yyyy,zzzz is transposed model matrix
     // boneInfo is position in bone texture
@@ -47,6 +54,13 @@ public:
         float boneInfo[4];
     };
     InstanceVertex InstanceData[MaxNumInstances];
+
+    float evalDuration = 0.0f;
+    float updateBoneTexDuration = 0.0f;
+    float updateInstBufDuration = 0.0f;
+    float drawDuration = 0.0f;
+    float frameDuration = 0.0f;
+    TimePoint frameLapTime;
 };
 OryolMain(Dragons);
 
@@ -63,16 +77,18 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
     this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.3f, 0.5f, 1.0f));
     Gfx::Setup(this->gfxSetup);
     AnimSetup animSetup;
+    animSetup.MaxNumInstances = MaxNumInstances;
     animSetup.MaxNumActiveInstances = MaxNumInstances;
     animSetup.SkinMatrixTableWidth = BoneTextureWidth;
     animSetup.SkinMatrixTableHeight = BoneTextureHeight;
     Anim::Setup(animSetup);
     Input::Setup();
+    IMUI::Setup();
 
     this->camera.Setup(false);
-    this->camera.Center = glm::vec3(0.0f, 0.0f, -2.5f);
-    this->camera.Distance = 10.0f;
-    this->camera.Orbital = glm::vec2(glm::radians(25.0f), 0.0f);
+    this->camera.Center = glm::vec3(0.0f, 2.0f, -2.5f);
+    this->camera.Distance = 20.0f;
+    this->camera.Orbital = glm::vec2(glm::radians(45.0f), 0.0f);
 
     // setup the shader now, pipeline setup happens when model file has loaded
     this->shader = Gfx::CreateResource(Shader::Setup());
@@ -106,17 +122,28 @@ ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
 //------------------------------------------------------------------------------
 AppState::Code
 Dragons::OnRunning() {
-    this->camera.Update();
-
+    if (!ImGui::IsMouseHoveringAnyWindow()) {
+        this->camera.HandleInput();
+    }
+    this->camera.Center.z = -(this->numActiveInstances / 16) * 2.0f;
+    this->camera.UpdateTransforms();
     if (this->orbModel.IsValid) {
+        // add or remove instances
+        if (this->numWantedInstances != this->numActiveInstances) {
+            this->updateNumInstances();
+        }
+
         // update the animation system
         Anim::NewFrame();
-        for (const auto& inst : this->instances) {
-            Anim::AddActiveInstance(inst);
+        for (int i = 0; i < this->numActiveInstances; i++) {
+            Anim::AddActiveInstance(this->instances[i]);
         }
+        TimePoint evalStart = Clock::Now();
         Anim::Evaluate(1.0/60.0);
+        this->evalDuration = Clock::Since(evalStart).AsMilliSeconds();
 
         // upload animated skeleton bone info to GPU texture
+        TimePoint updTexStart = Clock::Now();
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
         ImageDataAttrs imgAttrs;
         imgAttrs.NumFaces = 1;
@@ -124,31 +151,41 @@ Dragons::OnRunning() {
         imgAttrs.Offsets[0][0] = 0;
         imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
         Gfx::UpdateTexture(this->drawState.VSTexture[Shader::boneTex], boneInfo.SkinMatrixTable, imgAttrs);
+        this->updateBoneTexDuration = Clock::Since(updTexStart).AsMilliSeconds();
 
         // update the instance vertex buffer with bone texture locations
-        int instIndex = 0;
-        for (const auto& inst : this->instances) {
+        TimePoint updInstStart = Clock::Now();
+        int instIndex;
+        for (instIndex = 0; instIndex < this->numActiveInstances; instIndex++) {
             const auto& shdInfo = boneInfo.InstanceInfos[instIndex].ShaderInfo;
             auto& vtx = this->InstanceData[instIndex];
             for (int i = 0; i < 4; i++) {
                 vtx.boneInfo[i] = shdInfo[i];
             }
-            instIndex++;
         }
-        Gfx::UpdateVertices(this->drawState.Mesh[1], this->InstanceData, sizeof(InstanceVertex)*instIndex);
+        if (instIndex > 0) {
+            Gfx::UpdateVertices(this->drawState.Mesh[1], this->InstanceData, sizeof(InstanceVertex)*instIndex);
+        }
+        this->updateInstBufDuration = Clock::Since(updInstStart).AsMilliSeconds();
     }
 
     // all dragons rendered in a single draw call via hardware instancing
+    TimePoint drawStart = Clock::Now();
     Gfx::BeginPass();
+    IMUI::NewFrame();
+    this->drawUI();
     if (this->orbModel.IsValid) {
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
         Gfx::ApplyDrawState(this->drawState);
         this->vsParams.view_proj = this->camera.ViewProj;
         Gfx::ApplyUniformBlock(this->vsParams);
-        Gfx::Draw(1, this->instances.Size());
+        Gfx::Draw(PrimGroupIndex, this->numActiveInstances);
     }
+    ImGui::Render();
     Gfx::EndPass();
     Gfx::CommitFrame();
+    this->drawDuration = Clock::Since(drawStart).AsMilliSeconds();
+    this->frameDuration = Clock::LapTime(this->frameLapTime).AsMilliSeconds();
 
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }
@@ -156,6 +193,7 @@ Dragons::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 Dragons::OnCleanup() {
+    IMUI::Discard();
     Input::Discard();
     Anim::Discard();
     Gfx::Discard();
@@ -172,7 +210,7 @@ Dragons::loadModel(const Locator& loc) {
             this->drawState.Mesh[0] = this->orbModel.Mesh;
 
             auto pipSetup = PipelineSetup::FromShader(this->shader);
-            pipSetup.Layouts[0] = this->orbModel.Layout;
+            pipSetup.Layouts[0] = this->orbModel.MeshSetup.Layout;
             pipSetup.Layouts[1] = this->instanceMeshLayout;
             pipSetup.DepthStencilState.DepthWriteEnabled = true;
             pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
@@ -182,9 +220,7 @@ Dragons::loadModel(const Locator& loc) {
             pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
             this->drawState.Pipeline = Gfx::CreateResource(pipSetup);
 
-            this->addInstance(glm::vec3(-5.0f, 0.0f, 0.0f), 0);
-            this->addInstance(glm::vec3(0.0f, 0.0f, 0.0f), 6);
-            this->addInstance(glm::vec3(+5.0f, 0.0f, 0.0f), 4);
+            this->initInstances();
         }
     },
     [](const URL& url, IOStatus::Code ioStatus) {
@@ -195,25 +231,75 @@ Dragons::loadModel(const Locator& loc) {
 
 //------------------------------------------------------------------------------
 void
-Dragons::addInstance(const glm::vec3& pos, int clipIndex) {
-    if (!this->orbModel.IsValid) {
-        return;
+Dragons::initInstances() {
+    // this pre-creates the max number of instances (these are not
+    // evaluated or rendered until they are added per-frame
+    // as active instances to the animation system
+    o_assert_dbg(this->orbModel.IsValid);
+
+    // setup the instance positions in the instance data vertex buffer,
+    // we arange them in a triangle, pointing to the viewer
+    int x = 0, y = 0;
+    const float dist = 5.0f;
+    for (int instIndex = 0; instIndex < MaxNumInstances; instIndex++) {
+        glm::vec3 pos((x*dist) - (y*dist)*0.5f, 0.0f, -y*dist);
+        glm::mat4 m = glm::translate(glm::mat4(), pos);
+        for (int i = 0; i < 4; i++) {
+            this->InstanceData[instIndex].xxxx[i] = m[i][0];
+            this->InstanceData[instIndex].yyyy[i] = m[i][1];
+            this->InstanceData[instIndex].zzzz[i] = m[i][2];
+        }
+        if (++x > y) {
+            // next row
+            x = 0;
+            y++;
+        }
     }
-    // write the model matrix directly into the per-instance vertex buffer
-    const int instIndex = this->instances.Size();
-    glm::mat4 m = glm::translate(glm::mat4(), pos);
-    for (int i = 0; i < 4; i++) {
-        this->InstanceData[instIndex].xxxx[i] = m[i][0];
-        this->InstanceData[instIndex].yyyy[i] = m[i][1];
-        this->InstanceData[instIndex].zzzz[i] = m[i][2];
+    // pre-allocate instances
+    auto instSetup = AnimInstanceSetup::FromLibraryAndSkeleton(this->orbModel.AnimLib, this->orbModel.Skeleton);
+    for (int instIndex = 0; instIndex < MaxNumInstances; instIndex++) {
+        this->instances[instIndex] = Anim::Create(instSetup);
     }
-    // setup a new anim instance, and start the anim clip on it
-    Id inst = Anim::Create(AnimInstanceSetup::FromLibraryAndSkeleton(
-        this->orbModel.AnimLib,
-        this->orbModel.Skeleton));
-    this->instances.Add(inst);
-    AnimJob job;
-    job.ClipIndex = clipIndex;
-    job.TrackIndex = 0;
-    Anim::Play(inst, job);
 }
+
+//------------------------------------------------------------------------------
+void
+Dragons::updateNumInstances() {
+    if (this->numWantedInstances < this->numActiveInstances) {
+        // removal is easy...
+        this->numActiveInstances = this->numWantedInstances;
+    }
+    else if (this->numWantedInstances > this->numActiveInstances) {
+        const int numClips = 6;
+        const int clips[numClips] = { 6, 0, 4, 7, 8 };
+        AnimJob job;
+        job.TrackIndex = 0;
+        for (int i = this->numActiveInstances; i < this->numWantedInstances; i++) {
+            int r = rand();
+            job.ClipIndex = clips[r % numClips];
+            Anim::Play(this->instances[i], job);
+        }
+        this->numActiveInstances = this->numWantedInstances;
+    }
+}
+
+//------------------------------------------------------------------------------
+void
+Dragons::drawUI() {
+    if (this->orbModel.IsValid) {
+        if (ImGui::Begin("Dragons", nullptr)) {
+            const int numBonesPerInst = Anim::Skeleton(this->orbModel.Skeleton).NumBones;
+            const int numTrisPerInst = this->orbModel.MeshSetup.PrimitiveGroup(PrimGroupIndex).NumElements / 3;
+            ImGui::SliderInt("num instances", &this->numWantedInstances, 1, MaxNumInstances);
+            ImGui::Text("num bones:     %d\n",  numBonesPerInst * this->numActiveInstances);
+            ImGui::Text("num triangles: %d\n", numTrisPerInst * this->numActiveInstances);
+            ImGui::Text("anim system:  %.3f ms", this->evalDuration);
+            ImGui::Text("texture upd:  %.3f ms", this->updateBoneTexDuration);
+            ImGui::Text("instance upd: %.3f ms", this->updateInstBufDuration);
+            ImGui::Text("render:       %.3f ms", this->drawDuration);
+            ImGui::Text("frame time:   %.3f ms", this->frameDuration);
+        }
+        ImGui::End();
+    }
+}
+

@@ -33,19 +33,19 @@ CameraHelper::Setup(bool usePointerLock) {
         }
         return mode;
     });
-    this->updateTransforms();
+    this->UpdateTransforms();
 }
 
 //------------------------------------------------------------------------------
 void
 CameraHelper::Update() {
-    this->handleInput();
-    this->updateTransforms();
+    this->HandleInput();
+    this->UpdateTransforms();
 }
 
 //------------------------------------------------------------------------------
 void
-CameraHelper::handleInput() {
+CameraHelper::HandleInput() {
     if (Input::KeyboardAttached()) {
         if (Input::KeyDown(Key::P)) {
             this->Paused = !this->Paused;
@@ -66,7 +66,7 @@ CameraHelper::handleInput() {
 
 //------------------------------------------------------------------------------
 void
-CameraHelper::updateTransforms() {
+CameraHelper::UpdateTransforms() {
     // recompute projection matrix if framebuffer size has changed
     int w = Gfx::DisplayAttrs().FramebufferWidth;
     int h = Gfx::DisplayAttrs().FramebufferHeight;

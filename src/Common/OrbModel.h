@@ -24,7 +24,7 @@ struct OrbModel {
     };
 
     bool IsValid = false;
-    VertexLayout Layout;
+    MeshSetup MeshSetup;
     Id Mesh;
     Id Skeleton;
     Id AnimLib;

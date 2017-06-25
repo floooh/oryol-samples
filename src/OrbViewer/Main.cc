@@ -434,7 +434,7 @@ Main::loadModel(const Locator& loc) {
         if (OrbLoader::Load(res.Data, "model", orb)) {
             orb.Submeshes[1].Visible = true;
 
-            auto pipSetup = PipelineSetup::FromLayoutAndShader(orb.Layout, this->shader);
+            auto pipSetup = PipelineSetup::FromLayoutAndShader(orb.MeshSetup.Layout, this->shader);
             pipSetup.DepthStencilState.DepthWriteEnabled = true;
             pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
             pipSetup.RasterizerState.CullFaceEnabled = true;

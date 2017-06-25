@@ -17,9 +17,9 @@ public:
     void Update();
 
     /// update transform matrices
-    void updateTransforms();
+    void UpdateTransforms();
     /// handle input
-    void handleInput();
+    void HandleInput();
 
     bool Paused = false;
     float MinCamDist = 5.0f;
