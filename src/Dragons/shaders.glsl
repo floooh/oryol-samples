@@ -63,7 +63,7 @@ void main() {
     vec4 zzzz = instance2;
     vec4 skin_info = instance3;
     vec4 p0;
-    skinned_pos(position, weights, indices, skin_info, p0);
+    skinned_pos(position, weights, indices * 255.0, skin_info, p0);
     vec4 p1 = vec4(dot(p0, xxxx), dot(p0, yyyy), dot(p0, zzzz), 1.0);
     gl_Position = view_proj * p1;
     N = vec3(dot(normal, xxxx.xyz), dot(normal, yyyy.xyz), dot(normal, zzzz.xyz));
@@ -80,7 +80,7 @@ void main() {
 }
 @end
 
-@program Shader vs fs
+@program DragonShader vs fs
 
 
 

@@ -44,7 +44,7 @@ static MeshSetup makeMeshSetup(const OrbFile& orb, const Locator& loc) {
             case OrbVertexFormat::Float4:   dst.Format = VertexFormat::Float4; break;
             case OrbVertexFormat::Byte4:    dst.Format = VertexFormat::Byte4; break;
             case OrbVertexFormat::Byte4N:   dst.Format = VertexFormat::Byte4N; break;
-            case OrbVertexFormat::UByte4:   dst.Format = VertexFormat::UByte4; break;
+            case OrbVertexFormat::UByte4:   dst.Format = VertexFormat::UByte4N; break;  // NOT A BUG
             case OrbVertexFormat::UByte4N:  dst.Format = VertexFormat::UByte4N; break;
             case OrbVertexFormat::Short2:   dst.Format = VertexFormat::Short2; break;
             case OrbVertexFormat::Short2N:  dst.Format = VertexFormat::Short2N; break;

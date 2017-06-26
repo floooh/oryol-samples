@@ -39,7 +39,7 @@ public:
     Id shader;
     OrbModel orbModel;
     DrawState drawState;
-    Shader::vsParams vsParams;
+    DragonShader::vsParams vsParams;
     int numWantedInstances = 1;
     int numActiveInstances = 0;
     StaticArray<Id, MaxNumInstances> instances;
@@ -69,8 +69,8 @@ AppState::Code
 Dragons::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-//ioSetup.Assigns.Add("orb:", "http://localhost:8000/");
+//    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+ioSetup.Assigns.Add("orb:", "http://127.0.0.1:8080/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Dragons");
@@ -91,7 +91,7 @@ Dragons::OnInit() {
     this->camera.Orbital = glm::vec2(glm::radians(45.0f), 0.0f);
 
     // setup the shader now, pipeline setup happens when model file has loaded
-    this->shader = Gfx::CreateResource(Shader::Setup());
+    this->shader = Gfx::CreateResource(DragonShader::Setup());
 
     // RGBA32F texture for the animated skeleton bones
     auto texSetup = TextureSetup::Empty2D(BoneTextureWidth, BoneTextureHeight, 1, PixelFormat::RGBA32F, Usage::Stream);
@@ -99,7 +99,7 @@ Dragons::OnInit() {
     texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
     texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
     texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-    this->drawState.VSTexture[Shader::boneTex] = Gfx::CreateResource(texSetup);
+    this->drawState.VSTexture[DragonShader::boneTex] = Gfx::CreateResource(texSetup);
 
     // vertex buffer for per-instance info
     auto meshSetup = MeshSetup::Empty(MaxNumInstances, Usage::Stream);
@@ -150,7 +150,7 @@ Dragons::OnRunning() {
         imgAttrs.NumMipMaps = 1;
         imgAttrs.Offsets[0][0] = 0;
         imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
-        Gfx::UpdateTexture(this->drawState.VSTexture[Shader::boneTex], boneInfo.SkinMatrixTable, imgAttrs);
+        Gfx::UpdateTexture(this->drawState.VSTexture[DragonShader::boneTex], boneInfo.SkinMatrixTable, imgAttrs);
         this->updateBoneTexDuration = Clock::Since(updTexStart).AsMilliSeconds();
 
         // update the instance vertex buffer with bone texture locations

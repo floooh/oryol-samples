@@ -24,9 +24,9 @@ Wireframe::Setup(const GfxSetup& gfxSetup) {
     pipSetup.RasterizerState.SampleCount = gfxSetup.SampleCount;
     pipSetup.BlendState.BlendEnabled = true;
     pipSetup.BlendState.SrcFactorRGB = BlendFactor::SrcAlpha;
-    pipSetup.BlendState.SrcFactorAlpha = BlendFactor::SrcAlpha;
+    pipSetup.BlendState.SrcFactorAlpha = BlendFactor::Zero;
     pipSetup.BlendState.DstFactorRGB = BlendFactor::OneMinusSrcAlpha;
-    pipSetup.BlendState.SrcFactorAlpha = BlendFactor::OneMinusSrcAlpha;
+    pipSetup.BlendState.DstFactorAlpha = BlendFactor::One;
     pipSetup.BlendState.ColorFormat = gfxSetup.ColorFormat;
     pipSetup.BlendState.DepthFormat = gfxSetup.DepthFormat;
     pipSetup.PrimType = PrimitiveType::Lines;

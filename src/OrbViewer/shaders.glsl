@@ -64,7 +64,7 @@ in vec4 indices;
 out vec3 N;
 void main() {
     vec4 pos;
-    skinned_pos(position, weights, indices, pos);
+    skinned_pos(position, weights, indices * 255.0, pos);
     gl_Position = mvp * pos;
     N = (model * vec4(normal, 0.0)).xyz;
 }
