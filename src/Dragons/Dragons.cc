@@ -113,8 +113,9 @@ Dragons::OnInit() {
     this->instanceMeshLayout = meshSetup.Layout;
     this->drawState.Mesh[1] = Gfx::CreateResource(meshSetup);
 
-    // load the dragon.orb file and add the first model instance
-    this->loadModel("orb:dragon.orb");
+    // load the dragon.orb file and add the first model instance,
+    // the .txt extension is a hack so that github pages compresses the file
+    this->loadModel("orb:dragon.orb.txt");
 
     return App::OnInit();
 }
