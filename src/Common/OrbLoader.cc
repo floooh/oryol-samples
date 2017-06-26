@@ -133,7 +133,7 @@ bool
 OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
     model = OrbModel();
 
-    // parse the .n3o file
+    // parse the .orb file
     OrbFile orb;
     if (!orb.Parse(data.Data(), data.Size())) {
         return false;

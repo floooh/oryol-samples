@@ -204,7 +204,7 @@ Dragons::OnCleanup() {
 //------------------------------------------------------------------------------
 void
 Dragons::loadModel(const Locator& loc) {
-    // start loading the .n3o file
+    // start loading the .orb file
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
         if (OrbLoader::Load(res.Data, "model", this->orbModel)) {
             this->drawState.Mesh[0] = this->orbModel.Mesh;

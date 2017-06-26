@@ -108,8 +108,9 @@ Main::OnInit() {
     this->imguiBoneTextureId = IMUI::AllocImage();
     IMUI::BindImage(this->imguiBoneTextureId, this->boneTexture);
 
-    // load the dragon.orb file
-    this->loadModel("orb:dragon.orb");
+    // load the dragon.orb file (the .txt extension is a hack
+    // so that github pages compresses the file)
+    this->loadModel("orb:dragon.orb.txt");
 
     // write something useful into the anim job triggered by UI
     this->ui.animJob.TrackIndex = 1;
@@ -427,7 +428,7 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
 //------------------------------------------------------------------------------
 void
 Main::loadModel(const Locator& loc) {
-    // start loading the .n3o file
+    // start loading the .orb file
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
         auto& orb = this->model.orb;
         if (OrbLoader::Load(res.Data, "model", orb)) {
