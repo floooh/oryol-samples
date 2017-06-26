@@ -287,10 +287,10 @@ Main::drawAnimControlWindow() {
             const auto& inst = Anim::instance(this->model.animInstance);
             ImDrawList* dl = ImGui::GetWindowDrawList();
             for (const auto& item : inst.sequencer.items) {
-                float x0 = playCursorX + (item.absStartTime - t) * pixelsPerSecond;
-                float x1 = playCursorX + (item.absEndTime - t) * pixelsPerSecond;
-                float f0 = playCursorX + (item.absFadeInTime - t) * pixelsPerSecond;
-                float f1 = playCursorX + (item.absFadeOutTime - t) * pixelsPerSecond;
+                float x0 = playCursorX + float((item.absStartTime - t) * pixelsPerSecond);
+                float x1 = playCursorX + float((item.absEndTime - t) * pixelsPerSecond);
+                float f0 = playCursorX + float((item.absFadeInTime - t) * pixelsPerSecond);
+                float f1 = playCursorX + float((item.absFadeOutTime - t) * pixelsPerSecond);
                 float y0 = (item.trackIndex * trackDist);
                 float y1 = y0 + trackHeight;
                 x0 = glm::clamp(x0, 0.0f, clipWidth);

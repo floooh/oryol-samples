@@ -55,11 +55,11 @@ public:
     };
     InstanceVertex InstanceData[MaxNumInstances];
 
-    float evalDuration = 0.0f;
-    float updateBoneTexDuration = 0.0f;
-    float updateInstBufDuration = 0.0f;
-    float drawDuration = 0.0f;
-    float frameDuration = 0.0f;
+    double evalDuration = 0.0;
+    double updateBoneTexDuration = 0.0;
+    double updateInstBufDuration = 0.0;
+    double drawDuration = 0.0;
+    double frameDuration = 0.0;
     TimePoint frameLapTime;
 };
 OryolMain(Dragons);
