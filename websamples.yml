@@ -1,63 +1,73 @@
 - name: KC85-3
   desc: Test
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/KC85-3/KC85-3.jpg
   src: KC85-3/Main.cc
 - name: BulletPhysicsBasic
   desc: Simplet Bullet physics integration
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/BulletPhysicsBasic/BulletPhysicsBasic.jpg
   src: BulletPhysicsBasic/BulletPhysicsBasic.cc
 - name: BulletPhysicsCloth
   desc: Bullet cloth demo
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/BulletPhysicsCloth/BulletPhysicsCloth.jpg
   src: BulletPhysicsCloth/BulletPhysicsCloth.cc
 - name: Paclone
   desc: Simple Pacman clone (work in progress!
-  type: emscripten,pnacl,android
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/Paclone/Paclone.jpg
   src: Paclone/Paclone.cc
 - name: StbVoxelDemo
   desc: Voxel Demo using stb_voxel_render.h
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/StbVoxelDemo/StbVoxelDemo.jpg
   src: StbVoxelDemo/
 - name: TurboBadgerDemo
   desc: Turbobadger UI integration
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/TurboBadgerDemo/TurboBadgerDemo.jpg
   src: TurboBadgerDemo/TurboBadgerDemo.cc
 - name: ImGuiDemo
   desc: ImGui UI integration
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/ImGuiDemo/ImGuiDemo.jpg
   src: ImGuiDemo/ImGuiDemo.cc
 - name: NuklearUIBasic
   desc: Nuklear UI basic demo
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/NuklearUIBasic/NuklearUIBasic.jpg
   src: NuklearUIBasic/NuklearUIBasic.cc
 - name: NuklearUIAdvanced
   desc: Nuklear UI advanced demo
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/NuklearUIAdvanced/NuklearUIAdvanced.jpg
   src: NuklearUIAdvanced/NuklearUIAdvanced.cc
 - name: Fractal
   desc: Simple fractal explorer
-  type: emscripten,pnacl,android
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/Fractal/Fractal.jpg
   src: Fractal/Fractal.cc
 - name: DrawCallExplorer
   desc: Explore 3D API draw call behaviour
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/DrawCallExplorer/DrawCallExplorer.jpg
   src: DrawCallExplorer/DrawCallExplorer.cc
 - name: MeshViewer
   desc: Load and render .omsh mesh files
-  type: emscripten,pnacl
+  type: emscripten
   image: /Users/floh/projects/oryol-samples/src/MeshViewer/MeshViewer.jpg
   src: MeshViewer/MeshViewer.cc
+- name: OrbViewer
+  desc: Load and render .orb files
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/OrbViewer/OrbViewer.jpg
+  src: OrbViewer/Main.cc
+- name: Dragons
+  desc: Animation module stresstest
+  type: emscripten
+  image: /Users/floh/projects/oryol-samples/src/Dragons/Dragons.jpg
+  src: Dragons/Main.cc
 - name: SoloudMOD
   desc: Soloud MOD sample
   type: emscripten
