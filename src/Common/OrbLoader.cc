@@ -145,7 +145,7 @@ OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
 
     // materials hold shader uniform blocks and textures
     for (int i = 0; i < orb.Materials.Size(); i++) {
-        OrbModel::Material& mat = model.Materials.Add();
+        model.Materials.Add();
         // FIXME: setup textures here
     }
 

@@ -283,7 +283,6 @@ Main::drawAnimControlWindow() {
             const float trackHeight = 16.0f;
             const float trackDist = 17.0f;
             const float playCursorX = 50.0f;
-            float cursorPos = 30.0f;
             const auto& inst = Anim::instance(this->model.animInstance);
             ImDrawList* dl = ImGui::GetWindowDrawList();
             for (const auto& item : inst.sequencer.items) {

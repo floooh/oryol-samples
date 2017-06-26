@@ -24,7 +24,7 @@ struct OrbModel {
     };
 
     bool IsValid = false;
-    MeshSetup MeshSetup;
+    class MeshSetup MeshSetup;
     Id Mesh;
     Id Skeleton;
     Id AnimLib;

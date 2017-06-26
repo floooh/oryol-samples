@@ -175,7 +175,6 @@ Dragons::OnRunning() {
     IMUI::NewFrame();
     this->drawUI();
     if (this->orbModel.IsValid) {
-        const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
         Gfx::ApplyDrawState(this->drawState);
         this->vsParams.view_proj = this->camera.ViewProj;
         Gfx::ApplyUniformBlock(this->vsParams);
