@@ -70,7 +70,6 @@ Dragons::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
     ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-//ioSetup.Assigns.Add("orb:", "http://127.0.0.1:8080/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Dragons");
