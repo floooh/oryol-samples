@@ -122,6 +122,7 @@ static AnimLibrarySetup makeAnimLibSetup(const OrbFile& orb, const Locator& loc)
             dstCurve.Static = (-1 == srcCurve.KeyOffset);
             for (int i = 0; i < 4; i++) {
                 dstCurve.StaticValue[i] = srcCurve.StaticKey[i];
+                dstCurve.Magnitude[i] = srcCurve.Magnitude[i];
             }
         }
     }
