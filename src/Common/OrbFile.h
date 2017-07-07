@@ -24,6 +24,7 @@ struct OrbFile {
     bool HasCharacter() const;
 
     const uint8_t* Start = nullptr;
+    glm::vec3 VertexMagnitude;
     Slice<OrbVertexComponent> VertexComps;
     Slice<OrbValueProperty> ValueProps;
     Slice<OrbTextureProperty> TexProps;

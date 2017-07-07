@@ -139,6 +139,7 @@ OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
     if (!orb.Parse(data.Data(), data.Size())) {
         return false;
     }
+    model.VertexMagnitude = glm::vec4(orb.VertexMagnitude, 1.0f);
 
     // one mesh for entire model
     model.MeshSetup = makeMeshSetup(orb, Locator(name, MeshSignature));

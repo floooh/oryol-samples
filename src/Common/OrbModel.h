@@ -6,6 +6,7 @@
 */
 #include "Core/Containers/InlineArray.h"
 #include "Gfx/GfxTypes.h"
+#include <glm/vec4.hpp>
 
 namespace Oryol {
 
@@ -25,6 +26,7 @@ struct OrbModel {
 
     bool IsValid = false;
     class MeshSetup MeshSetup;
+    glm::vec4 VertexMagnitude;
     Id Mesh;
     Id Skeleton;
     Id AnimLib;

@@ -69,7 +69,8 @@ AppState::Code
 Dragons::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+//    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+ioSetup.Assigns.Add("orb:", "http://127.0.0.1:8000/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Dragons");
@@ -207,6 +208,7 @@ Dragons::loadModel(const Locator& loc) {
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
         if (OrbLoader::Load(res.Data, "model", this->orbModel)) {
             this->drawState.Mesh[0] = this->orbModel.Mesh;
+            this->vsParams.vtx_mag = this->orbModel.VertexMagnitude;
 
             auto pipSetup = PipelineSetup::FromShader(this->shader);
             pipSetup.Layouts[0] = this->orbModel.MeshSetup.Layout;

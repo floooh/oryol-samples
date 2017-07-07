@@ -51,6 +51,7 @@ void skinned_pos(in vec4 pos, in vec4 skin_weights, in vec4 skin_indices, out ve
 uniform vsParams {
     mat4 mvp;
     mat4 model;
+    vec4 vtx_mag;
     vec4 skin_info;
 };
 uniform sampler2D boneTex;
@@ -64,7 +65,7 @@ in vec4 indices;
 out vec3 N;
 void main() {
     vec4 pos;
-    skinned_pos(position, weights, indices * 255.0, pos);
+    skinned_pos(position * vtx_mag, weights, indices * 255.0, pos);
     gl_Position = mvp * pos;
     N = (model * vec4(normal, 0.0)).xyz;
 }

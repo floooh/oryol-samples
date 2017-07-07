@@ -24,6 +24,9 @@ OrbFile::Parse(const uint8_t* orbFileData, int orbFileSize) {
     if ((start + sizeof(OrbHeader)) >= end) return false;
     const OrbHeader* hdr = (const OrbHeader*) start;
     if (hdr->Magic != 'ORB1') return false;
+    for (int i = 0; i < 3; i++) {
+        this->VertexMagnitude[i] = hdr->VertexMagnitude[i];
+    }
 
     // setup item array slices
     VertexComps = Slice<OrbVertexComponent>((OrbVertexComponent*)&start[hdr->VertexComponentOffset], hdr->NumVertexComponents);

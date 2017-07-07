@@ -76,7 +76,8 @@ AppState::Code
 Main::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+//    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
+ioSetup.Assigns.Add("orb:", "http://127.0.0.1:8000/");
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
@@ -441,6 +442,7 @@ Main::loadModel(const Locator& loc) {
             pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
             pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
             this->model.pipeline = Gfx::CreateResource(pipSetup);
+            this->model.vsParams.vtx_mag = orb.VertexMagnitude;
 
             if (orb.AnimLib.IsValid()) {
                 auto instSetup = AnimInstanceSetup::FromLibraryAndSkeleton(orb.AnimLib, orb.Skeleton);

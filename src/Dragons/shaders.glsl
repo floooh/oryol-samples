@@ -43,6 +43,7 @@ void skinned_pos(in vec4 pos, in vec4 skin_weights, in vec4 skin_indices, in vec
 @vs vs
 uniform vsParams {
     mat4 view_proj;
+    vec4 vtx_mag;
 };
 uniform sampler2D boneTex;
 
@@ -63,7 +64,7 @@ void main() {
     vec4 zzzz = instance2;
     vec4 skin_info = instance3;
     vec4 p0;
-    skinned_pos(position, weights, indices * 255.0, skin_info, p0);
+    skinned_pos(position * vtx_mag, weights, indices * 255.0, skin_info, p0);
     vec4 p1 = vec4(dot(p0, xxxx), dot(p0, yyyy), dot(p0, zzzz), 1.0);
     gl_Position = view_proj * p1;
     N = vec3(dot(normal, xxxx.xyz), dot(normal, yyyy.xyz), dot(normal, zzzz.xyz));
