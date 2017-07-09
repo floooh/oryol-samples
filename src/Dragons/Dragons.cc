@@ -29,7 +29,7 @@ public:
     void updateNumInstances();
     void drawUI();
 
-    static const int PrimGroupIndex = 1;
+    static const int PrimGroupIndex = 0;
     static const int MaxNumInstances = 1024;
     static const int BoneTextureWidth = 1024;
     static const int BoneTextureHeight = MaxNumInstances/4 + 1;
@@ -69,8 +69,7 @@ AppState::Code
 Dragons::OnInit() {
     IOSetup ioSetup;
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-//    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-ioSetup.Assigns.Add("orb:", "http://127.0.0.1:8000/");
+    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
     IO::Setup(ioSetup);
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Dragons");
@@ -271,8 +270,8 @@ Dragons::updateNumInstances() {
         this->numActiveInstances = this->numWantedInstances;
     }
     else if (this->numWantedInstances > this->numActiveInstances) {
-        const int numClips = 6;
-        const int clips[numClips] = { 6, 0, 4, 7, 8 };
+        const int numClips = 7;
+        const int clips[numClips] = { 0, 1, 2, 3, 4, 5 };
         AnimJob job;
         job.TrackIndex = 0;
         for (int i = this->numActiveInstances; i < this->numWantedInstances; i++) {
