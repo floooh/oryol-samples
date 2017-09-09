@@ -61,6 +61,9 @@ public:
     double drawDuration = 0.0;
     double frameDuration = 0.0;
     TimePoint frameLapTime;
+    bool uiTextureWindowEnabled = false;
+    int uiTexScale = 2;
+    ImTextureID imguiBoneTextureId = nullptr;
 };
 OryolMain(Dragons);
 
@@ -98,7 +101,10 @@ Dragons::OnInit() {
     texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
     texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
     texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-    this->drawState.VSTexture[DragonShader::boneTex] = Gfx::CreateResource(texSetup);
+    Id boneTexture = Gfx::CreateResource(texSetup);
+    this->drawState.VSTexture[DragonShader::boneTex] = boneTexture;
+    this->imguiBoneTextureId = IMUI::AllocImage();
+    IMUI::BindImage(this->imguiBoneTextureId, boneTexture);
 
     // vertex buffer for per-instance info
     auto meshSetup = MeshSetup::Empty(MaxNumInstances, Usage::Stream);
@@ -287,6 +293,7 @@ Dragons::updateNumInstances() {
 void
 Dragons::drawUI() {
     if (this->orbModel.IsValid) {
+        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
         if (ImGui::Begin("Dragons", nullptr)) {
             const int numBonesPerInst = Anim::Skeleton(this->orbModel.Skeleton).NumBones;
             const int numTrisPerInst = this->orbModel.MeshSetup.PrimitiveGroup(PrimGroupIndex).NumElements / 3;
@@ -298,8 +305,31 @@ Dragons::drawUI() {
             ImGui::Text("instance upd: %.3f ms", this->updateInstBufDuration);
             ImGui::Text("render:       %.3f ms", this->drawDuration);
             ImGui::Text("frame time:   %.3f ms", this->frameDuration);
+            if (ImGui::Button("Bone Texture")) {
+                this->uiTextureWindowEnabled = !this->uiTextureWindowEnabled;
+            }
         }
         ImGui::End();
+        if (this->uiTextureWindowEnabled) {
+            ImGui::SetNextWindowPos(ImVec2(10, 220), ImGuiSetCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(900, 400), ImGuiSetCond_Once);
+            if (ImGui::Begin("Bone Texture", &this->uiTextureWindowEnabled)) {
+                ImGui::InputInt("##scale", &this->uiTexScale);
+                ImGui::SameLine();
+                if (ImGui::Button("1x")) this->uiTexScale = 1;
+                ImGui::SameLine();
+                if (ImGui::Button("2x")) this->uiTexScale = 2;
+                ImGui::SameLine();
+                if (ImGui::Button("4x")) this->uiTexScale = 3;
+                ImGui::BeginChild("##frame", ImVec2(0,0), true, ImGuiWindowFlags_HorizontalScrollbar);
+                ImGui::Image(this->imguiBoneTextureId,
+                    ImVec2(float(BoneTextureWidth*this->uiTexScale), float(BoneTextureHeight*this->uiTexScale)),
+                    ImVec2(0, 0), ImVec2(1.0f, 1.0f));
+                ImGui::End();
+            }
+            ImGui::End();
+        }
     }
 }
+
 
