@@ -125,34 +125,44 @@ SceneRenderer::createVoxelMeshes(const VertexLayout& layout) {
     // voxel data via stb_voxel_render
 
     // allocate voxel buffer and decode the runlength-encoded voxel data
-    const int bufSize = Emu::Vox::X*Emu::Vox::Y*Emu::Vox::Z;
+    const int strideX = Emu::Vox::Z+2;
+    const int strideY = (Emu::Vox::X+2)*strideX;
+    const int bufSize = (Emu::Vox::X+2) * (Emu::Vox::Y+2) * (Emu::Vox::Z+2);
     uint8_t* colorBuf = (uint8_t*) Memory::Alloc(bufSize);
+    Memory::Clear(colorBuf, bufSize);
     uint8_t* lightBuf = (uint8_t*) Memory::Alloc(bufSize);
-    int dstIndex = 0;
+    Memory::Clear(lightBuf, bufSize);
     const uint8_t* srcPtr = Emu::Vox::VoxelsRLE;
     const int rleNum = sizeof(Emu::Vox::VoxelsRLE);
+    int x = 0, y = 0, z = 0;
     for (int i = 0; i < rleNum; i += 2) {
         const uint8_t num = srcPtr[i];
         o_assert_dbg(num > 0);
         const uint8_t c = srcPtr[i+1];
         for (uint8_t ii=0; ii<num; ii++) {
+            const int dstIndex = (y+1)*strideY + (x+1)*strideX + (z+1);
             o_assert_dbg(dstIndex < bufSize);
             colorBuf[dstIndex] = c;
             lightBuf[dstIndex] = c == 0 ? 255 : 0;
-            dstIndex++;
+            z++;
+            if (z >= Emu::Vox::Z) {
+                z = 0;
+                x++;
+                if (x >= Emu::Vox::X) {
+                    x = 0;
+                    y++;
+                    o_assert_dbg(y <= Emu::Vox::Y);
+                }
+            }
         }
     }
-    o_assert_dbg(dstIndex == bufSize);
 
     // setup stb mesher
     stbvox_mesh_maker stbvox;
     stbvox_init_mesh_maker(&stbvox);
     stbvox_set_default_mesh(&stbvox, 0);
-    stbvox_set_buffer(&stbvox, 0, 0, colorBuf, bufSize);
-    const int strideX = Emu::Vox::Z;
-    const int strideY = Emu::Vox::X*Emu::Vox::Z;
     stbvox_set_input_stride(&stbvox, strideX, strideY);
-    stbvox_set_input_range(&stbvox, 0, 0, 0, Emu::Vox::X, Emu::Vox::Y, Emu::Vox::Z);
+    stbvox_set_input_range(&stbvox, 1, 1, 1, Emu::Vox::X, Emu::Vox::Y, Emu::Vox::Z);
     stbvox_input_description* desc = stbvox_get_input_description(&stbvox);
     desc->blocktype = colorBuf;
     desc->color = colorBuf;

@@ -71,18 +71,18 @@ KC853App::OnInit() {
     // setup the scene and ray collide checker
     this->scene.Setup(gfxSetup);
     this->rayChecker.Setup(gfxSetup);
-    this->rayChecker.Add(Screen,        glm::vec3(50, 14, 38), glm::vec3(77, 35, 41));
-    this->rayChecker.Add(Junost,        glm::vec3(40, 10, 42), glm::vec3(79, 39, 65));
-    this->rayChecker.Add(PowerOnButton, glm::vec3(44, 1, 37), glm::vec3(49, 5, 41));
-    this->rayChecker.Add(ResetButton,   glm::vec3(51, 1, 37), glm::vec3(56, 5, 41));
-    this->rayChecker.Add(BaseDevice,    glm::vec3(40, 1, 39), glm::vec3(79, 8, 65));
-    this->rayChecker.Add(Keyboard,      glm::vec3(44, 1, 18), glm::vec3(75, 2, 33));
-    this->rayChecker.Add(Jungle,        glm::vec3(26, 1, 17), glm::vec3(34, 2, 22));
-    this->rayChecker.Add(Digger,        glm::vec3(19, 7, 46), glm::vec3(27, 8, 51));
-    this->rayChecker.Add(Pengo,         glm::vec3(15, 1, 13), glm::vec3(23, 2, 18));
-    this->rayChecker.Add(Boulderdash,   glm::vec3(21, 1, 4),  glm::vec3(29, 2, 9));
-    this->rayChecker.Add(Cave,          glm::vec3(14, 0, 28), glm::vec3(33, 6, 40));
-    this->rayChecker.Add(TapeDeck,      glm::vec3(14, 0, 41), glm::vec3(33, 6, 54));
+    this->rayChecker.Add(Screen,        glm::vec3(51, 15, 39), glm::vec3(78, 36, 42));
+    this->rayChecker.Add(Junost,        glm::vec3(41, 11, 43), glm::vec3(80, 40, 66));
+    this->rayChecker.Add(PowerOnButton, glm::vec3(45, 2, 38), glm::vec3(50, 6, 42));
+    this->rayChecker.Add(ResetButton,   glm::vec3(51, 2, 38), glm::vec3(57, 6, 42));
+    this->rayChecker.Add(BaseDevice,    glm::vec3(41, 2, 40), glm::vec3(80, 9, 66));
+    this->rayChecker.Add(Keyboard,      glm::vec3(45, 2, 19), glm::vec3(76, 3, 34));
+    this->rayChecker.Add(Jungle,        glm::vec3(27, 2, 18), glm::vec3(35, 3, 23));
+    this->rayChecker.Add(Digger,        glm::vec3(20, 8, 47), glm::vec3(28, 9, 52));
+    this->rayChecker.Add(Pengo,         glm::vec3(16, 2, 14), glm::vec3(24, 3, 19));
+    this->rayChecker.Add(Boulderdash,   glm::vec3(22, 2, 5),  glm::vec3(30, 3, 10));
+    this->rayChecker.Add(Cave,          glm::vec3(15, 1, 29), glm::vec3(34, 7, 41));
+    this->rayChecker.Add(TapeDeck,      glm::vec3(15, 1, 42), glm::vec3(34, 7, 55));
 
     // setup the camera helper
     this->camera.Setup(false);
@@ -97,7 +97,7 @@ KC853App::OnInit() {
 
     glm::mat4 m = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     m = glm::rotate(m, -glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    m = glm::translate(m, glm::vec3(-63.0f, 39.0f, 25.0f));
+    m = glm::translate(m, glm::vec3(-64.0f, 40.0f, 26.0f));
     m = glm::scale(m, glm::vec3(28.0f, 1.0f, 22.0f));
     this->kcModelMatrix = m;
 
