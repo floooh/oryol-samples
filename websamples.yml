@@ -67,7 +67,7 @@
   desc: Animation module stresstest
   type: emscripten
   image: /Users/floh/projects/oryol-samples/src/Dragons/Dragons.jpg
-  src: Dragons/Main.cc
+  src: Dragons/Dragons.cc
 - name: SoloudMOD
   desc: Soloud MOD sample
   type: emscripten
