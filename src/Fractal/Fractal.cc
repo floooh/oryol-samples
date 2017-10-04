@@ -273,7 +273,7 @@ FractalApp::drawUI() {
         }
         else {
             ImDrawList* drawList = ImGui::GetWindowDrawList();
-            drawList->PushClipRect(ImVec4(0, 0, fbWidth, fbHeight));
+            drawList->PushClipRect(ImVec2(0, 0), ImVec2(fbWidth, fbHeight));
             drawList->AddRect(this->dragStartPos, ImGui::GetMousePos(), 0xFFFFFFFF);
             drawList->PopClipRect();
         }
