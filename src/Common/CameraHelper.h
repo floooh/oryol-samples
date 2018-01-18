@@ -30,6 +30,7 @@ public:
     float NearZ = 0.1f;
     float FarZ = 400.0f;
     glm::vec2 Orbital = glm::vec2(glm::radians(25.0f), glm::radians(180.0f));
+    glm::vec2 OrbitalStart = glm::vec2(glm::radians(25.0f), glm::radians(180.0f));
     bool Dragging = false;
     glm::vec3 Center;
     glm::vec3 EyePos;

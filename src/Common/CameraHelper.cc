@@ -62,6 +62,18 @@ CameraHelper::HandleInput() {
         }
         this->Distance = glm::clamp(this->Distance + Input::MouseScroll().y * 0.5f, this->MinCamDist, this->MaxCamDist);
     }
+    if (Input::TouchpadAttached()) {
+        if (Input::TouchPanningStarted()) {
+            this->OrbitalStart = this->Orbital;
+        }
+        if (Input::TouchPanning()) {
+                glm::vec2 touchDist = Input::TouchPosition(0) - Input::TouchStartPosition(0);
+                this->Orbital.y = this->OrbitalStart.y - touchDist.x * 0.01f;
+                this->Orbital.x = glm::clamp(this->OrbitalStart.x + touchDist.y * 0.01f,
+                                             glm::radians(this->MinLatitude),
+                                             glm::radians(this->MaxLatitude));
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
