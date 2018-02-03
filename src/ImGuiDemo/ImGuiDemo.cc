@@ -66,7 +66,7 @@ ImGuiDemoApp::OnRunning() {
     // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
     if (this->showTestWindow) {
         ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowTestWindow(&showTestWindow);
+        ImGui::ShowTestWindow();
     }
 
     ImGui::Render();
