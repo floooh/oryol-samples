@@ -21,8 +21,8 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
 
     // initialize the emulator
     if (this->model == YAKC::system::kc85_3) {
-        this->emu.roms.add(rom_images::caos31, dump_caos31, sizeof(dump_caos31));
-        this->emu.roms.add(rom_images::kc85_basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
+        roms.add(rom_images::caos31, dump_caos31, sizeof(dump_caos31));
+        roms.add(rom_images::kc85_basic_rom, dump_basic_c0, sizeof(dump_basic_c0));
     }
 
     ext_funcs sys_funcs;
@@ -37,8 +37,8 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
 
     // register modules
     if (int(this->model) & int(YAKC::system::any_kc85)) {
-        this->emu.kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
-        this->emu.kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
+        kc85.exp.register_none_module("NO MODULE", "Click to insert module!");
+        kc85.exp.register_ram_module(kc85_exp::m022_16kbyte, 0xC0, 0x4000, "nohelp");
     }
 
     // setup a mesh and draw state to render a simple plane
@@ -88,7 +88,7 @@ KC85Emu::Update(Duration frameTime) {
         this->keyboard.HandleInput();
         int micro_secs = (int) frameTime.AsMicroSeconds();
         const uint64_t audio_cycle_count = this->audio.GetProcessedCycles();
-        this->emu.step(micro_secs, audio_cycle_count);
+        this->emu.exec(micro_secs, audio_cycle_count);
         this->audio.Update();
     }
     else {
@@ -110,11 +110,11 @@ KC85Emu::TogglePower() {
     else {
         this->emu.poweron(this->model, this->rom);
         if (int(this->model) & int(YAKC::system::any_kc85)) {
-            if (!this->emu.kc85.exp.slot_occupied(0x08)) {
-                this->emu.kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
+            if (!kc85.exp.slot_occupied(0x08)) {
+                kc85.exp.insert_module(0x08, kc85_exp::m022_16kbyte);
             }
-            if (!this->emu.kc85.exp.slot_occupied(0x0C)) {
-                this->emu.kc85.exp.insert_module(0x0C, kc85_exp::none);
+            if (!kc85.exp.slot_occupied(0x0C)) {
+                kc85.exp.insert_module(0x0C, kc85_exp::none);
             }
         }
     }
