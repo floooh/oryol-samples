@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------------
 #include "Pre.h"
 #include "KC85Emu.h"
+#include "yakc/systems/kc85.h"
 #include "Assets/Gfx/ShapeBuilder.h"
 #include "Input/Input.h"
 #include "yakc/roms/rom_dumps.h"
