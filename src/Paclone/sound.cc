@@ -313,7 +313,7 @@ sound::CreateSoundEffects() {
     }));
 
     // eat ghost effect
-    this->eatGhost = Sound::CreateResource(SoundEffectSetup::FromSampleFunc(1, 0.512f, 44100, [this](float dt, int16_t* samples, int numSamples) {
+    this->eatGhost = Sound::CreateResource(SoundEffectSetup::FromSampleFunc(1, 0.512f, 44100, [](float dt, int16_t* samples, int numSamples) {
         NamcoVoice voice(dt, NamcoVoice::Pacman4);
         Range range;
         float t = 0.0f;
