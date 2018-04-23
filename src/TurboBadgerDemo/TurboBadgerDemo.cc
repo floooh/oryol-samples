@@ -109,7 +109,7 @@ TurboBadgerDemoApp::OnInit() {
     tbuiSetup.Fonts.Add("ui:demo/fonts/orangutang.tb.txt", "Orangutang");
     tbuiSetup.Fonts.Add("ui:demo/fonts/orange.tb.txt", "Orange");
     TBUI::Setup(tbuiSetup);
-    TBUI::DoAfter(this->getInitResources(tbuiSetup), [this] {
+    TBUI::DoAfter(this->getInitResources(tbuiSetup), [] {
         TBUI::InitTurboBadger();
         TBUI::DoAfter(MainWindow::GetMainResource(), [] {
             new MainWindow;
@@ -117,10 +117,10 @@ TurboBadgerDemoApp::OnInit() {
         TBUI::DoAfter(TabContainerWindow::GetMainResource(), [] {
             new TabContainerWindow;
         });
-        TBUI::DoAfter(AdvancedListWindow::GetResources(), [this] {
+        TBUI::DoAfter(AdvancedListWindow::GetResources(), [] {
             new AdvancedListWindow(&advanced_source);
         });
-        TBUI::DoAfter(ListWindow::GetMainResource(), [this] {
+        TBUI::DoAfter(ListWindow::GetMainResource(), [] {
             new ListWindow(&name_source);
         });
         TBUI::DoAfter(EditWindow::GetResources(), [] {

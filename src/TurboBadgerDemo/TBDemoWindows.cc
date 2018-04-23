@@ -184,7 +184,7 @@ MainWindow::OnEvent(const TBWidgetEvent& ev) {
         else if (ev.target->GetID() == TBIDC("test-resource-edit")) {
             TBUI::DoAfter(Array<URL>({
                 "ui:demo/ui_resources/resource_edit_test.tb.txt",
-                "ui:demo/ui_resources/resource_edit_window.tb.txt" }), [this] {
+                "ui:demo/ui_resources/resource_edit_window.tb.txt" }), [] {
                 
                 ResourceEditWindow *res_edit_win = new ResourceEditWindow();
                 res_edit_win->Load("ui:demo/ui_resources/resource_edit_test.tb.txt");
