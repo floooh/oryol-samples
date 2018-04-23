@@ -30,7 +30,7 @@ OryolMain(ImGuiDemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 ImGuiDemoApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(1024, 700, "Oryol ImGui Demo"));
+    Gfx::Setup(GfxDesc().Width(1024).Height(700).Title("Oryol ImGui Demo"));
     Input::Setup();
     IMUI::Setup();
     this->lastTimePoint = Clock::Now();
@@ -42,7 +42,7 @@ ImGuiDemoApp::OnInit() {
 AppState::Code
 ImGuiDemoApp::OnRunning() {
 
-    Gfx::BeginPass(PassAction::Clear(glm::vec4(this->clearColor.x, this->clearColor.y, this->clearColor.z, 1.0f)));
+    Gfx::BeginPass(PassAction().Clear(this->clearColor.x, this->clearColor.y, this->clearColor.z, 1.0f));
     IMUI::NewFrame(Clock::LapTime(this->lastTimePoint));
 
     // 1. Show a simple window
@@ -66,7 +66,7 @@ ImGuiDemoApp::OnRunning() {
     // 3. Show the ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
     if (this->showTestWindow) {
         ImGui::SetNextWindowPos(ImVec2(460, 20), ImGuiSetCond_FirstUseEver);
-        ImGui::ShowTestWindow(&showTestWindow);
+        ImGui::ShowTestWindow();
     }
 
     ImGui::Render();
