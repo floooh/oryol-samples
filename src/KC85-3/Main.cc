@@ -63,7 +63,7 @@ KC853App::OnInit() {
     auto gfxDesc = GfxDesc().Width(800).Height(512).SampleCount(4).Title("Emu");
     Gfx::Setup(gfxDesc);
     Input::Setup();
-    Dbg::Setup();
+    Dbg::Setup(DbgDesc().SampleCount(4));
     Dbg::TextScale(2.0f, 2.0f);
 
     // setup the scene and ray collide checker
