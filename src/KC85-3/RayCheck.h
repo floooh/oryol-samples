@@ -16,7 +16,7 @@ namespace Oryol {
 class RayCheck {
 public:
     /// setup the ray checker
-    void Setup(const GfxSetup& gfxSetup);
+    void Setup(const GfxDesc& gfxDesc);
     /// discard the ray checker
     void Discard();
 
@@ -42,6 +42,7 @@ public:
     StaticArray<box, MaxNumBoxes> boxes;
 
     DrawState dbgDrawState;
+    PrimitiveGroup dbgPrimGroup;
     int dbgIntersectId = -1;
     glm::vec3 dbgMouseRayPos;
     glm::vec3 dbgMouseRayVec;

@@ -19,15 +19,16 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-SceneRenderer::Setup(const GfxSetup& gfxSetup) {
+SceneRenderer::Setup(const GfxDesc& gfxDesc) {
 
     // setup graphics resources
-    VertexLayout layout;
-    layout.Add(VertexAttr::Position, VertexFormat::UByte4N);
-    layout.Add(VertexAttr::Normal, VertexFormat::UByte4N);
-    this->indexMesh = this->createIndexMesh();
-    this->voxelMeshes = this->createVoxelMeshes(layout);
-    this->setupDrawState(gfxSetup, layout);
+    VertexLayout layout = {
+        { "position", VertexFormat::UByte4N },
+        { "normal", VertexFormat::UByte4N }
+    };
+    this->indexBuffer = this->createIndexBuffer();
+    this->voxelBuffers = this->createVoxelBuffers(layout);
+    this->setupDrawState(gfxDesc, layout);
     this->setupShaderParams();
 }
 
@@ -40,29 +41,32 @@ SceneRenderer::Discard() {
 //------------------------------------------------------------------------------
 void
 SceneRenderer::Render(const glm::mat4& viewProj) {
-    for (int i = 0; i < voxelMeshes.Size(); i++) {
-        this->drawState.Mesh[1] = this->voxelMeshes[i].mesh;
+    for (int i = 0; i < voxelBuffers.Size(); i++) {
+        this->drawState.VertexBuffers[0] = this->voxelBuffers[i].buffer;
         this->vsParams.mvp = viewProj;
         Gfx::ApplyDrawState(this->drawState);
         Gfx::ApplyUniformBlock(this->vsParams);
-        Gfx::Draw(PrimitiveGroup(0, this->voxelMeshes[i].numQuads*6));
+        Gfx::Draw(0, this->voxelBuffers[i].numQuads*6);
     }
 }
 
 //------------------------------------------------------------------------------
 void
-SceneRenderer::setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layout) {
-    o_assert(this->indexMesh.IsValid());
-    Id shd = Gfx::CreateResource(VoxelShader::Setup());
-    auto pip = PipelineSetup::FromShader(shd);
-    pip.Layouts[1] = layout;    // IMPORTANT: vertices are in mesh slot #1, not #0!
-    pip.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    pip.DepthStencilState.DepthWriteEnabled = true;
-    pip.RasterizerState.CullFaceEnabled = true;
-    pip.RasterizerState.CullFace = Face::Front;
-    pip.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    this->drawState.Pipeline = Gfx::CreateResource(pip);
-    this->drawState.Mesh[0] = this->indexMesh;
+SceneRenderer::setupDrawState(const GfxDesc& gfxDesc, const VertexLayout& layout) {
+    o_assert(this->indexBuffer.IsValid());
+    Id shd = Gfx::CreateShader(VoxelShader::Desc());
+    this->drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(shd)
+        .Layout(0, layout)
+        .IndexType(IndexType::UInt16)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .DepthWriteEnabled(true)
+        .CullFaceEnabled(true)
+        .CullFace(Face::Front)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
+    this->drawState.IndexBuffer = this->indexBuffer;
 }
 
 //------------------------------------------------------------------------------
@@ -94,7 +98,7 @@ SceneRenderer::setupShaderParams() {
 
 //------------------------------------------------------------------------------
 Id
-SceneRenderer::createIndexMesh() {
+SceneRenderer::createIndexBuffer() {
     // creates one big index mesh with the max number of indices to
     // render one of the voxel meshes
     uint16_t indices[MaxNumIndices];
@@ -109,18 +113,15 @@ SceneRenderer::createIndexMesh() {
         indices[ii+5] = baseVertexIndex + 3;
     }
 
-    auto meshSetup = MeshSetup::FromData(Usage::InvalidUsage, Usage::Immutable);
-    meshSetup.NumVertices = 0;
-    meshSetup.NumIndices  = MaxNumIndices;
-    meshSetup.IndicesType = IndexType::Index16;
-    meshSetup.VertexDataOffset = InvalidIndex;
-    meshSetup.IndexDataOffset = 0;
-    return Gfx::CreateResource(meshSetup, indices, sizeof(indices));
+    return Gfx::CreateBuffer(BufferDesc()
+        .Type(BufferType::IndexBuffer)
+        .Size(sizeof(indices))
+        .Content(indices));
 }
 
 //------------------------------------------------------------------------------
 Array<SceneRenderer::voxMesh>
-SceneRenderer::createVoxelMeshes(const VertexLayout& layout) {
+SceneRenderer::createVoxelBuffers(const VertexLayout& layout) {
     // this creates one or more Oryol meshes from the run-length-encoded
     // voxel data via stb_voxel_render
 
@@ -169,8 +170,6 @@ SceneRenderer::createVoxelMeshes(const VertexLayout& layout) {
     desc->lighting = lightBuf;
 
     // meshify into Oryol meshes in a loop
-    auto meshSetup = MeshSetup::FromData();
-    meshSetup.Layout = layout;
     const int vtxBufSize = MaxNumVertices * layout.ByteSize();
     void* vtxBuf = Memory::Alloc(vtxBufSize);
 
@@ -182,9 +181,10 @@ SceneRenderer::createVoxelMeshes(const VertexLayout& layout) {
         int numQuads = stbvox_get_quad_count(&stbvox, 0);
         if (numQuads > 0) {
             voxMesh m;
-            meshSetup.NumVertices = numQuads * 4;
-            o_assert_dbg(meshSetup.NumVertices <= MaxNumVertices);
-            m.mesh = Gfx::CreateResource(meshSetup, vtxBuf, vtxBufSize);
+            m.buffer = Gfx::CreateBuffer(BufferDesc()
+                .Type(BufferType::VertexBuffer)
+                .Size(numQuads * 4 * layout.ByteSize())
+                .Content(vtxBuf));
             m.numQuads = numQuads;
             result.Add(m);
         }

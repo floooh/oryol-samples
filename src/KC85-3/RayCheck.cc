@@ -12,20 +12,23 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-RayCheck::Setup(const GfxSetup& gfxSetup) {
+RayCheck::Setup(const GfxDesc& gfxDesc) {
 
     // setup a debug draw shape
-    ShapeBuilder shapeBuilder;
-    shapeBuilder.Layout.Add(VertexAttr::Position, VertexFormat::Float3);
-    shapeBuilder.Box(1.0f, 1.0f, 1.0f, 1);
-    this->dbgDrawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
+    auto shape = ShapeBuilder()
+        .Positions("position", VertexFormat::Float3)
+        .Box(1.0f, 1.0f, 1.0f, 1)
+        .Build();
+    this->dbgDrawState.VertexBuffers[0] = Gfx::CreateBuffer(shape.VertexBufferDesc);
+    this->dbgDrawState.IndexBuffer = Gfx::CreateBuffer(shape.IndexBufferDesc);
+    this->dbgPrimGroup = shape.PrimitiveGroups[0];
 
-    Id shd = Gfx::CreateResource(DbgShader::Setup());
-    auto pip = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
-    pip.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    pip.BlendState.ColorFormat = gfxSetup.ColorFormat;
-    pip.BlendState.DepthFormat = gfxSetup.DepthFormat;
-    this->dbgDrawState.Pipeline = Gfx::CreateResource(pip);
+    Id shd = Gfx::CreateShader(DbgShader::Desc());
+    this->dbgDrawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(shape.PipelineDesc)
+        .Shader(shd)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
 }
 
 //------------------------------------------------------------------------------
@@ -106,7 +109,7 @@ RayCheck::RenderDebug(const glm::mat4& viewProj) {
     vsParams.color = this->dbgIntersectId == -1 ? red : green;
     Gfx::ApplyDrawState(this->dbgDrawState);
     Gfx::ApplyUniformBlock(vsParams);
-    Gfx::Draw();
+    Gfx::Draw(this->dbgPrimGroup);
 }
 
 } // namespace Oryol
