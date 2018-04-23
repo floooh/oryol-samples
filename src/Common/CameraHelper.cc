@@ -80,8 +80,8 @@ CameraHelper::HandleInput() {
 void
 CameraHelper::UpdateTransforms() {
     // recompute projection matrix if framebuffer size has changed
-    int w = Gfx::DisplayAttrs().FramebufferWidth;
-    int h = Gfx::DisplayAttrs().FramebufferHeight;
+    int w = Gfx::DisplayAttrs().Width;
+    int h = Gfx::DisplayAttrs().Height;
     if ((w != this->fbWidth) || (h != this->fbHeight)) {
         this->fbWidth = w;
         this->fbHeight = h;

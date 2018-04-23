@@ -12,29 +12,39 @@
 
 namespace Oryol {
 
-const uint32_t MeshSignature = 1;
-const uint32_t AnimSkeletonSignature = 2;
-const uint32_t AnimLibrarySignature = 3;
+constexpr uint32_t VBufSignature = 1;
+constexpr uint32_t IBufSignature = 2;
+constexpr uint32_t AnimSkeletonSignature = 3;
+constexpr uint32_t AnimLibrarySignature = 4;
+
+struct meshDesc {
+    BufferDesc vertexBufferDesc;
+    BufferDesc indexBufferDesc;
+    VertexLayout layout;
+    int numVertices = 0;
+    int numIndices = 0;
+    IndexType::Code indexType = IndexType::UInt16;
+    InlineArray<PrimitiveGroup, 16> primGroups;
+};
 
 //------------------------------------------------------------------------------
-static MeshSetup makeMeshSetup(const OrbFile& orb, const Locator& loc) {
-    auto setup = MeshSetup::FromData();
-    setup.Locator = loc;
+static meshDesc makeMeshDesc(const uint8_t* data, const OrbFile& orb, const StringAtom& name) {
+    meshDesc desc;
     for (const auto& src : orb.VertexComps) {
         VertexLayout::Component dst;
         switch (src.Attr) {
-            case OrbVertexAttr::Position:   dst.Attr = VertexAttr::Position; break;
-            case OrbVertexAttr::Normal:     dst.Attr = VertexAttr::Normal; break;
-            case OrbVertexAttr::TexCoord0:  dst.Attr = VertexAttr::TexCoord0; break;
-            case OrbVertexAttr::TexCoord1:  dst.Attr = VertexAttr::TexCoord1; break;
-            case OrbVertexAttr::TexCoord2:  dst.Attr = VertexAttr::TexCoord2; break;
-            case OrbVertexAttr::TexCoord3:  dst.Attr = VertexAttr::TexCoord3; break;
-            case OrbVertexAttr::Tangent:    dst.Attr = VertexAttr::Tangent; break;
-            case OrbVertexAttr::Binormal:   dst.Attr = VertexAttr::Binormal; break;
-            case OrbVertexAttr::Weights:    dst.Attr = VertexAttr::Weights; break;
-            case OrbVertexAttr::Indices:    dst.Attr = VertexAttr::Indices; break;
-            case OrbVertexAttr::Color0:     dst.Attr = VertexAttr::Color0; break;
-            case OrbVertexAttr::Color1:     dst.Attr = VertexAttr::Color1; break;
+            case OrbVertexAttr::Position:   dst.Name = "position"; break;
+            case OrbVertexAttr::Normal:     dst.Name = "normal"; break;
+            case OrbVertexAttr::TexCoord0:  dst.Name = "texcoord0"; break;
+            case OrbVertexAttr::TexCoord1:  dst.Name = "texcoord1"; break;
+            case OrbVertexAttr::TexCoord2:  dst.Name = "texcoord2"; break;
+            case OrbVertexAttr::TexCoord3:  dst.Name = "texcoord3"; break;
+            case OrbVertexAttr::Tangent:    dst.Name = "tangent"; break;
+            case OrbVertexAttr::Binormal:   dst.Name = "binormal"; break;
+            case OrbVertexAttr::Weights:    dst.Name = "weights"; break;
+            case OrbVertexAttr::Indices:    dst.Name = "indices"; break;
+            case OrbVertexAttr::Color0:     dst.Name = "color0"; break;
+            case OrbVertexAttr::Color1:     dst.Name = "color1"; break;
             default: break;
         }
         switch (src.Format) {
@@ -52,17 +62,25 @@ static MeshSetup makeMeshSetup(const OrbFile& orb, const Locator& loc) {
             case OrbVertexFormat::Short4N:  dst.Format = VertexFormat::Short4N; break;
             default: break;
         }
-        setup.Layout.Add(dst);
+        desc.layout.Add(dst);
     }
     for (const auto& subMesh : orb.Meshes) {
-        setup.AddPrimitiveGroup(PrimitiveGroup(subMesh.FirstIndex, subMesh.NumIndices));
-        setup.NumVertices += subMesh.NumVertices;
-        setup.NumIndices += subMesh.NumIndices;
+        desc.primGroups.Add(PrimitiveGroup(subMesh.FirstIndex, subMesh.NumIndices));
+        desc.numVertices += subMesh.NumVertices;
+        desc.numIndices += subMesh.NumIndices;
     }
-    setup.IndicesType = IndexType::Index16;
-    setup.VertexDataOffset = orb.VertexDataOffset;
-    setup.IndexDataOffset = orb.IndexDataOffset;
-    return setup;
+    desc.vertexBufferDesc = BufferDesc()
+        .Type(BufferType::VertexBuffer)
+        .Locator(Locator(name, VBufSignature))
+        .Size(desc.layout.ByteSize() * desc.numVertices)
+        .Content(data + orb.VertexDataOffset);
+    desc.indexBufferDesc = BufferDesc()
+        .Type(BufferType::IndexBuffer)
+        .Locator(Locator(name, IBufSignature))
+        .Size(sizeof(uint16_t) * desc.numIndices)
+        .Content(data + orb.IndexDataOffset);
+    desc.indexType = IndexType::UInt16;
+    return desc;
 }
 
 //------------------------------------------------------------------------------
@@ -131,7 +149,7 @@ static AnimLibrarySetup makeAnimLibSetup(const OrbFile& orb, const Locator& loc)
 
 //------------------------------------------------------------------------------
 bool
-OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
+OrbLoader::Load(const MemoryBuffer& data, const StringAtom& name, OrbModel& model) {
     model = OrbModel();
 
     // parse the .orb file
@@ -142,8 +160,11 @@ OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
     model.VertexMagnitude = glm::vec4(orb.VertexMagnitude, 1.0f);
 
     // one mesh for entire model
-    model.MeshSetup = makeMeshSetup(orb, Locator(name, MeshSignature));
-    model.Mesh = Gfx::CreateResource(model.MeshSetup, data.Data(), data.Size());
+    auto meshDesc = makeMeshDesc(data.Data(), orb, name);
+    model.VertexBufferDesc = meshDesc.vertexBufferDesc;
+    model.IndexBufferDesc = meshDesc.indexBufferDesc;
+    model.VertexBuffer = Gfx::CreateBuffer(model.VertexBufferDesc);
+    model.IndexBuffer = Gfx::CreateBuffer(model.IndexBufferDesc);
 
     // materials hold shader uniform blocks and textures
     for (int i = 0; i < orb.Materials.Size(); i++) {
@@ -155,7 +176,7 @@ OrbLoader::Load(const Buffer& data, const StringAtom& name, OrbModel& model) {
     for (int i = 0; i < orb.Meshes.Size(); i++) {
         OrbModel::Submesh& m = model.Submeshes.Add();
         m.MaterialIndex = orb.Meshes[i].Material;
-        m.PrimitiveGroupIndex = i;
+        m.PrimGroup = meshDesc.primGroups[i];
     }
 
     // character stuff
