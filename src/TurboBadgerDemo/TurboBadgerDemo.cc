@@ -58,15 +58,12 @@ const char *boy_names[] = {
 AppState::Code
 TurboBadgerDemoApp::OnInit() {
 
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("res:", ORYOL_SAMPLE_URL);
-    ioSetup.Assigns.Add("ui:", "res:tbui/");
-    IO::Setup(ioSetup);
+    IO::Setup(IODesc()
+        .FileSystem("http", HTTPFileSystem::Creator())
+        .Assign("res:", ORYOL_SAMPLE_URL)
+        .Assign("ui:", "res:tbui/"));
 
-    auto gfxSetup = GfxSetup::Window(1000, 650, "TurboBadger UI Demo");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.0f, 1.0f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    Gfx::Setup(GfxDesc().Width(1000).Height(650).Title("TurboBadger UI Demo"));
     Dbg::Setup();
     Input::Setup();
 
@@ -135,7 +132,7 @@ TurboBadgerDemoApp::OnInit() {
 AppState::Code
 TurboBadgerDemoApp::OnRunning() {
 
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.5f, 0.0f, 1.0f, 1.0f));
     TBUI::Draw();
     Dbg::DrawTextBuffer();
     Gfx::EndPass();
