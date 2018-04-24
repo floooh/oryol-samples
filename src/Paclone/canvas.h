@@ -16,7 +16,7 @@ public:
     canvas();
     
     /// setup the canvas
-    void Setup(const Oryol::TextureSetup& rtSetup, int numTilesX, int numTilesY, int tileWidth, int tileHeight, int numSprites);
+    void Setup(Oryol::PixelFormat::Code format, int numTilesX, int numTilesY, int tileWidth, int tileHeight, int numSprites);
     /// discard the cancas
     void Discard();
     /// return true if canvas has been setup
