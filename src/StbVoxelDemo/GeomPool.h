@@ -13,7 +13,7 @@
 class GeomPool {
 public:
     /// initialize the geom pool
-    void Setup(const Oryol::GfxSetup& gfxSetup);
+    void Setup(const Oryol::GfxDesc& gfxDesc);
     /// discard the geom pool
     void Discard();
 
@@ -24,10 +24,10 @@ public:
     /// free all geoms
     void FreeAll();
 
-    Oryol::Id IndexMesh;
+    Oryol::Id IndexBuffer;
     Oryol::Id Pipeline;
     struct Geom {
-        Oryol::Id Mesh;
+        Oryol::Id VertexBuffer;
         int NumQuads = 0;
         Shader::vsParams VSParams;
     };
