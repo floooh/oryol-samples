@@ -1,8 +1,0 @@
-fips_begin_app(ImGuiAdvanced windowed)
-    fips_vs_warning_level(3)
-    fips_files(ImGuiAdvanced.cc)
-    fips_generate(FROM font.yml TYPE dumpbin)
-    fips_deps(Gfx Assets IMUI EmuCommon)
-    oryol_shader(scene_shaders.shd)
-    oryol_add_web_sample(ImGuiAdvanced "ImGui with fonts and images" "emscripten" "ImGuiAdvanced.jpg" "ImGuiAdvanced/ImGuiAdvanced.cc")
-fips_end_app()
