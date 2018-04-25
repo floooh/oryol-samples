@@ -38,6 +38,7 @@ public:
     void drawMainWindow();
     void drawAnimControlWindow();
     void drawBoneTextureWindow();
+    void drawLoadingOverlay();
     void loadModel(const Locator& loc);
     void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
 
@@ -217,6 +218,9 @@ Main::drawUI() {
         if (this->ui.textureWindowEnabled) {
             this->drawBoneTextureWindow();
         }
+    }
+    else {
+        this->drawLoadingOverlay();
     }
     ImGui::Render();
 }
@@ -426,6 +430,22 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
                         this->dbgHistory[hi1][boneIndex] + d1);
             }
         }
+    }
+}
+
+//------------------------------------------------------------------------------
+void
+Main::drawLoadingOverlay() {
+    const ImVec2 windowPos = ImVec2(ImGui::GetIO().DisplaySize.x/2, ImGui::GetIO().DisplaySize.y/2);
+    const ImVec2 windowPivot = ImVec2(0.5f, 0.5f);
+    ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPivot);
+    ImGui::SetNextWindowBgAlpha(0.3f);
+    if (ImGui::Begin("#loading", nullptr, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+        ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|
+        ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoNav))
+    {
+        ImGui::Text("Loading...");
+        ImGui::End();
     }
 }
 
