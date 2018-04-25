@@ -130,7 +130,7 @@ Main::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnRunning() {
-    if (!ImGui::IsMouseHoveringAnyWindow()) {
+    if (!ImGui::GetIO().WantCaptureMouse) {
         this->camera.Update();
     }
     this->wireframe.ViewProj = this->camera.ViewProj;
