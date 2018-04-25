@@ -163,6 +163,8 @@ OrbLoader::Load(const MemoryBuffer& data, const StringAtom& name, OrbModel& mode
     auto meshDesc = makeMeshDesc(data.Data(), orb, name);
     model.VertexBufferDesc = meshDesc.vertexBufferDesc;
     model.IndexBufferDesc = meshDesc.indexBufferDesc;
+    model.Layout = meshDesc.layout;
+    model.IndexType = meshDesc.indexType;
     model.VertexBuffer = Gfx::CreateBuffer(model.VertexBufferDesc);
     model.IndexBuffer = Gfx::CreateBuffer(model.IndexBufferDesc);
 

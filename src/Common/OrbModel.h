@@ -27,6 +27,8 @@ struct OrbModel {
     bool IsValid = false;
     BufferDesc VertexBufferDesc;
     BufferDesc IndexBufferDesc;
+    VertexLayout Layout;
+    Oryol::IndexType::Code IndexType;
     glm::vec4 VertexMagnitude;
     Id VertexBuffer;
     Id IndexBuffer;
