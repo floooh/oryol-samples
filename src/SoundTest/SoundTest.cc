@@ -67,9 +67,7 @@ const char* SoundTestApp::uiEffectNames[SoundTestApp::NumEffects] = {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnInit() {
-    auto gfxSetup = GfxSetup::Window(1024, 480, "Sound Test");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.75f, 0.75f, 0.75f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    Gfx::Setup(GfxDesc().Width(1024).Height(480).Title("Sound Test"));
     Input::Setup();
     Sound::Setup(SoundSetup());
     IMUI::Setup();
@@ -374,7 +372,7 @@ SoundTestApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnRunning() {
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.75f, 0.75f, 0.75f, 1.0f));
     IMUI::NewFrame();
 
     // draw UI
