@@ -75,8 +75,7 @@ OryolMain(Main);
 AppState::Code
 Main::OnInit() {
     IO::Setup(IODesc()
-//        .Assign("orb:", ORYOL_SAMPLE_URL)
-.Assign("orb:", "http://localhost:8000/")
+        .Assign("orb:", ORYOL_SAMPLE_URL)
         .FileSystem("http", HTTPFileSystem::Creator()));
     this->gfxDesc = GfxDesc()
         .Width(1024)
