@@ -40,7 +40,7 @@ private:
     float filterParam2[4];
     float music1Volume = 1.0f;
     float music2Volume = 0.0f;
-    Buffer music1Data, music2Data;
+    MemoryBuffer music1Data, music2Data;
 };
 OryolMain(SoloudTedSidApp);
 
@@ -59,7 +59,7 @@ SoloudTedSidApp::OnRunning() {
     float* buf = this->soloud.getWave();
     float* fft = this->soloud.calcFFT();
 
-    Gfx::BeginPass(PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f)));
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.4f, 0.8f, 1.0f));
     IMUI::NewFrame();
     ImGui::SetNextWindowPos(ImVec2(500, 20), ImGuiSetCond_Once);
     ImGui::Begin("Output");
@@ -149,13 +149,10 @@ SoloudTedSidApp::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 SoloudTedSidApp::OnInit() {
-
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("snd:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
-
-    Gfx::Setup(GfxSetup::Window(800, 460, "SoLoud TED/SID Demo"));
+    IO::Setup(IODesc()
+        .Assign("snd:", ORYOL_SAMPLE_URL)
+        .FileSystem("http", HTTPFileSystem::Creator()));
+    Gfx::Setup(GfxDesc().Width(800).Height(460).Title("SoLoud TED/SID Demo"));
     Input::Setup();
     IMUI::Setup();
 
