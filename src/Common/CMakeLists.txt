@@ -6,6 +6,7 @@ fips_begin_lib(Common)
         OrbFile.h OrbFile.cc
         OrbLoader.h OrbLoader.cc
         Wireframe.h Wireframe.cc
+        OmshParser.h OmshParser.cc
     )
     oryol_shader(wireframe_shaders.glsl)
 fips_end_lib(Common)
