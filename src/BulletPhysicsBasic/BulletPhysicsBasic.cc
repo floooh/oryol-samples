@@ -51,20 +51,18 @@ OryolMain(BulletPhysicsBasicApp);
 //------------------------------------------------------------------------------
 AppState::Code
 BulletPhysicsBasicApp::OnInit() {
-
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsBasic");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    auto gfxDesc = GfxDesc().Width(800).Height(600).SampleCount(4).Title("BulletPhysicsBasic");
+    Gfx::Setup(gfxDesc);
     this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
     // instanced shape rendering helper class
-    this->shapeRenderer.ColorShader = Gfx::CreateResource(ColorShader::Setup());
-    this->shapeRenderer.ColorShaderInstanced = Gfx::CreateResource(ColorShaderInstanced::Setup());
-    this->shapeRenderer.ShadowShader = Gfx::CreateResource(ShadowShader::Setup());
-    this->shapeRenderer.ShadowShaderInstanced = Gfx::CreateResource(ShadowShaderInstanced::Setup());
+    this->shapeRenderer.ColorShader = Gfx::CreateShader(ColorShader::Desc());
+    this->shapeRenderer.ColorShaderInstanced = Gfx::CreateShader(ColorShaderInstanced::Desc());
+    this->shapeRenderer.ShadowShader = Gfx::CreateShader(ShadowShader::Desc());
+    this->shapeRenderer.ShadowShaderInstanced = Gfx::CreateShader(ShadowShaderInstanced::Desc());
     this->shapeRenderer.SphereRadius = SphereRadius;
     this->shapeRenderer.BoxSize = BoxSize;
-    this->shapeRenderer.Setup(gfxSetup);
+    this->shapeRenderer.Setup(gfxDesc);
 
     // setup directional light (for lighting and shadow rendering)
     glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -106,12 +104,12 @@ BulletPhysicsBasicApp::OnRunning() {
 
     // the shadow pass
     this->shadowVSParams.mvp = this->lightProjView;
-    Gfx::BeginPass(this->shapeRenderer.ShadowPass);
+    Gfx::BeginPass(this->shapeRenderer.ShadowPass, this->shapeRenderer.ShadowPassAction);
     this->shapeRenderer.DrawShadows(this->shadowVSParams);
     Gfx::EndPass();
 
     // the color pass
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.4f, 0.8f, 1.0f));
 
     // draw ground
     const glm::mat4 model = Physics::Transform(this->groundRigidBody);

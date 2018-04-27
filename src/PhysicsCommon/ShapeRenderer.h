@@ -22,7 +22,7 @@ public:
     int ShadowMapSize = 2048;
 
     /// setup the shape renderer
-    void Setup(const GfxSetup& gfxSetup);
+    void Setup(const GfxDesc& gfxDesc);
     /// discard the shape renderer
     void Discard();
     /// draw the shadow shapes
@@ -43,14 +43,18 @@ public:
     static const int MaxNumInstances = 1024;
     Id ShadowMap;
     Id ShadowPass;
+    PassAction ShadowPassAction;
+    PrimitiveGroup planePrimGroup;
+    PrimitiveGroup spherePrimGroup;
+    PrimitiveGroup boxPrimGroup;
     DrawState ColorDrawState;
     DrawState ShadowDrawState;
     DrawState ColorInstancedDrawState;
     DrawState ShadowInstancedDrawState;
     int NumSpheres = 0;
     int NumBoxes = 0;
-    Id SphereInstMesh;
-    Id BoxInstMesh;
+    Id SphereInstBuffer;
+    Id BoxInstBuffer;
     struct instData {
         glm::vec4 xxxx;
         glm::vec4 yyyy;
@@ -66,16 +70,16 @@ public:
 template<class VSPARAMS> inline void
 ShapeRenderer::DrawShadows(const VSPARAMS& vsParams) {
     if (this->NumSpheres > 0) {
-        this->ShadowInstancedDrawState.Mesh[1] = this->SphereInstMesh;
+        this->ShadowInstancedDrawState.VertexBuffers[1] = this->SphereInstBuffer;
         Gfx::ApplyDrawState(this->ShadowInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::Draw(1, this->NumSpheres);
+        Gfx::Draw(this->spherePrimGroup, this->NumSpheres);
     }
     if (this->NumBoxes > 0) {
-        this->ShadowInstancedDrawState.Mesh[1] = this->BoxInstMesh;
+        this->ShadowInstancedDrawState.VertexBuffers[1] = this->BoxInstBuffer;
         Gfx::ApplyDrawState(this->ShadowInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::Draw(2, this->NumBoxes);
+        Gfx::Draw(this->boxPrimGroup, this->NumBoxes);
     }
 }
 
@@ -85,25 +89,25 @@ ShapeRenderer::DrawGround(const VSPARAMS& vsParams, const FSPARAMS& fsParams) {
     Gfx::ApplyDrawState(this->ColorDrawState);
     Gfx::ApplyUniformBlock(vsParams);
     Gfx::ApplyUniformBlock(fsParams);
-    Gfx::Draw();
+    Gfx::Draw(this->planePrimGroup);
 }
 
 //------------------------------------------------------------------------------
 template<class VSPARAMS, class FSPARAMS> void
 ShapeRenderer::DrawShapes(const VSPARAMS& vsParams, const FSPARAMS& fsParams) {
     if (this->NumSpheres > 0) {
-        this->ColorInstancedDrawState.Mesh[1] = this->SphereInstMesh;
+        this->ColorInstancedDrawState.VertexBuffers[1] = this->SphereInstBuffer;
         Gfx::ApplyDrawState(this->ColorInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::ApplyUniformBlock(fsParams);
-        Gfx::Draw(1, this->NumSpheres);
+        Gfx::Draw(this->spherePrimGroup, this->NumSpheres);
     }
     if (this->NumBoxes > 0) {
-        this->ColorInstancedDrawState.Mesh[1] = this->BoxInstMesh;
+        this->ColorInstancedDrawState.VertexBuffers[1] = this->BoxInstBuffer;
         Gfx::ApplyDrawState(this->ColorInstancedDrawState);
         Gfx::ApplyUniformBlock(vsParams);
         Gfx::ApplyUniformBlock(fsParams);
-        Gfx::Draw(2, this->NumBoxes);
+        Gfx::Draw(this->boxPrimGroup, this->NumBoxes);
     }
 }
 
