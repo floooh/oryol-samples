@@ -78,7 +78,7 @@ BulletPhysicsBasicApp::OnInit() {
     this->colorFSParams.lightDir = glm::vec3(glm::column(glm::inverse(lightView), 2));
 
     Input::Setup();
-    Dbg::Setup();
+    Dbg::Setup(DbgDesc().SampleCount(4));
     this->camera.Setup();
 
     // setup the initial physics world
@@ -103,8 +103,8 @@ BulletPhysicsBasicApp::OnRunning() {
     this->camera.Update();
 
     // the shadow pass
-    this->shadowVSParams.mvp = this->lightProjView;
     Gfx::BeginPass(this->shapeRenderer.ShadowPass, this->shapeRenderer.ShadowPassAction);
+    this->shadowVSParams.mvp = this->lightProjView;
     this->shapeRenderer.DrawShadows(this->shadowVSParams);
     Gfx::EndPass();
 

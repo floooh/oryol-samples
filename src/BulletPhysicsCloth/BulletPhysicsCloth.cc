@@ -39,7 +39,7 @@ public:
     TimePoint lapTimePoint;
     CameraHelper camera;
     ShapeRenderer shapeRenderer;
-    Id clothMesh;
+    Id clothVertexBuffer;
     DrawState clothColorDrawState;
     DrawState clothShadowDrawState;
     ColorShader::vsParams colorVSParams;
@@ -66,49 +66,53 @@ OryolMain(BulletPhysicsClothApp);
 //------------------------------------------------------------------------------
 AppState::Code
 BulletPhysicsClothApp::OnInit() {
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsCloth");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    auto gfxDesc = GfxDesc().Width(800).Height(600).SampleCount(4).Title("BulletPhysicsCloth");
+    Gfx::Setup(gfxDesc);
     this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
     // instanced shape rendering helper class
-    const Id colorShader = Gfx::CreateResource(ColorShader::Setup());
-    const Id shadowShader = Gfx::CreateResource(ShadowShader::Setup());
+    const Id colorShader = Gfx::CreateShader(ColorShader::Desc());
+    const Id shadowShader = Gfx::CreateShader(ShadowShader::Desc());
     this->shapeRenderer.ColorShader = colorShader;
-    this->shapeRenderer.ColorShaderInstanced = Gfx::CreateResource(ColorShaderInstanced::Setup());
+    this->shapeRenderer.ColorShaderInstanced = Gfx::CreateShader(ColorShaderInstanced::Desc());
     this->shapeRenderer.ShadowShader = shadowShader;
-    this->shapeRenderer.ShadowShaderInstanced = Gfx::CreateResource(ShadowShaderInstanced::Setup());
+    this->shapeRenderer.ShadowShaderInstanced = Gfx::CreateShader(ShadowShaderInstanced::Desc());
     this->shapeRenderer.SphereRadius = SphereRadius;
     this->shapeRenderer.BoxSize = BoxSize;
-    this->shapeRenderer.Setup(gfxSetup);
+    this->shapeRenderer.Setup(gfxDesc);
+    this->clothColorDrawState.FSTexture[0] = this->shapeRenderer.ShadowMap;
 
     // setup a mesh with dynamic vertex buffer and no indices
     // FIXME: use index rendering later
-    auto meshSetup = MeshSetup::Empty(NumClothVertices, Usage::Stream);
-    meshSetup.Layout
-        .Add(VertexAttr::Position, VertexFormat::Float3)
-        .Add(VertexAttr::Normal, VertexFormat::Float3);
-    meshSetup.AddPrimitiveGroup(PrimitiveGroup(0, NumClothTriangles*3));
-    this->clothMesh = Gfx::CreateResource(meshSetup);
-    this->clothColorDrawState.Mesh[0] = this->clothMesh;
-    this->clothShadowDrawState.Mesh[0] = this->clothMesh;
+    VertexLayout layout = {
+        { "position", VertexFormat::Float3 },
+        { "normal", VertexFormat::Float3 }
+    };
+    this->clothVertexBuffer = Gfx::CreateBuffer(BufferDesc()
+        .Size(NumClothVertices * layout.ByteSize())
+        .Usage(Usage::Stream));
+    this->clothColorDrawState.VertexBuffers[0] = this->clothVertexBuffer;
+    this->clothShadowDrawState.VertexBuffers[0] = this->clothVertexBuffer;
 
     // setup pipeline states (color and shadow pass) for cloth rendering
-    auto pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, colorShader);
-    pipSetup.DepthStencilState.DepthWriteEnabled = true;
-    pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    pipSetup.RasterizerState.CullFaceEnabled = false;
-    pipSetup.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    this->clothColorDrawState.Pipeline = Gfx::CreateResource(pipSetup);
-
-    pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, shadowShader);
-    pipSetup.DepthStencilState.DepthWriteEnabled = true;
-    pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    pipSetup.RasterizerState.CullFaceEnabled = false;
-    pipSetup.RasterizerState.SampleCount = 1;
-    pipSetup.BlendState.ColorFormat = PixelFormat::RGBA8;
-    pipSetup.BlendState.DepthFormat = PixelFormat::DEPTH;
-    this->clothShadowDrawState.Pipeline = Gfx::CreateResource(pipSetup);
+    this->clothColorDrawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(colorShader)
+        .Layout(0, layout)
+        .DepthWriteEnabled(true)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .CullFaceEnabled(false)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
+    this->clothShadowDrawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(shadowShader)
+        .Layout(0, layout)
+        .DepthWriteEnabled(true)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .CullFaceEnabled(false)
+        .ColorFormat(PixelFormat::RGBA8)
+        .DepthFormat(PixelFormat::DEPTH)
+        .SampleCount(1));
 
     // setup directional light (for lighting and shadow rendering)
     glm::mat4 lightView = glm::lookAt(glm::vec3(50.0f, 50.0f, -50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -144,7 +148,7 @@ BulletPhysicsClothApp::OnInit() {
     Physics::Add(this->clothSoftBody);
 
     Input::Setup();
-    Dbg::Setup();
+    Dbg::Setup(DbgDesc().SampleCount(4));
     this->camera.Setup();
     camera.Orbital = glm::vec2(glm::radians(40.0f), glm::radians(180.0f));
     camera.Center = glm::vec3(0.0f, 7.0f, 0.0f);
@@ -165,16 +169,16 @@ BulletPhysicsClothApp::OnRunning() {
     }
 
     // the shadow pass
-    Gfx::BeginPass(this->shapeRenderer.ShadowPass);
+    Gfx::BeginPass(this->shapeRenderer.ShadowPass, this->shapeRenderer.ShadowPassAction);
     this->shadowVSParams.mvp = this->lightProjView;
     this->shapeRenderer.DrawShadows(this->shadowVSParams);
     Gfx::ApplyDrawState(this->clothShadowDrawState);
     Gfx::ApplyUniformBlock(this->shadowVSParams);
-    Gfx::Draw();
+    Gfx::Draw(0, NumClothTriangles * 3);
     Gfx::EndPass();
 
     // begin color pass rendering
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.4f, 0.8f, 1.0f));
 
     // draw ground
     const glm::mat4 model = Physics::Transform(this->groundRigidBody);
@@ -199,7 +203,7 @@ BulletPhysicsClothApp::OnRunning() {
     Gfx::ApplyDrawState(this->clothColorDrawState);
     Gfx::ApplyUniformBlock(this->colorVSParams);
     Gfx::ApplyUniformBlock(this->colorFSParams);
-    Gfx::Draw();
+    Gfx::Draw(0, NumClothTriangles * 3);
 
     Dbg::PrintF("\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
@@ -317,6 +321,6 @@ BulletPhysicsClothApp::updateClothData() {
             }
         }
     }
-    Gfx::UpdateVertices(this->clothMesh, this->clothVertices, sizeof(this->clothVertices));
+    Gfx::UpdateBuffer(this->clothVertexBuffer, this->clothVertices, sizeof(this->clothVertices));
     return Clock::Since(startTime);
 }
