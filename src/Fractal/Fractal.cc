@@ -364,7 +364,9 @@ FractalApp::recreateRenderTargets(const DisplayAttrs& attrs) {
         .Height(attrs.Height)
         .Format(PixelFormat::RGBA32F)
         .MinFilter(TextureFilterMode::Nearest)
-        .MagFilter(TextureFilterMode::Nearest);
+        .MagFilter(TextureFilterMode::Nearest)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge);
     for (int i = 0; i < 2; i++) {
         this->offscreenRenderTarget[i] = Gfx::CreateTexture(offscreenRTDesc);
         this->offscreenPass[i] = Gfx::CreatePass(PassDesc()

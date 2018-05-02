@@ -69,7 +69,9 @@ PacloneApp::OnInit() {
         .Width(canvasWidth)
         .Height(canvasHeight)
         .MinFilter(TextureFilterMode::Linear)
-        .MagFilter(TextureFilterMode::Linear));
+        .MagFilter(TextureFilterMode::Linear)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge));
     this->canvasPass = Gfx::CreatePass(PassDesc()
         .ColorAttachment(0, this->canvasDrawState.FSTexture[0]));
 
