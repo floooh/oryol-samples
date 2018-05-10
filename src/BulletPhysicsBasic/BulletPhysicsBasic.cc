@@ -51,7 +51,11 @@ OryolMain(BulletPhysicsBasicApp);
 //------------------------------------------------------------------------------
 AppState::Code
 BulletPhysicsBasicApp::OnInit() {
-    auto gfxDesc = GfxDesc().Width(800).Height(600).SampleCount(4).Title("BulletPhysicsBasic");
+    auto gfxDesc = GfxDesc()
+        .Width(800).Height(600)
+        .SampleCount(4)
+        .Title("BulletPhysicsBasic")
+        .HtmlTrackElementSize(true);
     Gfx::Setup(gfxDesc);
     this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
@@ -127,7 +131,7 @@ BulletPhysicsBasicApp::OnRunning() {
     this->colorVSParams.diffColor = glm::vec3(1.0f, 1.0f, 1.0f);
     this->shapeRenderer.DrawShapes(this->colorVSParams, this->colorFSParams);
 
-    Dbg::PrintF("\n\r"
+    Dbg::PrintF("\n\n\n\n\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
                 "  Mouse wheel: zoom camera\n\r"
                 "  P: pause/continue\n\n\r"

@@ -50,7 +50,8 @@ VoxelTest::OnInit() {
         .SampleCount(4)
         .Title("Oryol Voxel Test")
         .ResourcePoolSize(GfxResourceType::Pipeline, 1024)
-        .ResourcePoolSize(GfxResourceType::Buffer, 1024);
+        .ResourcePoolSize(GfxResourceType::Buffer, 1024)
+        .HtmlTrackElementSize(true);
     Gfx::Setup(gfxDesc);
     Input::Setup();
     Input::SetPointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
@@ -168,7 +169,7 @@ VoxelTest::OnRunning() {
             }
         }
     }
-    Dbg::PrintF("\n\r"
+    Dbg::PrintF("\n\n\n\n\n\r"
                 " Desktop:  LMB+Mouse or AWSD to move, RMB+Mouse to look around\n\r"
                 " Mobile:   touch+pan to fly\n\n\r"
                 " draws: %d\n\r"

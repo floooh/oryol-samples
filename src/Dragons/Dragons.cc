@@ -74,7 +74,11 @@ Dragons::OnInit() {
         .Assign("orb:", ORYOL_SAMPLE_URL)
         .FileSystem("http", HTTPFileSystem::Creator()));
 
-    this->gfxDesc = GfxDesc().Width(1024).Height(640).SampleCount(4).Title("Dragons");
+    this->gfxDesc = GfxDesc()
+        .Width(1024).Height(640)
+        .SampleCount(4)
+        .Title("Dragons")
+        .HtmlTrackElementSize(true);
     Gfx::Setup(this->gfxDesc);
     AnimSetup animSetup;
     animSetup.MaxNumInstances = MaxNumInstances;
@@ -295,7 +299,7 @@ Dragons::updateNumInstances() {
 void
 Dragons::drawUI() {
     if (this->orbModel.IsValid) {
-        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
+        ImGui::SetNextWindowPos(ImVec2(10, 40), ImGuiSetCond_Once);
         if (ImGui::Begin("Dragons", nullptr)) {
             const int numBonesPerInst = Anim::Skeleton(this->orbModel.Skeleton).NumBones;
             const int numTrisPerInst = this->orbModel.Submeshes[0].PrimGroup.NumElements / 3;

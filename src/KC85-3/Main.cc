@@ -60,7 +60,11 @@ KC853App::OnInit() {
     IO::Setup(IODesc()
         .Assign("kcc:", ORYOL_SAMPLE_URL)
         .FileSystem("http", HTTPFileSystem::Creator()));
-    auto gfxDesc = GfxDesc().Width(800).Height(512).SampleCount(4).Title("Emu");
+    auto gfxDesc = GfxDesc()
+        .Width(800).Height(512)
+        .SampleCount(4)
+        .Title("Emu")
+        .HtmlTrackElementSize(true);
     Gfx::Setup(gfxDesc);
     Input::Setup();
     Dbg::Setup(DbgDesc().SampleCount(4));

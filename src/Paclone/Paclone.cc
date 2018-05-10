@@ -57,7 +57,10 @@ AppState::Code
 PacloneApp::OnInit() {
     
     this->tick = 0;
-    Gfx::Setup(GfxDesc().Width(dispWidth).Height(dispHeight).Title("Oryol Pacman Clone Sample"));
+    Gfx::Setup(GfxDesc()
+        .Width(dispWidth).Height(dispHeight)
+        .Title("Oryol Pacman Clone Sample")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     Sound::Setup(SoundSetup());
     Dbg::Setup(DbgDesc().DepthFormat(PixelFormat::None));
@@ -98,8 +101,8 @@ PacloneApp::OnInit() {
 void
 PacloneApp::applyViewPort() {
     float aspect = float(Width) / float(Height);
-    const int fbWidth = Gfx::DisplayAttrs().Width;
-    const int fbHeight = Gfx::DisplayAttrs().Height;
+    const int fbWidth = Gfx::Width();
+    const int fbHeight = Gfx::Height();
     this->viewPortY = 0;
     this->viewPortH = fbHeight;
     this->viewPortW = (const int) (fbHeight * aspect);

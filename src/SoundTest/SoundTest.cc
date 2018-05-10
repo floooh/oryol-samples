@@ -67,7 +67,10 @@ const char* SoundTestApp::uiEffectNames[SoundTestApp::NumEffects] = {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnInit() {
-    Gfx::Setup(GfxDesc().Width(1024).Height(480).Title("Sound Test"));
+    Gfx::Setup(GfxDesc()
+        .Width(1024).Height(480)
+        .Title("Sound Test")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     Sound::Setup(SoundSetup());
     IMUI::Setup();
@@ -372,11 +375,11 @@ SoundTestApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 SoundTestApp::OnRunning() {
-    Gfx::BeginPass(PassAction().Clear(0.75f, 0.75f, 0.75f, 1.0f));
+    Gfx::BeginPass();
     IMUI::NewFrame();
 
     // draw UI
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowPos(ImVec2(0, 40));
     ImGui::Begin("SoundTest", nullptr, ImVec2(1024, 400));
     if (ImGui::Button("Play!")) {
         Sound::Play(this->effects[this->uiCurEffect].id);

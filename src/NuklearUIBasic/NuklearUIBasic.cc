@@ -29,7 +29,10 @@ OryolMain(DemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnInit() {
-    Gfx::Setup(GfxDesc().Width(1024).Height(700).Title("Basic Nuklear UI Demo"));
+    Gfx::Setup(GfxDesc()
+        .Width(1024).Height(700)
+        .Title("Basic Nuklear UI Demo")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     NKUI::Setup();
     return AppState::Running;

@@ -101,7 +101,10 @@ DemoApp::OnInit() {
     IO::Setup(IODesc()
         .Assign("data:", ORYOL_SAMPLE_URL "nkui/")
         .FileSystem("http", HTTPFileSystem::Creator()));
-    Gfx::Setup(GfxDesc().Width(1027).Height(700).Title("Advanced Nuklear UI Demo"));
+    Gfx::Setup(GfxDesc()
+        .Width(1027).Height(700)
+        .Title("Advanced Nuklear UI Demo")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     NKUI::Setup();
     Memory::Clear(&media, sizeof(media));

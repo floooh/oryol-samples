@@ -63,7 +63,10 @@ TurboBadgerDemoApp::OnInit() {
         .Assign("res:", ORYOL_SAMPLE_URL)
         .Assign("ui:", "res:tbui/"));
 
-    Gfx::Setup(GfxDesc().Width(1000).Height(650).Title("TurboBadger UI Demo"));
+    Gfx::Setup(GfxDesc()
+        .Width(1000).Height(650)
+        .Title("TurboBadger UI Demo")
+        .HtmlTrackElementSize(true));
     Dbg::Setup();
     Input::Setup();
 
@@ -139,7 +142,7 @@ TurboBadgerDemoApp::OnRunning() {
     Gfx::CommitFrame();
     
     Duration frameTime = Clock::LapTime(this->lastFrameTimePoint);
-    Dbg::PrintF("\n frame=%.3fms\n\r", frameTime.AsMilliSeconds());
+    Dbg::PrintF("\n\n\n\n\n frame=%.3fms\n\r", frameTime.AsMilliSeconds());
 
     return Gfx::QuitRequested() ? AppState::Cleanup : AppState::Running;
 }

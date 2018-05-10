@@ -82,7 +82,8 @@ Main::OnInit() {
         .Width(1024)
         .Height(640)
         .SampleCount(4)
-        .Title("Orb File Viewer");
+        .Title("Orb File Viewer")
+        .HtmlTrackElementSize(true);
     Gfx::Setup(this->gfxDesc);
     AnimSetup animSetup;
     animSetup.SkinMatrixTableWidth = BoneTextureWidth;
@@ -228,7 +229,7 @@ Main::drawUI() {
 //------------------------------------------------------------------------------
 void
 Main::drawMainWindow() {
-    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, 40), ImGuiSetCond_Once);
     if (ImGui::Begin("##main_window", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Checkbox("freeze time", &this->ui.freezeTime);
         ImGui::SliderFloat("time scale", &this->ui.timeScale, 0.001f, 2.0f);

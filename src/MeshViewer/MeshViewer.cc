@@ -40,9 +40,6 @@ private:
     VertexLayout layout;
     IndexType::Code indexType = IndexType::None;
     glm::vec3 eyePos;
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 model;
     glm::mat4 modelViewProj;
 
     int curMeshIndex = 0;
@@ -126,7 +123,8 @@ MeshViewerApp::OnInit() {
         .Height(512)
         .SampleCount(4)
         .HighDPI(true)
-        .Title("Oryol Mesh Viewer"));
+        .Title("Oryol Mesh Viewer")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
         if (event.Button == MouseButton::Left) {
@@ -171,11 +169,6 @@ MeshViewerApp::OnInit() {
     this->shaders[Lambert] = Gfx::CreateShader(LambertShader::Desc());
     this->shaders[Phong]   = Gfx::CreateShader(PhongShader::Desc());
     this->loadMesh(this->meshPaths[this->curMeshIndex]);
-
-    // setup projection and view matrices
-    const float fbWidth = (const float) Gfx::DisplayAttrs().Width;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().Height;
-    this->proj = glm::perspectiveFov(glm::radians(60.0f), fbWidth, fbHeight, 0.01f, 100.0f);
 
     // non-standard camera settings when switching objects to teapot:
     this->cameraSettings[2].dist = 0.8f;
@@ -270,8 +263,9 @@ MeshViewerApp::updateCamera() {
     }
     this->eyePos = glm::euclidean(this->camera.orbital) * this->camera.dist;
     glm::vec3 poi  = glm::vec3(0.0f, this->camera.height, 0.0f);
-    this->view = glm::lookAt(this->eyePos + poi, poi, glm::vec3(0.0f, 1.0f, 0.0f));
-    this->modelViewProj = this->proj * this->view;
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(60.0f), float(Gfx::Width()), float(Gfx::Height()), 0.01f, 100.0f);
+    glm::mat4 view = glm::lookAt(this->eyePos + poi, poi, glm::vec3(0.0f, 1.0f, 0.0f));
+    this->modelViewProj = proj * view;
 }
 
 //-----------------------------------------------------------------------------
@@ -431,7 +425,7 @@ MeshViewerApp::applyVariables(int matIndex) {
             {
                 LambertShader::vsParams vsParams;
                 vsParams.mvp = this->modelViewProj;
-                vsParams.model = this->model;
+                vsParams.model = glm::mat4(1.0f);
                 Gfx::ApplyUniformBlock(vsParams);
 
                 LambertShader::fsParams fsParams;
@@ -447,7 +441,7 @@ MeshViewerApp::applyVariables(int matIndex) {
             {
                 PhongShader::vsParams vsParams;
                 vsParams.mvp = this->modelViewProj;
-                vsParams.model = this->model;
+                vsParams.model = glm::mat4(1.0f);
                 Gfx::ApplyUniformBlock(vsParams);
 
                 PhongShader::fsParams fsParams;

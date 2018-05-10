@@ -38,10 +38,6 @@ private:
     PrimitiveGroup primGroup;
     StaticArray<Id,3> pipelines;
 
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 model;
-
     // FIXME: hmm these param blocks are actually compatibel across shaders
     RedShader::perFrameParams perFrameParams;
     RedShader::perParticleParams perParticleParams;
@@ -144,8 +140,9 @@ void
 DrawCallExplorerApp::updateCamera() {
     float angle = this->frameCount * 0.01f;
     glm::vec3 pos(glm::sin(angle) * 10.0f, 2.5f, glm::cos(angle) * 10.0f);
-    this->view = glm::lookAt(pos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    this->perFrameParams.mvp = this->proj * this->view * this->model;
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(45.0f), float(Gfx::Width()), float(Gfx::Height()), 0.01f, 100.0f);
+    glm::mat4 view = glm::lookAt(pos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->perFrameParams.mvp = proj * view;
 }
 
 //------------------------------------------------------------------------------
@@ -198,7 +195,8 @@ DrawCallExplorerApp::OnInit() {
         .Width(620)
         .Height(500)
         .Title("Oryol DrawCallExplorer")
-        .GlobalUniformBufferSize(1024 * 1024 * 32));
+        .GlobalUniformBufferSize(1024 * 1024 * 32)
+        .HtmlTrackElementSize(true));
     Input::Setup();
     IMUI::Setup();
 
@@ -227,13 +225,6 @@ DrawCallExplorerApp::OnInit() {
     this->pipelines[1] = Gfx::CreatePipeline(psDesc.Shader(greenShd));
     this->pipelines[2] = Gfx::CreatePipeline(psDesc.Shader(blueShd));
     
-    // setup projection and view matrices
-    const float fbWidth = (const float) Gfx::DisplayAttrs().Width;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().Height;
-    this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.01f, 100.0f);
-    this->view = glm::lookAt(glm::vec3(0.0f, 2.5f, 0.0f), glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    this->model = glm::mat4();
-
     this->lastFrameTimePoint = Clock::Now();
     
     return App::OnInit();
@@ -252,7 +243,7 @@ DrawCallExplorerApp::OnCleanup() {
 void
 DrawCallExplorerApp::drawUI() {
     IMUI::NewFrame();
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(10, 40), ImGuiSetCond_Once);
     ImGui::SetNextWindowSize(ImVec2(250, 160), ImGuiSetCond_Once);
     if (ImGui::Begin("Controls")) {
         if (ImGui::Button("Reset")) {

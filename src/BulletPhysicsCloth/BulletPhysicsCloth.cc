@@ -66,7 +66,11 @@ OryolMain(BulletPhysicsClothApp);
 //------------------------------------------------------------------------------
 AppState::Code
 BulletPhysicsClothApp::OnInit() {
-    auto gfxDesc = GfxDesc().Width(800).Height(600).SampleCount(4).Title("BulletPhysicsCloth");
+    auto gfxDesc = GfxDesc()
+        .Width(800).Height(600)
+        .SampleCount(4)
+        .Title("BulletPhysicsCloth")
+        .HtmlTrackElementSize(true);
     Gfx::Setup(gfxDesc);
     this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 
@@ -205,7 +209,7 @@ BulletPhysicsClothApp::OnRunning() {
     Gfx::ApplyUniformBlock(this->colorFSParams);
     Gfx::Draw(0, NumClothTriangles * 3);
 
-    Dbg::PrintF("\n\r"
+    Dbg::PrintF("\n\n\n\n\n\r"
                 "  Mouse left click + drag: rotate camera\n\r"
                 "  Mouse wheel: zoom camera\n\r"
                 "  P: pause/continue\n\r"
