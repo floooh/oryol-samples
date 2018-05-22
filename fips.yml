@@ -3,6 +3,8 @@
 #
 ---
 imports:
+    oryol:
+        git: https://github.com/floooh/oryol.git
     oryol-tbui:
         git: https://github.com/floooh/oryol-tbui.git
     oryol-imgui:
