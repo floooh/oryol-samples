@@ -35,7 +35,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
 
     # link to the Core Samples
     content  = '<div class="thumb">\n'
-    content += '  <div class="thumb-title">To Core Samples...</div>\n'
+    content += '  <div class="thumb-title">Core Samples...</div>\n'
     content += '  <div class="img-frame"><a href="http://floooh.github.com/oryol/index.html"><img class="image" src="core_samples.jpg"></img></a></div>\n'
     content += '</div>\n'
 
