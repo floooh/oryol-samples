@@ -237,7 +237,7 @@ DemoApp::drawOverviewWindow(nk_context *ctx)
 
                 nk_label(ctx, "Slider float", NK_TEXT_LEFT);
                 nk_slider_float(ctx, 0, &float_slider, 5.0, 0.5f);
-                nk_labelf(ctx, NK_TEXT_LEFT, "Progressbar" , prog_value);
+                nk_labelf(ctx, NK_TEXT_LEFT, "Progressbar", prog_value);
                 nk_progress(ctx, &prog_value, 100, NK_MODIFIABLE);
 
                 nk_layout_row(ctx, NK_STATIC, 25, 2, ratio);
@@ -897,7 +897,6 @@ DemoApp::drawOverviewWindow(nk_context *ctx)
             if (nk_tree_push(ctx, NK_TREE_NODE, "Notebook", NK_MINIMIZED))
             {
                 static int current_tab = 0;
-                struct nk_panel group;
                 struct nk_vec2 item_padding;
                 struct nk_rect bounds;
                 float step = (2*3.141592654f) / 32;
@@ -1170,7 +1169,6 @@ DemoApp::drawOverviewWindow(nk_context *ctx)
                 if (nk_tree_push(ctx, NK_TREE_NODE, "Horizontal", NK_MINIMIZED))
                 {
                     static float a = 100, b = 100, c = 100;
-                    struct nk_panel sub;
                     struct nk_rect bounds;
 
                     /* header */
