@@ -369,17 +369,17 @@ DemoApp::drawOverviewWindow(nk_context *ctx)
 
                     nk_layout_row_dynamic(ctx, 25, 1);
                     if (col_mode == COL_RGB) {
-                        combo_color2.r = (nk_byte)nk_propertyi(ctx, "#R:", 0, combo_color2.r, 255, 1,1);
-                        combo_color2.g = (nk_byte)nk_propertyi(ctx, "#G:", 0, combo_color2.g, 255, 1,1);
-                        combo_color2.b = (nk_byte)nk_propertyi(ctx, "#B:", 0, combo_color2.b, 255, 1,1);
-                        combo_color2.a = (nk_byte)nk_propertyi(ctx, "#A:", 0, combo_color2.a, 255, 1,1);
+                        combo_color2.r = nk_propertyf(ctx, "#R:", 0, combo_color2.r, 255, 1, 1.0f);
+                        combo_color2.g = nk_propertyf(ctx, "#G:", 0, combo_color2.g, 255, 1, 1.0f);
+                        combo_color2.b = nk_propertyf(ctx, "#B:", 0, combo_color2.b, 255, 1, 1.0f);
+                        combo_color2.a = nk_propertyf(ctx, "#A:", 0, combo_color2.a, 255, 1, 1.0f);
                     } else {
                         float hsva[4];
                         nk_colorf_hsva_fv(hsva, combo_color2);
-                        hsva[0] = nk_propertyf(ctx, "#H:", 0, hsva[0], 1.0f, 0.01f,0.05f);
-                        hsva[1] = nk_propertyf(ctx, "#S:", 0, hsva[1], 1.0f, 0.01f,0.05f);
-                        hsva[2] = nk_propertyf(ctx, "#V:", 0, hsva[2], 1.0f, 0.01f,0.05f);
-                        hsva[3] = nk_propertyf(ctx, "#A:", 0, hsva[3], 1.0f, 0.01f,0.05f);
+                        hsva[0] = nk_propertyf(ctx, "#H:", 0, hsva[0], 1.0f, 0.01f, 0.05f);
+                        hsva[1] = nk_propertyf(ctx, "#S:", 0, hsva[1], 1.0f, 0.01f, 0.05f);
+                        hsva[2] = nk_propertyf(ctx, "#V:", 0, hsva[2], 1.0f, 0.01f, 0.05f);
+                        hsva[3] = nk_propertyf(ctx, "#A:", 0, hsva[3], 1.0f, 0.01f, 0.05f);
                         combo_color2 = nk_hsva_colorfv(hsva);
                     }
                     nk_combo_end(ctx);
