@@ -57,20 +57,22 @@ AppState::Code
 KC853App::OnInit() {
 
     // setup Oryol modules
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("kcc:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    IO::Setup(IODesc()
+        .Assign("kcc:", ORYOL_SAMPLE_URL)
+        .FileSystem("http", HTTPFileSystem::Creator()));
+    auto gfxDesc = GfxDesc()
+        .Width(800).Height(512)
+        .SampleCount(4)
+        .Title("Emu")
+        .HtmlTrackElementSize(true);
+    Gfx::Setup(gfxDesc);
     Input::Setup();
-    Dbg::Setup();
+    Dbg::Setup(DbgDesc().SampleCount(4));
     Dbg::TextScale(2.0f, 2.0f);
 
     // setup the scene and ray collide checker
-    this->scene.Setup(gfxSetup);
-    this->rayChecker.Setup(gfxSetup);
+    this->scene.Setup(gfxDesc);
+    this->rayChecker.Setup(gfxDesc);
     this->rayChecker.Add(Screen,        glm::vec3(51, 15, 39), glm::vec3(78, 36, 42));
     this->rayChecker.Add(Junost,        glm::vec3(41, 11, 43), glm::vec3(80, 40, 66));
     this->rayChecker.Add(PowerOnButton, glm::vec3(45, 2, 38), glm::vec3(50, 6, 42));
@@ -92,7 +94,7 @@ KC853App::OnInit() {
     this->camera.Orbital = glm::vec2(glm::radians(10.0f), glm::radians(160.0f));
 
     // setup the KC emulator
-    this->kc85Emu.Setup(gfxSetup);
+    this->kc85Emu.Setup(gfxDesc);
     this->lapTime = Clock::Now();
 
     glm::mat4 m = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -114,7 +116,7 @@ KC853App::OnRunning() {
     this->kc85Emu.Update(Clock::LapTime(this->lapTime));
 
     // render the voxel scene and emulator screen
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.4f, 0.6f, 0.8f, 1.0f));
     this->scene.Render(this->camera.ViewProj);
     this->kc85Emu.Render(this->camera.ViewProj * this->kcModelMatrix);
 //    this->rayChecker.RenderDebug(this->camera.ViewProj);
@@ -140,8 +142,8 @@ KC853App::handleInput() {
         glm::vec2 screenSpaceMousePos = Input::MousePosition();
         const bool lmb = Input::MouseButtonDown(MouseButton::Left);
         const DisplayAttrs& disp = Gfx::DisplayAttrs();
-        screenSpaceMousePos.x /= float(disp.FramebufferWidth);
-        screenSpaceMousePos.y /= float(disp.FramebufferHeight);
+        screenSpaceMousePos.x /= float(disp.Width);
+        screenSpaceMousePos.y /= float(disp.Height);
         glm::mat4 invView = glm::inverse(this->camera.View);
         int hit = this->rayChecker.Test(screenSpaceMousePos, invView, this->camera.InvProj);
         switch (hit) {
@@ -222,7 +224,7 @@ KC853App::tooltip(const DisplayAttrs& disp, const char* str) {
     o_assert_dbg(str);
     
     // center the text
-    int center = (disp.FramebufferWidth / 16) / 2;
+    int center = (disp.Width / 16) / 2;
     int len = int(std::strlen(str));
     int posX = center - (len/2);
     if (posX < 0) {

@@ -22,7 +22,7 @@ struct Wireframe {
     glm::vec4 Color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
     /// setup the debug renderer
-    void Setup(const GfxSetup& setup);
+    void Setup(const GfxDesc& gfxDesc);
     /// discard the debug renderer
     void Discard();
     /// call once before Gfx::CommitFrame to render the debug scene

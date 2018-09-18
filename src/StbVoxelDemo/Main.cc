@@ -44,11 +44,15 @@ OryolMain(VoxelTest);
 //------------------------------------------------------------------------------
 AppState::Code
 VoxelTest::OnInit() {
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "Oryol Voxel Test");
-    gfxSetup.ResourcePoolSize[GfxResourceType::Pipeline] = 1024;
-    gfxSetup.ResourcePoolSize[GfxResourceType::Mesh] = 1024;
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.2f, 0.5f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    auto gfxDesc = GfxDesc()
+        .Width(800)
+        .Height(600)
+        .SampleCount(4)
+        .Title("Oryol Voxel Test")
+        .ResourcePoolSize(GfxResourceType::Pipeline, 1024)
+        .ResourcePoolSize(GfxResourceType::Buffer, 1024)
+        .HtmlTrackElementSize(true);
+    Gfx::Setup(gfxDesc);
     Input::Setup();
     Input::SetPointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {
         // switch pointer-lock on/off on left-mouse-button
@@ -64,12 +68,12 @@ VoxelTest::OnInit() {
     });
     Dbg::Setup();
 
-    const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
+    const float fbWidth = (const float) Gfx::DisplayAttrs().Width;
+    const float fbHeight = (const float) Gfx::DisplayAttrs().Height;
     this->camera.Setup(glm::vec3(4096, 128, 4096), glm::radians(45.0f), fbWidth, fbHeight, 0.1f, 10000.0f);
     this->lightDir = glm::normalize(glm::vec3(0.5f, 1.0f, 0.25f));
 
-    this->geomPool.Setup(gfxSetup);
+    this->geomPool.Setup(gfxDesc);
     this->geomMesher.Setup();
     // use a fixed display width, otherwise the geom pool could
     // run out of items at high resolutions
@@ -85,7 +89,7 @@ VoxelTest::bake_geom(const GeomMesher::Result& meshResult) {
     if (meshResult.NumQuads > 0) {
         int geomIndex = this->geomPool.Alloc();
         auto& geom = this->geomPool.Geoms[geomIndex];
-        Gfx::UpdateVertices(geom.Mesh, meshResult.Vertices, meshResult.NumBytes);
+        Gfx::UpdateBuffer(geom.VertexBuffer, meshResult.Vertices, meshResult.NumBytes);
         geom.NumQuads = meshResult.NumQuads;
         geom.VSParams.model = glm::mat4();
         geom.VSParams.light_dir = this->lightDir;
@@ -143,19 +147,19 @@ VoxelTest::OnRunning() {
     }
 
     // render visible geoms
-    Gfx::BeginPass();    
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.2f, 0.5f, 1.0f)); 
     const int numDrawNodes = this->visTree.drawNodes.Size();
     int numQuads = 0;
     int numGeoms = 0;
     DrawState drawState;
-    drawState.Mesh[0] = this->geomPool.IndexMesh;
+    drawState.IndexBuffer = this->geomPool.IndexBuffer;
     drawState.Pipeline = this->geomPool.Pipeline;
     for (int i = 0; i < numDrawNodes; i++) {
         const VisNode& node = this->visTree.NodeAt(this->visTree.drawNodes[i]);
         for (int geomIndex = 0; geomIndex < VisNode::NumGeoms; geomIndex++) {
             if (node.geoms[geomIndex] >= 0) {
                 auto& geom = this->geomPool.Geoms[node.geoms[geomIndex]];
-                drawState.Mesh[1] = geom.Mesh;
+                drawState.VertexBuffers[0] = geom.VertexBuffer;
                 geom.VSParams.mvp = this->camera.ViewProj;
                 Gfx::ApplyDrawState(drawState);
                 Gfx::ApplyUniformBlock(geom.VSParams);
@@ -165,7 +169,7 @@ VoxelTest::OnRunning() {
             }
         }
     }
-    Dbg::PrintF("\n\r"
+    Dbg::PrintF("\n\n\n\n\n\r"
                 " Desktop:  LMB+Mouse or AWSD to move, RMB+Mouse to look around\n\r"
                 " Mobile:   touch+pan to fly\n\n\r"
                 " draws: %d\n\r"

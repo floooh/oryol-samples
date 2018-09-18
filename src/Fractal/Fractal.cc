@@ -6,6 +6,7 @@
 #include "Gfx/Gfx.h"
 #include "Input/Input.h"
 #include "IMUI/IMUI.h"
+#include "Assets/Gfx/FullscreenQuadBuilder.h"
 #include "glm/glm.hpp"
 #include "glm/gtc/constants.hpp"
 #include "shaders.h"
@@ -73,9 +74,9 @@ FractalApp::OnRunning() {
     // reset current fractal state if requested
     if (this->clearFlag) {
         this->clearFlag = false;
-        Gfx::BeginPass(offscreenPass[0], PassAction::Clear(glm::vec4(0.0f)));
+        Gfx::BeginPass(offscreenPass[0], PassAction().Clear(0.0f, 0.0f, 0.0f, 0.0f));
         Gfx::EndPass();
-        Gfx::BeginPass(offscreenPass[1], PassAction::Clear(glm::vec4(0.0f)));
+        Gfx::BeginPass(offscreenPass[1], PassAction().Clear(0.0f, 0.0f, 0.0f, 0.0f));
         Gfx::EndPass();
     }
 
@@ -86,7 +87,7 @@ FractalApp::OnRunning() {
     const Id& curTexture = this->offscreenRenderTarget[index1];
 
     // render next fractal iteration
-    Gfx::BeginPass(curPass, PassAction::Load());
+    Gfx::BeginPass(curPass, PassAction().Load());
     if (Mandelbrot == this->fractalType) {
         this->mandelbrot.drawState.FSTexture[Mandelbrot::tex] = curTexture;
         Gfx::ApplyDrawState(this->mandelbrot.drawState);
@@ -98,15 +99,15 @@ FractalApp::OnRunning() {
         Gfx::ApplyUniformBlock(this->julia.vsParams);
         Gfx::ApplyUniformBlock(this->julia.fsParams);
     }
-    Gfx::Draw();
+    Gfx::Draw(0, 4);
     Gfx::EndPass();
 
     // map fractal state to display
-    Gfx::BeginPass(PassAction::DontCare());
+    Gfx::BeginPass(PassAction().DontCare());
     this->dispDrawState.FSTexture[DisplayShader::tex] = this->offscreenRenderTarget[index0];
     Gfx::ApplyDrawState(this->dispDrawState);
     Gfx::ApplyUniformBlock(this->dispFSParams);
-    Gfx::Draw();
+    Gfx::Draw(0, 4);
 
     this->drawUI();
     Gfx::EndPass();
@@ -119,7 +120,10 @@ FractalApp::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 FractalApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(800, 512, "Fractal Sample"));
+    Gfx::Setup(GfxDesc()
+        .Width(800).Height(512)
+        .Title("Fractal Sample")
+        .HtmlTrackElementSize(true));
     Gfx::Subscribe([this](const GfxEvent& event) {
         if (event.Type == GfxEvent::DisplayModified) {
             this->recreateRenderTargets(event.DisplayAttrs);
@@ -138,41 +142,36 @@ FractalApp::OnInit() {
     style.Colors[ImGuiCol_Button] = grey;
 
     // a fullscreen quad mesh that's reused several times
-    auto fsqSetup = MeshSetup::FullScreenQuad(Gfx::QueryFeature(GfxFeature::OriginTopLeft));
-    Id fsq = Gfx::CreateResource(fsqSetup);
-    this->mandelbrot.drawState.Mesh[0] = fsq;
-    this->julia.drawState.Mesh[0] = fsq;
-    fsqSetup = MeshSetup::FullScreenQuad(true);
-    this->dispDrawState.Mesh[0] = Gfx::CreateResource(fsqSetup);
+    auto fsqOffscreen = FullscreenQuadBuilder()
+        .FlipV(Gfx::QueryFeature(GfxFeature::OriginTopLeft))
+        .Build();
+    Id fsqBuf = Gfx::CreateBuffer(BufferDesc(fsqOffscreen.VertexBufferDesc));
+    this->mandelbrot.drawState.VertexBuffers[0] = fsqBuf;
+    this->julia.drawState.VertexBuffers[0] = fsqBuf;
+    auto fsqDisplay = FullscreenQuadBuilder().FlipV(true).Build();
+    this->dispDrawState.VertexBuffers[0] = Gfx::CreateBuffer(fsqDisplay.VertexBufferDesc);
 
     // draw state for rendering the final result to screen
-    Id shd = Gfx::CreateResource(DisplayShader::Setup());
-    auto ps = PipelineSetup::FromLayoutAndShader(fsqSetup.Layout, shd);
-    ps.RasterizerState.CullFaceEnabled = false;
-    ps.DepthStencilState.DepthCmpFunc = CompareFunc::Always;
-    this->dispDrawState.Pipeline = Gfx::CreateResource(ps);
+    Id shd = Gfx::CreateShader(DisplayShader::Desc());
+    this->dispDrawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(fsqDisplay.PipelineDesc).Shader(shd));
 
     // setup 2 ping-poing fp32 render targets which hold the current fractal state,
     // and the texture blocks which use reference these render targets
     this->recreateRenderTargets(Gfx::DisplayAttrs());
 
     // setup mandelbrot state
-    shd = Gfx::CreateResource(Mandelbrot::Setup());
-    ps = PipelineSetup::FromLayoutAndShader(fsqSetup.Layout, shd);
-    ps.RasterizerState.CullFaceEnabled = false;
-    ps.DepthStencilState.DepthCmpFunc = CompareFunc::Always;
-    ps.BlendState.ColorFormat = PixelFormat::RGBA32F;
-    ps.BlendState.DepthFormat = PixelFormat::None;
-    this->mandelbrot.drawState.Pipeline = Gfx::CreateResource(ps);
+    shd = Gfx::CreateShader(Mandelbrot::Desc());
+    this->mandelbrot.drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(fsqOffscreen.PipelineDesc)
+        .Shader(shd)
+        .ColorFormat(PixelFormat::RGBA32F)
+        .DepthFormat(PixelFormat::None));
 
     // setup julia state
-    shd = Gfx::CreateResource(Julia::Setup());
-    ps = PipelineSetup::FromLayoutAndShader(fsqSetup.Layout, shd);
-    ps.RasterizerState.CullFaceEnabled = false;
-    ps.DepthStencilState.DepthCmpFunc = CompareFunc::Always;
-    ps.BlendState.ColorFormat = PixelFormat::RGBA32F;
-    ps.BlendState.DepthFormat = PixelFormat::None;
-    this->julia.drawState.Pipeline = Gfx::CreateResource(ps);
+    shd = Gfx::CreateShader(Julia::Desc());
+    this->julia.drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(fsqOffscreen.PipelineDesc)
+        .Shader(shd)
+        .ColorFormat(PixelFormat::RGBA32F)
+        .DepthFormat(PixelFormat::None));
 
     // initialize fractal states
     this->reset();
@@ -193,15 +192,15 @@ FractalApp::OnCleanup() {
 void
 FractalApp::drawUI() {
     const DisplayAttrs& dispAttrs = Gfx::DisplayAttrs();
-    const float fbWidth = (float) dispAttrs.FramebufferWidth;
-    const float fbHeight = (float) dispAttrs.FramebufferHeight;
+    const float fbWidth = (float) dispAttrs.Width;
+    const float fbHeight = (float) dispAttrs.Height;
     this->clearFlag = false;
     ImVec2 mousePos = ImGui::GetMousePos();
 
     IMUI::NewFrame();
 
     // draw the controls window
-    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, 50), ImGuiSetCond_Once);
     ImGui::Begin("Controls", nullptr, ImVec2(300, 230));
     ImGui::BulletText("mouse-drag a rectangle to zoom in");
     ImGui::BulletText("click into Mandelbrot to render\nJulia set at that point");
@@ -250,7 +249,7 @@ FractalApp::drawUI() {
     }
 
     // handle dragging
-    if (!ImGui::IsMouseHoveringAnyWindow() && ImGui::IsMouseClicked(0)) {
+    if (!ImGui::GetIO().WantCaptureMouse && ImGui::IsMouseClicked(0)) {
         this->dragStarted = true;
         this->dragStartPos = ImGui::GetMousePos();
     }
@@ -324,8 +323,8 @@ glm::vec2
 FractalApp::convertPos(float x, float y, const glm::vec4& bounds) const {
     // convert mouse pos to fractal real/imaginary pos
     const DisplayAttrs& attrs = Gfx::DisplayAttrs();
-    const float fbWidth = (float) attrs.FramebufferWidth;
-    const float fbHeight = (float) attrs.FramebufferHeight;
+    const float fbWidth = (float) attrs.Width;
+    const float fbHeight = (float) attrs.Height;
     glm::vec2 rel = glm::vec2(x, y) / glm::vec2(fbWidth, fbHeight);
     return glm::vec2(bounds.x + ((bounds.z - bounds.x) * rel.x),
                      bounds.y + ((bounds.w - bounds.y) * rel.y));
@@ -361,15 +360,20 @@ FractalApp::recreateRenderTargets(const DisplayAttrs& attrs) {
         Gfx::DestroyResources(this->offscreenLabel);
     }
     this->offscreenLabel = Gfx::PushResourceLabel();
-    auto offscreenRTSetup = TextureSetup::RenderTarget2D(
-        attrs.FramebufferWidth, attrs.FramebufferHeight,
-        PixelFormat::RGBA32F, PixelFormat::None);
-    offscreenRTSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
-    offscreenRTSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
+    auto offscreenRTDesc = TextureDesc()
+        .RenderTarget(true)
+        .Type(TextureType::Texture2D)
+        .Width(attrs.Width)
+        .Height(attrs.Height)
+        .Format(PixelFormat::RGBA32F)
+        .MinFilter(TextureFilterMode::Nearest)
+        .MagFilter(TextureFilterMode::Nearest)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge);
     for (int i = 0; i < 2; i++) {
-        this->offscreenRenderTarget[i] = Gfx::CreateResource(offscreenRTSetup);
-        auto passSetup = PassSetup::From(this->offscreenRenderTarget[i]);
-        this->offscreenPass[i] = Gfx::CreateResource(passSetup);
+        this->offscreenRenderTarget[i] = Gfx::CreateTexture(offscreenRTDesc);
+        this->offscreenPass[i] = Gfx::CreatePass(PassDesc()
+            .ColorAttachment(0, this->offscreenRenderTarget[i]));
     }
     this->clearFlag = true;
 

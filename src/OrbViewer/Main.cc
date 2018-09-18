@@ -38,6 +38,7 @@ public:
     void drawMainWindow();
     void drawAnimControlWindow();
     void drawBoneTextureWindow();
+    void drawLoadingOverlay();
     void loadModel(const Locator& loc);
     void drawModelDebug(const Model& model, const glm::mat4& modelMatrix);
 
@@ -58,7 +59,7 @@ public:
     } ui;
 
     int frameIndex = 0;
-    GfxSetup gfxSetup;
+    GfxDesc gfxDesc;
     Id shader;
     Id boneTexture;
     ImTextureID imguiBoneTextureId = nullptr;
@@ -74,14 +75,16 @@ OryolMain(Main);
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnInit() {
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
-
-    this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
-    this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.1f, 0.1f, 0.2f, 1.0f));
-    Gfx::Setup(this->gfxSetup);
+    IO::Setup(IODesc()
+        .Assign("orb:", ORYOL_SAMPLE_URL)
+        .FileSystem("http", HTTPFileSystem::Creator()));
+    this->gfxDesc = GfxDesc()
+        .Width(1024)
+        .Height(640)
+        .SampleCount(4)
+        .Title("Orb File Viewer")
+        .HtmlTrackElementSize(true);
+    Gfx::Setup(this->gfxDesc);
     AnimSetup animSetup;
     animSetup.SkinMatrixTableWidth = BoneTextureWidth;
     animSetup.SkinMatrixTableHeight = BoneTextureHeight;
@@ -92,18 +95,23 @@ Main::OnInit() {
     this->camera.Center = glm::vec3(0.0f, 1.0f, -2.5f);
     this->camera.Distance = 10.0f;
     this->camera.Orbital = glm::vec2(glm::radians(25.0f), glm::radians(-90.0f));
-    this->wireframe.Setup(this->gfxSetup);
+    this->wireframe.Setup(this->gfxDesc);
 
     // can setup the shader before loading any assets
-    this->shader = Gfx::CreateResource(LambertShader::Setup());
+    this->shader = Gfx::CreateShader(LambertShader::Desc());
 
     // RGBA32F texture for the animated skeleton bone info
-    auto texSetup = TextureSetup::Empty2D(BoneTextureWidth, BoneTextureHeight, 1, PixelFormat::RGBA32F, Usage::Stream);
-    texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
-    texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-    this->boneTexture = Gfx::CreateResource(texSetup);
+    this->boneTexture = Gfx::CreateTexture(TextureDesc()
+        .Type(TextureType::Texture2D)
+        .Width(BoneTextureWidth)
+        .Height(BoneTextureHeight)
+        .NumMipMaps(1)
+        .Format(PixelFormat::RGBA32F)
+        .Usage(Usage::Stream)
+        .MinFilter(TextureFilterMode::Nearest)
+        .MagFilter(TextureFilterMode::Nearest)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge));
     this->imguiBoneTextureId = IMUI::AllocImage();
     IMUI::BindImage(this->imguiBoneTextureId, this->boneTexture);
 
@@ -123,7 +131,7 @@ Main::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnRunning() {
-    if (!ImGui::IsMouseHoveringAnyWindow()) {
+    if (!ImGui::GetIO().WantCaptureMouse) {
         this->camera.Update();
     }
     this->wireframe.ViewProj = this->camera.ViewProj;
@@ -137,20 +145,19 @@ Main::OnRunning() {
         // upload bone info to GPU texture
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
         this->model.vsParams.skin_info = boneInfo.InstanceInfos[0].ShaderInfo;
-        ImageDataAttrs imgAttrs;
-        imgAttrs.NumFaces = 1;
-        imgAttrs.NumMipMaps = 1;
-        imgAttrs.Offsets[0][0] = 0;
-        imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
-        Gfx::UpdateTexture(this->boneTexture, boneInfo.SkinMatrixTable, imgAttrs);
+        ImageContent imgContent;
+        imgContent.Pointer[0][0] = boneInfo.SkinMatrixTable;
+        imgContent.Size[0][0] = boneInfo.SkinMatrixTableByteSize;
+        Gfx::UpdateTexture(this->boneTexture, imgContent);
     }
 
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.1f, 0.1f, 0.2f, 1.0f));
     if (this->model.orb.IsValid) {
         if (this->ui.meshEnabled) {
             DrawState drawState;
             drawState.Pipeline = this->model.pipeline;
-            drawState.Mesh[0] = this->model.orb.Mesh;
+            drawState.VertexBuffers[0] = this->model.orb.VertexBuffer;
+            drawState.IndexBuffer = this->model.orb.IndexBuffer;
             drawState.VSTexture[LambertShader::boneTex] = this->boneTexture;
             Gfx::ApplyDrawState(drawState);
             /*
@@ -165,7 +172,7 @@ Main::OnRunning() {
             for (const auto& subMesh : this->model.orb.Submeshes) {
                 if (subMesh.Visible) {
                     //Gfx::ApplyUniformBlock(this->model.materials[subMesh.material].matParams);
-                    Gfx::Draw(subMesh.PrimitiveGroupIndex);
+                    Gfx::Draw(subMesh.PrimGroup);
                 }
             }
         }
@@ -213,13 +220,16 @@ Main::drawUI() {
             this->drawBoneTextureWindow();
         }
     }
+    else {
+        this->drawLoadingOverlay();
+    }
     ImGui::Render();
 }
 
 //------------------------------------------------------------------------------
 void
 Main::drawMainWindow() {
-    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, 40), ImGuiSetCond_Once);
     if (ImGui::Begin("##main_window", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Checkbox("freeze time", &this->ui.freezeTime);
         ImGui::SliderFloat("time scale", &this->ui.timeScale, 0.001f, 2.0f);
@@ -426,6 +436,22 @@ Main::drawModelDebug(const Model& model, const glm::mat4& modelTransform) {
 
 //------------------------------------------------------------------------------
 void
+Main::drawLoadingOverlay() {
+    const ImVec2 windowPos = ImVec2(ImGui::GetIO().DisplaySize.x/2, ImGui::GetIO().DisplaySize.y/2);
+    const ImVec2 windowPivot = ImVec2(0.5f, 0.5f);
+    ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPivot);
+    ImGui::SetNextWindowBgAlpha(0.3f);
+    if (ImGui::Begin("#loading", nullptr, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+        ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|
+        ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoNav))
+    {
+        ImGui::Text("Loading...");
+        ImGui::End();
+    }
+}
+
+//------------------------------------------------------------------------------
+void
 Main::loadModel(const Locator& loc) {
     // start loading the .orb file
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
@@ -433,14 +459,16 @@ Main::loadModel(const Locator& loc) {
         if (OrbLoader::Load(res.Data, "model", orb)) {
             orb.Submeshes[0].Visible = true;
 
-            auto pipSetup = PipelineSetup::FromLayoutAndShader(orb.MeshSetup.Layout, this->shader);
-            pipSetup.DepthStencilState.DepthWriteEnabled = true;
-            pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-            pipSetup.RasterizerState.CullFaceEnabled = true;
-            pipSetup.RasterizerState.SampleCount = this->gfxSetup.SampleCount;
-            pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
-            pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
-            this->model.pipeline = Gfx::CreateResource(pipSetup);
+            this->model.pipeline = Gfx::CreatePipeline(PipelineDesc()
+                .Shader(this->shader)
+                .Layout(0, orb.Layout)
+                .IndexType(orb.IndexType)
+                .DepthWriteEnabled(true)
+                .DepthCmpFunc(CompareFunc::LessEqual)
+                .CullFaceEnabled(true)
+                .ColorFormat(this->gfxDesc.ColorFormat())
+                .DepthFormat(this->gfxDesc.DepthFormat())
+                .SampleCount(this->gfxDesc.SampleCount()));
             this->model.vsParams.vtx_mag = orb.VertexMagnitude;
 
             if (orb.AnimLib.IsValid()) {

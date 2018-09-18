@@ -22,7 +22,7 @@ numVertices(0) {
 
 //------------------------------------------------------------------------------
 void
-canvas::Setup(const TextureSetup& rtSetup, int tilesX, int tilesY, int tileW, int tileH, int numSpr) {
+canvas::Setup(PixelFormat::Code format, int tilesX, int tilesY, int tileW, int tileH, int numSpr) {
     o_assert(!this->isValid);
     o_assert((tilesX > 0) && (tilesX <= MaxWidth) && (tilesY > 0) && (tilesY <= MaxHeight));
     o_assert(numSpr < MaxNumSprites);
@@ -37,31 +37,41 @@ canvas::Setup(const TextureSetup& rtSetup, int tilesX, int tilesY, int tileW, in
     this->numSprites = numSpr;
     this->numVertices = (this->numTilesX * this->numTilesY + this->numSprites) * 6;
     
+    VertexLayout layout = {
+        { "position", VertexFormat::Float2 },
+        { "texcoord0", VertexFormat::Float2 }
+    };
+
     // setup draw state with dynamic mesh
-    auto meshSetup = MeshSetup::Empty(this->numVertices, Usage::Stream);
-    meshSetup.Layout
-        .Add(VertexAttr::Position, VertexFormat::Float2)
-        .Add(VertexAttr::TexCoord0, VertexFormat::Float2);
-    meshSetup.AddPrimitiveGroup(PrimitiveGroup(0, this->numVertices));
-    this->drawState.Mesh[0] = Gfx::CreateResource(meshSetup);
-    Id shd = Gfx::CreateResource(CanvasShader::Setup());
-    auto ps = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, shd);
-    ps.BlendState.BlendEnabled = true;
-    ps.BlendState.SrcFactorRGB = BlendFactor::SrcAlpha;
-    ps.BlendState.DstFactorRGB = BlendFactor::OneMinusSrcAlpha;
-    ps.BlendState.ColorFormat = rtSetup.ColorFormat;
-    ps.BlendState.DepthFormat = rtSetup.DepthFormat;
-    ps.RasterizerState.CullFaceEnabled = false;
-    this->drawState.Pipeline = Gfx::CreateResource(ps);
+    this->drawState.VertexBuffers[0] = Gfx::CreateBuffer(BufferDesc()
+        .Type(BufferType::VertexBuffer)
+        .Size(this->numVertices * layout.ByteSize())
+        .Usage(Usage::Stream));
+
+    Id shd = Gfx::CreateShader(CanvasShader::Desc());
+    this->drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(shd)
+        .Layout(0, layout)
+        .BlendEnabled(true)
+        .BlendSrcFactorRGB(BlendFactor::SrcAlpha)
+        .BlendDstFactorRGB(BlendFactor::OneMinusSrcAlpha)
+        .ColorFormat(format)
+        .DepthFormat(PixelFormat::None)
+        .CullFaceEnabled(false));
     
     // setup sprite texture
-    auto texSetup = TextureSetup::FromPixelData2D(Sheet::Width, Sheet::Height, 1, PixelFormat::RGBA8);
-    texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
-    texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-    texSetup.ImageData.Sizes[0][0] = Sheet::NumBytes;
-    this->drawState.FSTexture[0] = Gfx::CreateResource(texSetup, Sheet::Pixels, Sheet::NumBytes);
+    this->drawState.FSTexture[0] = Gfx::CreateTexture(TextureDesc()
+        .Type(TextureType::Texture2D)
+        .Width(Sheet::Width)
+        .Height(Sheet::Height)
+        .NumMipMaps(1)
+        .Format(PixelFormat::RGBA8)
+        .MinFilter(TextureFilterMode::Nearest)
+        .MagFilter(TextureFilterMode::Nearest)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge)
+        .MipSize(0, 0, Sheet::NumBytes)
+        .MipContent(0, 0, Sheet::Pixels));
     
     // initialize the tile map
     for (int y = 0; y < this->numTilesY; y++) {
@@ -93,9 +103,9 @@ canvas::Render() {
     o_assert(this->isValid);
     int numBytes = 0;
     const void* data = this->updateVertices(numBytes);
-    Gfx::UpdateVertices(this->drawState.Mesh[0], data, numBytes);
+    Gfx::UpdateBuffer(this->drawState.VertexBuffers[0], data, numBytes);
     Gfx::ApplyDrawState(this->drawState);
-    Gfx::Draw();
+    Gfx::Draw(0, this->numVertices);
 }
 
 //------------------------------------------------------------------------------

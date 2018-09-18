@@ -33,12 +33,10 @@ private:
     int curNumParticles = 0;
     int numParticlesPerBatch = 1000;
 
-    Id mesh;
+    Id vertexBuffer;
+    Id indexBuffer;
+    PrimitiveGroup primGroup;
     StaticArray<Id,3> pipelines;
-
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 model;
 
     // FIXME: hmm these param blocks are actually compatibel across shaders
     RedShader::perFrameParams perFrameParams;
@@ -91,12 +89,13 @@ DrawCallExplorerApp::OnRunning() {
     afterUpdate = Clock::Now();
 
     // render block
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.5f, 0.5f, 0.5f, 1.0f));
     afterApplyRt = Clock::Now();
     int batchCount = this->numParticlesPerBatch;
     int curBatch = 0;
     DrawState drawState;
-    drawState.Mesh[0] = this->mesh;
+    drawState.VertexBuffers[0] = this->vertexBuffer;
+    drawState.IndexBuffer = this->indexBuffer;
     for (int i = 0; i < this->curNumParticles; i++) {
         if (++batchCount >= this->numParticlesPerBatch) {
             batchCount = 0;
@@ -109,7 +108,7 @@ DrawCallExplorerApp::OnRunning() {
         }
         this->perParticleParams.particleTranslate = this->particles[i].pos;
         Gfx::ApplyUniformBlock(this->perParticleParams);
-        Gfx::Draw();
+        Gfx::Draw(this->primGroup);
     }
     afterDraw = Clock::Now();
     this->frameInfoBeforeUI = Gfx::FrameInfo();
@@ -141,8 +140,9 @@ void
 DrawCallExplorerApp::updateCamera() {
     float angle = this->frameCount * 0.01f;
     glm::vec3 pos(glm::sin(angle) * 10.0f, 2.5f, glm::cos(angle) * 10.0f);
-    this->view = glm::lookAt(pos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    this->perFrameParams.mvp = this->proj * this->view * this->model;
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(45.0f), float(Gfx::Width()), float(Gfx::Height()), 0.01f, 100.0f);
+    glm::mat4 view = glm::lookAt(pos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    this->perFrameParams.mvp = proj * view;
 }
 
 //------------------------------------------------------------------------------
@@ -151,8 +151,8 @@ DrawCallExplorerApp::emitParticles() {
     for (int i = 0;
         (this->curNumParticles < this->maxNumParticles) &&
         (i < this->numEmitParticles);
-        i++) {
-        
+        i++) 
+    {
         this->particles[this->curNumParticles].pos = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
         glm::vec3 rnd = glm::ballRand(0.5f);
         rnd.y += 2.0f;
@@ -191,44 +191,40 @@ DrawCallExplorerApp::reset() {
 AppState::Code
 DrawCallExplorerApp::OnInit() {
     // setup rendering system
-    GfxSetup gfxSetup = GfxSetup::Window(620, 500, "Oryol DrawCallExplorer");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    gfxSetup.GlobalUniformBufferSize = 1024 * 1024 * 32;
-    Gfx::Setup(gfxSetup);
+    Gfx::Setup(GfxDesc()
+        .Width(620)
+        .Height(500)
+        .Title("Oryol DrawCallExplorer")
+        .GlobalUniformBufferSize(1024 * 1024 * 32)
+        .HtmlTrackElementSize(true));
     Input::Setup();
     IMUI::Setup();
 
     // create resources
     const glm::mat4 rot90 = glm::rotate(glm::mat4(), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    ShapeBuilder shapeBuilder;
-    shapeBuilder.RandomColors = true;
-    shapeBuilder.Layout
-        .Add(VertexAttr::Position, VertexFormat::Float3)
-        .Add(VertexAttr::Color0, VertexFormat::Float4);
-    shapeBuilder.Transform(rot90).Sphere(0.05f, 3, 2);
-    this->mesh = Gfx::CreateResource(shapeBuilder.Build());
+    auto shape = ShapeBuilder()
+        .RandomColors(true)
+        .Positions("position", VertexFormat::Float3)
+        .Colors("color0", VertexFormat::Float4)
+        .Transform(rot90)
+        .Sphere(0.05f, 3, 2)
+        .Build();
+    this->vertexBuffer = Gfx::CreateBuffer(shape.VertexBufferDesc);
+    this->indexBuffer = Gfx::CreateBuffer(shape.IndexBufferDesc);
+    this->primGroup = shape.PrimitiveGroups[0];
 
-    Id redShd   = Gfx::CreateResource(RedShader::Setup());
-    Id greenShd = Gfx::CreateResource(GreenShader::Setup());
-    Id blueShd  = Gfx::CreateResource(BlueShader::Setup());
+    Id redShd   = Gfx::CreateShader(RedShader::Desc());
+    Id greenShd = Gfx::CreateShader(GreenShader::Desc());
+    Id blueShd  = Gfx::CreateShader(BlueShader::Desc());
 
-    auto ps = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, redShd);
-    ps.RasterizerState.CullFaceEnabled = true;
-    ps.DepthStencilState.DepthWriteEnabled = true;
-    ps.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    this->pipelines[0] = Gfx::CreateResource(ps);
-    ps.Shader = greenShd;
-    this->pipelines[1] = Gfx::CreateResource(ps);
-    ps.Shader = blueShd;
-    this->pipelines[2] = Gfx::CreateResource(ps);
+    auto psDesc = PipelineDesc(shape.PipelineDesc)
+        .DepthWriteEnabled(true)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .CullFaceEnabled(true);
+    this->pipelines[0] = Gfx::CreatePipeline(psDesc.Shader(redShd));
+    this->pipelines[1] = Gfx::CreatePipeline(psDesc.Shader(greenShd));
+    this->pipelines[2] = Gfx::CreatePipeline(psDesc.Shader(blueShd));
     
-    // setup projection and view matrices
-    const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
-    this->proj = glm::perspectiveFov(glm::radians(45.0f), fbWidth, fbHeight, 0.01f, 100.0f);
-    this->view = glm::lookAt(glm::vec3(0.0f, 2.5f, 0.0f), glm::vec3(0.0f, 0.0f, -10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    this->model = glm::mat4();
-
     this->lastFrameTimePoint = Clock::Now();
     
     return App::OnInit();
@@ -247,7 +243,7 @@ DrawCallExplorerApp::OnCleanup() {
 void
 DrawCallExplorerApp::drawUI() {
     IMUI::NewFrame();
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(10, 40), ImGuiSetCond_Once);
     ImGui::SetNextWindowSize(ImVec2(250, 160), ImGuiSetCond_Once);
     if (ImGui::Begin("Controls")) {
         if (ImGui::Button("Reset")) {

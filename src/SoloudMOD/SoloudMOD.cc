@@ -37,7 +37,7 @@ private:
         float volume = 1.5f;
         bool valid = false;
         bool failed = false;
-        Buffer data;
+        MemoryBuffer data;
     };
     StaticArray<Mod,NumMods> mods;
 };
@@ -47,12 +47,12 @@ OryolMain(SoloudMODApp);
 AppState::Code
 SoloudMODApp::OnRunning() {
 
-    Gfx::BeginPass(PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f)));
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.4f, 0.8f, 1.0f));
     IMUI::NewFrame();
 
     float* buf = this->soloud.getWave();
     float* fft = this->soloud.calcFFT();
-    ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(20, 40), ImGuiSetCond_Once);
     ImGui::Begin("MOD Player (MODs from SoLoud and modarchive.org)", nullptr, ImVec2(660, 400));
     for (int i = 0; i < NumMods; i++) {
         ImGui::PushID(i);
@@ -103,13 +103,13 @@ SoloudMODApp::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 SoloudMODApp::OnInit() {
-
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("snd:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
-
-    Gfx::Setup(GfxSetup::Window(800, 500, "SoLoud MOD Demo"));
+    IO::Setup(IODesc()
+        .Assign("snd:", ORYOL_SAMPLE_URL)
+        .FileSystem("http", HTTPFileSystem::Creator()));
+    Gfx::Setup(GfxDesc()
+        .Width(800).Height(500)
+        .Title("SoLoud MOD Demo")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     IMUI::Setup();
 

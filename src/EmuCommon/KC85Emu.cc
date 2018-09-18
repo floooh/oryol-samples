@@ -15,7 +15,7 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
+KC85Emu::Setup(const GfxDesc& gfxDesc, YAKC::system m, os_rom os) {
 
     this->model = m;
     this->rom = os;
@@ -31,7 +31,7 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
     sys_funcs.malloc_func = [] (size_t s) -> void* { return Memory::Alloc(int(s)); };
     sys_funcs.free_func   = [] (void* p) { Memory::Free(p); };
     this->emu.init(sys_funcs);
-    this->draw.Setup(gfxSetup, 5, 5);
+    this->draw.Setup(gfxDesc, 5, 5);
     this->audio.Setup(&this->emu);
     this->keyboard.Setup(this->emu);
     this->fileLoader.Setup(this->emu);
@@ -43,21 +43,23 @@ KC85Emu::Setup(const GfxSetup& gfxSetup, YAKC::system m, os_rom os) {
     }
 
     // setup a mesh and draw state to render a simple plane
-    ShapeBuilder shapeBuilder;
-    shapeBuilder.Layout
-        .Add(VertexAttr::Position, VertexFormat::Float3)
-        .Add(VertexAttr::TexCoord0, VertexFormat::Float2);
-    shapeBuilder.Plane(1.0f, 1.0f, 1);
-    this->drawState.Mesh[0] = Gfx::CreateResource(shapeBuilder.Build());
+    auto shape = ShapeBuilder()
+        .Positions("position", VertexFormat::Float3)
+        .TexCoords("texcoord0", VertexFormat::Float2)
+        .Plane(1.0f, 1.0f, 1)
+        .Build();
+    this->drawState.VertexBuffers[0] = Gfx::CreateBuffer(shape.VertexBufferDesc);
+    this->drawState.IndexBuffer = Gfx::CreateBuffer(shape.IndexBufferDesc);
+    this->primGroup = shape.PrimitiveGroups[0];
 
-    Id shd = Gfx::CreateResource(KCShader::Setup());
-    auto pip = PipelineSetup::FromLayoutAndShader(shapeBuilder.Layout, shd);
-    pip.DepthStencilState.DepthWriteEnabled = true;
-    pip.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    pip.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    pip.BlendState.ColorFormat = gfxSetup.ColorFormat;
-    pip.BlendState.DepthFormat = gfxSetup.DepthFormat;
-    this->drawState.Pipeline = Gfx::CreateResource(pip);
+    Id shd = Gfx::CreateShader(KCShader::Desc());
+    this->drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(shape.PipelineDesc)
+        .Shader(shd)
+        .DepthWriteEnabled(true)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
 }
 
 //------------------------------------------------------------------------------
@@ -159,16 +161,17 @@ KC85Emu::Render(const glm::mat4& mvp, bool onlyUpdateTexture) {
         const void* fb = this->emu.framebuffer(width, height);
         if (fb) {
             this->draw.validateTexture(width, height);
-            this->draw.texUpdateAttrs.Sizes[0][0] = width*height*4;
+            this->draw.imageContent.Size[0][0] = width*height*4;
+            this->draw.imageContent.Pointer[0][0] = fb;
             if (this->draw.texture.IsValid()) {
-                Gfx::UpdateTexture(this->draw.texture, fb, this->draw.texUpdateAttrs);
+                Gfx::UpdateTexture(this->draw.texture, this->draw.imageContent);
                 if (!onlyUpdateTexture) {
                     this->drawState.FSTexture[KCShader::irm] = this->draw.texture;
                     KCShader::vsParams vsParams;
                     vsParams.mvp = mvp;
                     Gfx::ApplyDrawState(this->drawState);
                     Gfx::ApplyUniformBlock(vsParams);
-                    Gfx::Draw();
+                    Gfx::Draw(this->primGroup);
                 }
             }
         }

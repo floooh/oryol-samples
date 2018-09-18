@@ -34,7 +34,7 @@ public:
     static const int BoneTextureWidth = 1024;
     static const int BoneTextureHeight = MaxNumInstances/4 + 1;
 
-    GfxSetup gfxSetup;
+    GfxDesc gfxDesc;
     CameraHelper camera;
     Id shader;
     OrbModel orbModel;
@@ -46,7 +46,7 @@ public:
 
     // xxxx,yyyy,zzzz is transposed model matrix
     // boneInfo is position in bone texture
-    VertexLayout instanceMeshLayout;
+    VertexLayout instanceBufferLayout;
     struct InstanceVertex {
         float xxxx[4];
         float yyyy[4];
@@ -70,14 +70,16 @@ OryolMain(Dragons);
 //------------------------------------------------------------------------------
 AppState::Code
 Dragons::OnInit() {
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("orb:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
+    IO::Setup(IODesc()
+        .Assign("orb:", ORYOL_SAMPLE_URL)
+        .FileSystem("http", HTTPFileSystem::Creator()));
 
-    this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Dragons");
-    this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.3f, 0.5f, 1.0f));
-    Gfx::Setup(this->gfxSetup);
+    this->gfxDesc = GfxDesc()
+        .Width(1024).Height(640)
+        .SampleCount(4)
+        .Title("Dragons")
+        .HtmlTrackElementSize(true);
+    Gfx::Setup(this->gfxDesc);
     AnimSetup animSetup;
     animSetup.MaxNumInstances = MaxNumInstances;
     animSetup.MaxNumActiveInstances = MaxNumInstances;
@@ -93,30 +95,36 @@ Dragons::OnInit() {
     this->camera.Orbital = glm::vec2(glm::radians(45.0f), 0.0f);
 
     // setup the shader now, pipeline setup happens when model file has loaded
-    this->shader = Gfx::CreateResource(DragonShader::Setup());
+    this->shader = Gfx::CreateShader(DragonShader::Desc());
 
     // RGBA32F texture for the animated skeleton bones
-    auto texSetup = TextureSetup::Empty2D(BoneTextureWidth, BoneTextureHeight, 1, PixelFormat::RGBA32F, Usage::Stream);
-    texSetup.Sampler.MinFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.MagFilter = TextureFilterMode::Nearest;
-    texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
-    texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-    Id boneTexture = Gfx::CreateResource(texSetup);
+    Id boneTexture = Gfx::CreateTexture(TextureDesc()
+        .Type(TextureType::Texture2D)
+        .Width(BoneTextureWidth)
+        .Height(BoneTextureHeight)
+        .NumMipMaps(1)
+        .Format(PixelFormat::RGBA32F)
+        .Usage(Usage::Stream)
+        .MinFilter(TextureFilterMode::Nearest)
+        .MagFilter(TextureFilterMode::Nearest)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge));
     this->drawState.VSTexture[DragonShader::boneTex] = boneTexture;
     this->imguiBoneTextureId = IMUI::AllocImage();
     IMUI::BindImage(this->imguiBoneTextureId, boneTexture);
 
-    // vertex buffer for per-instance info
-    auto meshSetup = MeshSetup::Empty(MaxNumInstances, Usage::Stream);
-    meshSetup.Layout = {
-        { VertexAttr::Instance0, VertexFormat::Float4 }, // transposes model matrix xxxx
-        { VertexAttr::Instance1, VertexFormat::Float4 }, // transposes model matrix yyyy
-        { VertexAttr::Instance2, VertexFormat::Float4 }, // transposes model matrix zzzz
-        { VertexAttr::Instance3, VertexFormat::Float4 }  // bone texture location
-    };
-    meshSetup.Layout.EnableInstancing();
-    this->instanceMeshLayout = meshSetup.Layout;
-    this->drawState.Mesh[1] = Gfx::CreateResource(meshSetup);
+    // vertex-layout and -buffer for per-instance info
+    this->instanceBufferLayout = VertexLayout()
+        .EnableInstancing()
+        .Add({
+            { "instance0", VertexFormat::Float4 }, // transposes model matrix xxxx
+            { "instance1", VertexFormat::Float4 }, // transposes model matrix yyyy
+            { "instance2", VertexFormat::Float4 }, // transposes model matrix zzzz
+            { "instance3", VertexFormat::Float4 }  // bone texture location
+        });
+    this->drawState.VertexBuffers[1] = Gfx::CreateBuffer(BufferDesc()
+        .Size(MaxNumInstances * sizeof(InstanceVertex))
+        .Usage(Usage::Stream));
 
     // load the dragon.orb file and add the first model instance,
     // the .txt extension is a hack so that github pages compresses the file
@@ -128,7 +136,7 @@ Dragons::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 Dragons::OnRunning() {
-    if (!ImGui::IsMouseHoveringAnyWindow()) {
+    if (!ImGui::GetIO().WantCaptureMouse) {
         this->camera.HandleInput();
     }
     this->camera.Center.z = -(this->numActiveInstances / 16) * 2.0f;
@@ -151,12 +159,10 @@ Dragons::OnRunning() {
         // upload animated skeleton bone info to GPU texture
         TimePoint updTexStart = Clock::Now();
         const AnimSkinMatrixInfo& boneInfo = Anim::SkinMatrixInfo();
-        ImageDataAttrs imgAttrs;
-        imgAttrs.NumFaces = 1;
-        imgAttrs.NumMipMaps = 1;
-        imgAttrs.Offsets[0][0] = 0;
-        imgAttrs.Sizes[0][0] = boneInfo.SkinMatrixTableByteSize;
-        Gfx::UpdateTexture(this->drawState.VSTexture[DragonShader::boneTex], boneInfo.SkinMatrixTable, imgAttrs);
+        ImageContent imgContent;
+        imgContent.Size[0][0] = boneInfo.SkinMatrixTableByteSize;
+        imgContent.Pointer[0][0] = boneInfo.SkinMatrixTable;
+        Gfx::UpdateTexture(this->drawState.VSTexture[DragonShader::boneTex], imgContent);
         this->updateBoneTexDuration = Clock::Since(updTexStart).AsMilliSeconds();
 
         // update the instance vertex buffer with bone texture locations
@@ -170,21 +176,21 @@ Dragons::OnRunning() {
             }
         }
         if (instIndex > 0) {
-            Gfx::UpdateVertices(this->drawState.Mesh[1], this->InstanceData, sizeof(InstanceVertex)*instIndex);
+            Gfx::UpdateBuffer(this->drawState.VertexBuffers[1], this->InstanceData, sizeof(InstanceVertex)*instIndex);
         }
         this->updateInstBufDuration = Clock::Since(updInstStart).AsMilliSeconds();
     }
 
     // all dragons rendered in a single draw call via hardware instancing
     TimePoint drawStart = Clock::Now();
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.2f, 0.3f, 0.5f, 1.0f));
     IMUI::NewFrame();
     this->drawUI();
     if (this->orbModel.IsValid) {
         Gfx::ApplyDrawState(this->drawState);
         this->vsParams.view_proj = this->camera.ViewProj;
         Gfx::ApplyUniformBlock(this->vsParams);
-        Gfx::Draw(PrimGroupIndex, this->numActiveInstances);
+        Gfx::Draw(this->orbModel.Submeshes[0].PrimGroup, this->numActiveInstances);
     }
     ImGui::Render();
     Gfx::EndPass();
@@ -212,20 +218,20 @@ Dragons::loadModel(const Locator& loc) {
     // start loading the .orb file
     IO::Load(loc.Location(), [this](IO::LoadResult res) {
         if (OrbLoader::Load(res.Data, "model", this->orbModel)) {
-            this->drawState.Mesh[0] = this->orbModel.Mesh;
+            this->drawState.VertexBuffers[0] = this->orbModel.VertexBuffer;
+            this->drawState.IndexBuffer = this->orbModel.IndexBuffer;
             this->vsParams.vtx_mag = this->orbModel.VertexMagnitude;
-
-            auto pipSetup = PipelineSetup::FromShader(this->shader);
-            pipSetup.Layouts[0] = this->orbModel.MeshSetup.Layout;
-            pipSetup.Layouts[1] = this->instanceMeshLayout;
-            pipSetup.DepthStencilState.DepthWriteEnabled = true;
-            pipSetup.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-            pipSetup.RasterizerState.CullFaceEnabled = true;
-            pipSetup.RasterizerState.SampleCount = this->gfxSetup.SampleCount;
-            pipSetup.BlendState.ColorFormat = this->gfxSetup.ColorFormat;
-            pipSetup.BlendState.DepthFormat = this->gfxSetup.DepthFormat;
-            this->drawState.Pipeline = Gfx::CreateResource(pipSetup);
-
+            this->drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+                .Shader(this->shader)
+                .Layout(0, this->orbModel.Layout)
+                .Layout(1, this->instanceBufferLayout)
+                .IndexType(this->orbModel.IndexType)
+                .DepthWriteEnabled(true)
+                .DepthCmpFunc(CompareFunc::LessEqual)
+                .CullFaceEnabled(true)
+                .SampleCount(this->gfxDesc.SampleCount())
+                .ColorFormat(this->gfxDesc.ColorFormat())
+                .DepthFormat(this->gfxDesc.DepthFormat()));
             this->initInstances();
         }
     },
@@ -293,10 +299,10 @@ Dragons::updateNumInstances() {
 void
 Dragons::drawUI() {
     if (this->orbModel.IsValid) {
-        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiSetCond_Once);
+        ImGui::SetNextWindowPos(ImVec2(10, 40), ImGuiSetCond_Once);
         if (ImGui::Begin("Dragons", nullptr)) {
             const int numBonesPerInst = Anim::Skeleton(this->orbModel.Skeleton).NumBones;
-            const int numTrisPerInst = this->orbModel.MeshSetup.PrimitiveGroup(PrimGroupIndex).NumElements / 3;
+            const int numTrisPerInst = this->orbModel.Submeshes[0].PrimGroup.NumElements / 3;
             ImGui::SliderInt("num instances", &this->numWantedInstances, 1, MaxNumInstances);
             ImGui::Text("num bones:     %d\n",  numBonesPerInst * this->numActiveInstances);
             ImGui::Text("num triangles: %d\n", numTrisPerInst * this->numActiveInstances);
@@ -327,6 +333,19 @@ Dragons::drawUI() {
                     ImVec2(0, 0), ImVec2(1.0f, 1.0f));
                 ImGui::End();
             }
+            ImGui::End();
+        }
+    }
+    else {
+        const ImVec2 windowPos = ImVec2(ImGui::GetIO().DisplaySize.x/2, ImGui::GetIO().DisplaySize.y/2);
+        const ImVec2 windowPivot = ImVec2(0.5f, 0.5f);
+        ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPivot);
+        ImGui::SetNextWindowBgAlpha(0.3f);
+        if (ImGui::Begin("#loading", nullptr, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+            ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoSavedSettings|
+            ImGuiWindowFlags_NoFocusOnAppearing|ImGuiWindowFlags_NoNav))
+        {
+            ImGui::Text("Loading...");
             ImGui::End();
         }
     }

@@ -31,7 +31,7 @@ public:
     void load_icon(const char* url, struct nk_image* img);
 
     bool fontValid = false;
-    Buffer ttfData;
+    MemoryBuffer ttfData;
 };
 OryolMain(DemoApp);
 
@@ -73,34 +73,38 @@ DemoApp::load_icon(const char* url, struct nk_image* img) {
         // decode the PNG data via stb_image
         int w = 0, h = 0, n = 0;
         uint8_t* imgData = stbi_load_from_memory(loadResult.Data.Data(), loadResult.Data.Size(), &w, &h, &n, 0);
+        const int imgDataSize = w * h * PixelFormat::ByteSize(PixelFormat::RGBA8);
 
         // create an Oryol texture from the loaded data
-        auto texSetup = TextureSetup::FromPixelData2D(w, h, 1, PixelFormat::RGBA8);
-        // hmm... no mipmaps will not look good
-        texSetup.Sampler.MinFilter = TextureFilterMode::Linear;
-        texSetup.Sampler.MagFilter = TextureFilterMode::Linear;
-        texSetup.Sampler.WrapU = TextureWrapMode::ClampToEdge;
-        texSetup.Sampler.WrapV = TextureWrapMode::ClampToEdge;
-        const int imgDataSize = w * h * PixelFormat::ByteSize(PixelFormat::RGBA8);
-        texSetup.ImageData.Sizes[0][0] = imgDataSize;
-        Id texId = Gfx::CreateResource(texSetup, imgData, imgDataSize);
+        Id tex = Gfx::CreateTexture(TextureDesc()
+            .Type(TextureType::Texture2D)
+            .Width(w)
+            .Height(h)
+            .NumMipMaps(1)
+            .Format(PixelFormat::RGBA8)
+            .MinFilter(TextureFilterMode::Linear)
+            .MagFilter(TextureFilterMode::Linear)
+            .WrapU(TextureWrapMode::ClampToEdge)
+            .WrapV(TextureWrapMode::ClampToEdge)
+            .MipSize(0, 0, imgDataSize)
+            .MipContent(0, 0, imgData));
         stbi_image_free(imgData);
 
         // ...and associate the Oryol texture with the Nuklear image handle
-        NKUI::BindImage(*img, texId);
+        NKUI::BindImage(*img, tex);
     });
 }
 
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnInit() {
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("data:", ORYOL_SAMPLE_URL "nkui/");
-    IO::Setup(ioSetup);
-    auto gfxSetup = GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    IO::Setup(IODesc()
+        .Assign("data:", ORYOL_SAMPLE_URL "nkui/")
+        .FileSystem("http", HTTPFileSystem::Creator()));
+    Gfx::Setup(GfxDesc()
+        .Width(1027).Height(700)
+        .Title("Advanced Nuklear UI Demo")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     NKUI::Setup();
     Memory::Clear(&media, sizeof(media));
@@ -157,7 +161,7 @@ DemoApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnRunning() {
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.25f, 0.25f, 0.25f, 1.0f));
     if (this->fontValid) {
         nk_context* ctx = NKUI::NewFrame();
         button_demo(ctx, &media);

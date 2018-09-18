@@ -13,7 +13,7 @@ namespace Oryol {
 class SceneRenderer {
 public:
     /// setup the scene renderer
-    void Setup(const GfxSetup& gfxSetup);
+    void Setup(const GfxDesc& gfxDesc);
     /// discard the scene renderer
     void Discard();
     /// render the voxel scene
@@ -24,19 +24,19 @@ public:
     static const int MaxNumIndices = MaxNumQuads * 6;
 
     struct voxMesh {
-        Id mesh;
+        Id buffer;
         int numQuads = 0;
     };
 
-    Id createIndexMesh();
-    Array<voxMesh> createVoxelMeshes(const VertexLayout& layout);
-    void setupDrawState(const GfxSetup& gfxSetup, const VertexLayout& layout);
+    Id createIndexBuffer();
+    Array<voxMesh> createVoxelBuffers(const VertexLayout& layout);
+    void setupDrawState(const GfxDesc& gfxDesc, const VertexLayout& layout);
     void setupShaderParams();
 
     DrawState drawState;
     VoxelShader::vsParams vsParams;
-    Id indexMesh;
-    Array<voxMesh> voxelMeshes;
+    Id indexBuffer;
+    Array<voxMesh> voxelBuffers;
 };
 
 } // namespace Oryol

@@ -20,14 +20,18 @@ struct OrbModel {
     };
     struct Submesh {
         int MaterialIndex = 0;
-        int PrimitiveGroupIndex = 0;
+        PrimitiveGroup PrimGroup;
         bool Visible = false;
     };
 
     bool IsValid = false;
-    class MeshSetup MeshSetup;
+    BufferDesc VertexBufferDesc;
+    BufferDesc IndexBufferDesc;
+    VertexLayout Layout;
+    Oryol::IndexType::Code IndexType;
     glm::vec4 VertexMagnitude;
-    Id Mesh;
+    Id VertexBuffer;
+    Id IndexBuffer;
     Id Skeleton;
     Id AnimLib;
     InlineArray<Material, MaxNumMaterials> Materials;

@@ -10,27 +10,29 @@ namespace Oryol {
 
 //------------------------------------------------------------------------------
 void
-Wireframe::Setup(const GfxSetup& gfxSetup) {
+Wireframe::Setup(const GfxDesc& gfxDesc) {
     Gfx::PushResourceLabel();
-    auto meshSetup = MeshSetup::Empty(MaxNumVertices, Usage::Stream);
-    meshSetup.Layout = {
-        { VertexAttr::Position, VertexFormat::Float3 },
-        { VertexAttr::Color0, VertexFormat::Float4 }
-    };
-    this->drawState.Mesh[0] = Gfx::CreateResource(meshSetup);
+    this->drawState.VertexBuffers[0] = Gfx::CreateBuffer(BufferDesc()
+        .Type(BufferType::VertexBuffer)
+        .Size(MaxNumVertices * sizeof(Vertex))
+        .Usage(Usage::Stream));
 
-    Id shd = Gfx::CreateResource(WireframeShader::Setup());
-    auto pipSetup = PipelineSetup::FromLayoutAndShader(meshSetup.Layout, shd);
-    pipSetup.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    pipSetup.BlendState.BlendEnabled = true;
-    pipSetup.BlendState.SrcFactorRGB = BlendFactor::SrcAlpha;
-    pipSetup.BlendState.SrcFactorAlpha = BlendFactor::Zero;
-    pipSetup.BlendState.DstFactorRGB = BlendFactor::OneMinusSrcAlpha;
-    pipSetup.BlendState.DstFactorAlpha = BlendFactor::One;
-    pipSetup.BlendState.ColorFormat = gfxSetup.ColorFormat;
-    pipSetup.BlendState.DepthFormat = gfxSetup.DepthFormat;
-    pipSetup.PrimType = PrimitiveType::Lines;
-    this->drawState.Pipeline = Gfx::CreateResource(pipSetup);
+    Id shd = Gfx::CreateShader(WireframeShader::Desc());
+    this->drawState.Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(shd)
+        .PrimitiveType(PrimitiveType::Lines)
+        .Layout(0, {
+            { "position", VertexFormat::Float3 },
+            { "color0", VertexFormat::Float4 }
+        })
+        .BlendEnabled(true)
+        .BlendSrcFactorRGB(BlendFactor::SrcAlpha)
+        .BlendDstFactorRGB(BlendFactor::OneMinusSrcAlpha)
+        .BlendSrcFactorAlpha(BlendFactor::Zero)
+        .BlendDstFactorAlpha(BlendFactor::One)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
     this->label = Gfx::PopResourceLabel();
 }
 
@@ -65,12 +67,14 @@ Wireframe::Rect(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, c
 void
 Wireframe::Render() {
     if (!this->vertices.Empty()) {
-        Gfx::UpdateVertices(this->drawState.Mesh[0], this->vertices.begin(), this->vertices.Size()*sizeof(Vertex));
+        Gfx::UpdateBuffer(this->drawState.VertexBuffers[0], 
+            this->vertices.begin(),
+            this->vertices.Size()*sizeof(Vertex));
         Gfx::ApplyDrawState(this->drawState);
         WireframeShader::vsParams vsParams;
         vsParams.viewProj = this->ViewProj;
         Gfx::ApplyUniformBlock(vsParams);
-        Gfx::Draw({ 0, this->vertices.Size() });
+        Gfx::Draw(0, this->vertices.Size());
         this->vertices.Reset();
     }
 }

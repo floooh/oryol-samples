@@ -9,7 +9,7 @@
 #include "IMUI/IMUI.h"
 #include "Input/Input.h"
 #include "HttpFS/HTTPFileSystem.h"
-#include "Assets/Gfx/MeshLoader.h"
+#include "Common/OmshParser.h"
 #include "glm/mat4x4.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/polar_coordinates.hpp"
@@ -34,12 +34,12 @@ private:
 
     int frameCount = 0;
     ResourceLabel curMeshLabel;
-    MeshSetup curMeshSetup;
-    Id mesh;
+    Id vertexBuffer;
+    Id indexBuffer;
+    Array<PrimitiveGroup> primGroups;
+    VertexLayout layout;
+    IndexType::Code indexType = IndexType::None;
     glm::vec3 eyePos;
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 model;
     glm::mat4 modelViewProj;
 
     int curMeshIndex = 0;
@@ -56,13 +56,14 @@ private:
     Id shaders[numShaders];
     ResourceLabel curMaterialLabel;
     int numMaterials = 0;
+    static constexpr int MaxNumMaterials = 16;
     struct Material {
         int shaderIndex = Phong;
         Id pipeline;
         glm::vec4 diffuse = glm::vec4(0.0f, 0.24f, 0.64f, 1.0f);
         glm::vec4 specular = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
         float specPower = 32.0f;
-    } materials[GfxConfig::MaxNumPrimGroups];
+    } materials[MaxNumMaterials];
     bool gammaCorrect = true;
 
     struct CameraSetting {
@@ -114,17 +115,16 @@ const char* MeshViewerApp::shaderNames[numShaders] = {
 AppState::Code
 MeshViewerApp::OnInit() {
 
-    // setup IO system
-    IOSetup ioSetup;
-    ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
-    ioSetup.Assigns.Add("msh:", ORYOL_SAMPLE_URL);
-    IO::Setup(ioSetup);
-
-    // setup rendering and input system
-    auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Oryol Mesh Viewer");
-    gfxSetup.HighDPI = true;
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    IO::Setup(IODesc()
+        .FileSystem("http", HTTPFileSystem::Creator())
+        .Assign("msh:", ORYOL_SAMPLE_URL));
+    Gfx::Setup(GfxDesc()
+        .Width(800)
+        .Height(512)
+        .SampleCount(4)
+        .HighDPI(true)
+        .Title("Oryol Mesh Viewer")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
         if (event.Button == MouseButton::Left) {
@@ -165,18 +165,12 @@ MeshViewerApp::OnInit() {
     style.Colors[ImGuiCol_HeaderHovered] = defaultBlue;
     style.Colors[ImGuiCol_HeaderActive] = defaultBlue;
 
-    this->shaders[Normals] = Gfx::CreateResource(NormalsShader::Setup());
-    this->shaders[Lambert] = Gfx::CreateResource(LambertShader::Setup());
-    this->shaders[Phong]   = Gfx::CreateResource(PhongShader::Setup());
+    this->shaders[Normals] = Gfx::CreateShader(NormalsShader::Desc());
+    this->shaders[Lambert] = Gfx::CreateShader(LambertShader::Desc());
+    this->shaders[Phong]   = Gfx::CreateShader(PhongShader::Desc());
     this->loadMesh(this->meshPaths[this->curMeshIndex]);
 
-    // setup projection and view matrices
-    const float fbWidth = (const float) Gfx::DisplayAttrs().FramebufferWidth;
-    const float fbHeight = (const float) Gfx::DisplayAttrs().FramebufferHeight;
-    this->proj = glm::perspectiveFov(glm::radians(60.0f), fbWidth, fbHeight, 0.01f, 100.0f);
-
-    // non-standard camera settings when switching objects
-    // teapot:
+    // non-standard camera settings when switching objects to teapot:
     this->cameraSettings[2].dist = 0.8f;
     this->cameraSettings[2].height = 0.0f;
 
@@ -192,15 +186,16 @@ MeshViewerApp::OnRunning() {
     this->updateCamera();
     this->updateLight();
 
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.5f, 0.5f, 0.5f, 1.0f));
     this->drawUI();
     DrawState drawState;
-    drawState.Mesh[0] = this->mesh;
+    drawState.VertexBuffers[0] = this->vertexBuffer;
+    drawState.IndexBuffer = this->indexBuffer;
     for (int i = 0; i < this->numMaterials; i++) {
         drawState.Pipeline = this->materials[i].pipeline;
         Gfx::ApplyDrawState(drawState);
         this->applyVariables(i);
-        Gfx::Draw(i);
+        Gfx::Draw(this->primGroups[i]);
     }
     ImGui::Render();
     Gfx::EndPass();
@@ -268,8 +263,9 @@ MeshViewerApp::updateCamera() {
     }
     this->eyePos = glm::euclidean(this->camera.orbital) * this->camera.dist;
     glm::vec3 poi  = glm::vec3(0.0f, this->camera.height, 0.0f);
-    this->view = glm::lookAt(this->eyePos + poi, poi, glm::vec3(0.0f, 1.0f, 0.0f));
-    this->modelViewProj = this->proj * this->view;
+    glm::mat4 proj = glm::perspectiveFov(glm::radians(60.0f), float(Gfx::Width()), float(Gfx::Height()), 0.01f, 100.0f);
+    glm::mat4 view = glm::lookAt(this->eyePos + poi, poi, glm::vec3(0.0f, 1.0f, 0.0f));
+    this->modelViewProj = proj * view;
 }
 
 //-----------------------------------------------------------------------------
@@ -288,10 +284,10 @@ MeshViewerApp::updateLight() {
 void
 MeshViewerApp::drawUI() {
     const char* state;
-    switch (Gfx::QueryResourceInfo(this->mesh).State) {
+    switch (Gfx::QueryResourceState(this->vertexBuffer)) {
         case ResourceState::Valid: state = "Loaded"; break;
         case ResourceState::Failed: state = "Load Failed"; break;
-        case ResourceState::Pending: state = "Loading..."; break;
+        case ResourceState::Alloc: state = "Loading..."; break;
         default: state = "Invalid"; break;
     }
     IMUI::NewFrame();
@@ -302,10 +298,10 @@ MeshViewerApp::drawUI() {
         this->loadMesh(this->meshPaths[this->curMeshIndex]);
     }
     ImGui::Text("state: %s\n", state);
-    if (this->curMeshSetup.NumPrimitiveGroups() > 0) {
+    if (this->primGroups.Size() > 0) {
         ImGui::Text("primitive groups:\n");
-        for (int i = 0; i < this->curMeshSetup.NumPrimitiveGroups(); i++) {
-            ImGui::Text("%d: %d triangles\n", i, this->curMeshSetup.PrimitiveGroup(i).NumElements / 3);
+        for (int i = 0; i < this->primGroups.Size(); i++) {
+            ImGui::Text("%d: %d triangles\n", i, this->primGroups[i].NumElements / 3);
         }
     }
     if (ImGui::CollapsingHeader("Camera")) {
@@ -361,19 +357,20 @@ MeshViewerApp::drawUI() {
 //-----------------------------------------------------------------------------
 void
 MeshViewerApp::createMaterials() {
-    o_assert_dbg(this->mesh.IsValid());
     if (this->curMaterialLabel.IsValid()) {
         Gfx::DestroyResources(this->curMaterialLabel);
     }
 
     this->curMaterialLabel = Gfx::PushResourceLabel();
     for (int i = 0; i < this->numMaterials; i++) {
-        auto ps = PipelineSetup::FromLayoutAndShader(this->curMeshSetup.Layout, this->shaders[this->materials[i].shaderIndex]);
-        ps.DepthStencilState.DepthWriteEnabled = true;
-        ps.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-        ps.RasterizerState.CullFaceEnabled = true;
-        ps.RasterizerState.SampleCount = 4;
-        this->materials[i].pipeline = Gfx::CreateResource(ps);
+        this->materials[i].pipeline = Gfx::CreatePipeline(PipelineDesc()
+            .Shader(this->shaders[this->materials[i].shaderIndex])
+            .Layout(0, this->layout)
+            .IndexType(this->indexType)
+            .DepthWriteEnabled(true)
+            .DepthCmpFunc(CompareFunc::LessEqual)
+            .CullFaceEnabled(true)
+            .SampleCount(4));
     }
     Gfx::PopResourceLabel();
 }
@@ -385,19 +382,30 @@ MeshViewerApp::loadMesh(const char* path) {
     // unload current mesh
     if (this->curMeshLabel.IsValid()) {
         Gfx::DestroyResources(this->curMeshLabel);
-        this->curMeshSetup = MeshSetup();
+        this->vertexBuffer.Invalidate();
+        this->indexBuffer.Invalidate();
+        this->primGroups.Clear();
     }
 
     // load new mesh, use 'onloaded' callback to capture the mesh setup
     // object of the loaded mesh
     this->numMaterials = 0;
     this->curMeshLabel = Gfx::PushResourceLabel();
-    this->mesh = Gfx::LoadResource(MeshLoader::Create(MeshSetup::FromFile(path), [this](MeshSetup& setup) {
-        this->curMeshSetup = setup;
-        this->numMaterials = setup.NumPrimitiveGroups();
-        this->createMaterials();
-    }));
+    this->vertexBuffer = Gfx::AllocBuffer(Locator::NonShared());
+    this->indexBuffer = Gfx::AllocBuffer(Locator::NonShared());
     Gfx::PopResourceLabel();
+    IO::Load(path, [this](IO::LoadResult res) {
+        OmshParser::Result omsh = OmshParser::Parse(res.Data.Data(), res.Data.Size());
+        if (omsh.Valid) {
+            Gfx::InitBuffer(this->vertexBuffer, omsh.VertexBufferDesc);
+            Gfx::InitBuffer(this->indexBuffer, omsh.IndexBufferDesc);
+            this->layout = omsh.Layout;
+            this->indexType = omsh.IndexType;
+            this->primGroups = omsh.PrimitiveGroups;
+            this->numMaterials = omsh.PrimitiveGroups.Size();
+            this->createMaterials();
+        }
+    });
 }
 
 //-----------------------------------------------------------------------------
@@ -417,7 +425,7 @@ MeshViewerApp::applyVariables(int matIndex) {
             {
                 LambertShader::vsParams vsParams;
                 vsParams.mvp = this->modelViewProj;
-                vsParams.model = this->model;
+                vsParams.model = glm::mat4(1.0f);
                 Gfx::ApplyUniformBlock(vsParams);
 
                 LambertShader::fsParams fsParams;
@@ -433,7 +441,7 @@ MeshViewerApp::applyVariables(int matIndex) {
             {
                 PhongShader::vsParams vsParams;
                 vsParams.mvp = this->modelViewProj;
-                vsParams.model = this->model;
+                vsParams.model = glm::mat4(1.0f);
                 Gfx::ApplyUniformBlock(vsParams);
 
                 PhongShader::fsParams fsParams;

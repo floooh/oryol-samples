@@ -35,7 +35,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
 
     # link to the Core Samples
     content  = '<div class="thumb">\n'
-    content += '  <div class="thumb-title">To Core Samples...</div>\n'
+    content += '  <div class="thumb-title">Core Samples...</div>\n'
     content += '  <div class="img-frame"><a href="http://floooh.github.com/oryol/index.html"><img class="image" src="core_samples.jpg"></img></a></div>\n'
     content += '</div>\n'
 
@@ -72,7 +72,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
         f.write(html)
 
     # copy other required files
-    for name in ['style.css', 'dummy.jpg', 'emsc.js', 'wasm.js', 'about.html', 'favicon.png', 'core_samples.jpg'] :
+    for name in ['style.css', 'dummy.jpg', 'emsc.js', 'favicon.png', 'core_samples.jpg'] :
         log.info('> copy file: {}'.format(name))
         shutil.copy(proj_dir + '/web/' + name, webpage_dir + '/' + name)
 

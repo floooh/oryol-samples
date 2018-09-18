@@ -7,6 +7,7 @@
 #include "Input/Input.h"
 #include "Dbg/Dbg.h"
 #include "Sound/Sound.h"
+#include "Assets/Gfx/FullscreenQuadBuilder.h"
 #include "canvas.h"
 #include "game.h"
 #include "shaders.h"
@@ -43,6 +44,11 @@ private:
     int viewPortW = 0;
     int viewPortH = 0;
     Direction input = NoDirection;
+    
+    const int canvasWidth = Width * 8;
+    const int canvasHeight = Height * 8;
+    const int dispWidth = canvasWidth * 2;
+    const int dispHeight = canvasHeight * 2;
 };
 OryolMain(PacloneApp);
 
@@ -51,35 +57,40 @@ AppState::Code
 PacloneApp::OnInit() {
     
     this->tick = 0;
-    const int canvasWidth = Width * 8;
-    const int canvasHeight = Height * 8;
-    const int dispWidth = canvasWidth * 2;
-    const int dispHeight = canvasHeight * 2;
-    Gfx::Setup(GfxSetup::Window(dispWidth, dispHeight, "Oryol Pacman Clone Sample"));
+    Gfx::Setup(GfxDesc()
+        .Width(dispWidth).Height(dispHeight)
+        .Title("Oryol Pacman Clone Sample")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     Sound::Setup(SoundSetup());
-    Dbg::Setup();
+    Dbg::Setup(DbgDesc().DepthFormat(PixelFormat::None));
     
     // setup a offscreen render target, copy-shader and texture block
-    auto rtSetup = TextureSetup::RenderTarget2D(canvasWidth, canvasHeight);
-    rtSetup.Sampler.MinFilter = TextureFilterMode::Linear;
-    rtSetup.Sampler.MagFilter = TextureFilterMode::Linear;
-    Id canvasTexture = Gfx::CreateResource(rtSetup);
-    this->canvasPass = Gfx::CreateResource(PassSetup::From(canvasTexture));
+    this->canvasDrawState.FSTexture[0] = Gfx::CreateTexture(TextureDesc()
+        .RenderTarget(true)
+        .Type(TextureType::Texture2D)
+        .Width(canvasWidth)
+        .Height(canvasHeight)
+        .MinFilter(TextureFilterMode::Linear)
+        .MagFilter(TextureFilterMode::Linear)
+        .WrapU(TextureWrapMode::ClampToEdge)
+        .WrapV(TextureWrapMode::ClampToEdge));
+    this->canvasPass = Gfx::CreatePass(PassDesc()
+        .ColorAttachment(0, this->canvasDrawState.FSTexture[0]));
 
-    auto quadSetup = MeshSetup::FullScreenQuad(Gfx::QueryFeature(GfxFeature::OriginTopLeft));
-    this->canvasDrawState.Mesh[0] = Gfx::CreateResource(quadSetup);
+    auto fsq = FullscreenQuadBuilder()
+        .FlipV(Gfx::QueryFeature(GfxFeature::OriginTopLeft))
+        .Build();
+    this->canvasDrawState.VertexBuffers[0] = Gfx::CreateBuffer(fsq.VertexBufferDesc);
     #if USE_CRTEFFECT
-    Id shd = Gfx::CreateResource(CRTShader::Setup());
+    Id shd = Gfx::CreateShader(CRTShader::Desc());
     #else
-    Id shd = Gfx::CreateResource(NoCRTShader::Setup());
+    Id shd = Gfx::CreateShader(NoCRTShader::Desc());
     #endif
-    auto ps = PipelineSetup::FromLayoutAndShader(quadSetup.Layout, shd);
-    this->canvasDrawState.Pipeline = Gfx::CreateResource(ps);
-    this->canvasDrawState.FSTexture[0] = canvasTexture;
+    this->canvasDrawState.Pipeline = Gfx::CreatePipeline(PipelineDesc(fsq.PipelineDesc).Shader(shd));
 
     // setup canvas and game state
-    this->spriteCanvas.Setup(rtSetup, Width, Height, 8, 8, NumSprites);
+    this->spriteCanvas.Setup(PixelFormat::RGBA8, Width, Height, 8, 8, NumSprites);
     this->sounds.CreateSoundEffects();
     this->gameState.Init(&this->spriteCanvas, &this->sounds);
 
@@ -90,8 +101,8 @@ PacloneApp::OnInit() {
 void
 PacloneApp::applyViewPort() {
     float aspect = float(Width) / float(Height);
-    const int fbWidth = Gfx::DisplayAttrs().FramebufferWidth;
-    const int fbHeight = Gfx::DisplayAttrs().FramebufferHeight;
+    const int fbWidth = Gfx::Width();
+    const int fbHeight = Gfx::Height();
     this->viewPortY = 0;
     this->viewPortH = fbHeight;
     this->viewPortW = (const int) (fbHeight * aspect);
@@ -109,14 +120,14 @@ PacloneApp::OnRunning() {
     // render into offscreen render target
     Gfx::BeginPass(this->canvasPass);
     this->spriteCanvas.Render();
-    Dbg::DrawTextBuffer();
+    Dbg::DrawTextBuffer(canvasWidth, canvasHeight);
     Gfx::EndPass();
     
     // copy offscreen render target into backbuffer
     Gfx::BeginPass();
     this->applyViewPort();
     Gfx::ApplyDrawState(this->canvasDrawState);
-    Gfx::Draw();
+    Gfx::Draw(0, 4);
     Gfx::EndPass();
     Gfx::CommitFrame();
     this->tick++;

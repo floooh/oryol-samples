@@ -12,7 +12,7 @@ using namespace Oryol;
 
 //------------------------------------------------------------------------------
 void
-GeomPool::Setup(const GfxSetup& gfxSetup) {
+GeomPool::Setup(const GfxDesc& gfxDesc) {
 
     // setup a static mesh with only indices which is shared by all geom meshes
     uint16_t indices[Config::GeomMaxNumIndices];
@@ -26,13 +26,10 @@ GeomPool::Setup(const GfxSetup& gfxSetup) {
         indices[ii+4] = baseVertexIndex + 2;
         indices[ii+5] = baseVertexIndex + 3;
     }
-    auto meshSetup = MeshSetup::FromData(Usage::InvalidUsage, Usage::Immutable);
-    meshSetup.NumVertices = 0;
-    meshSetup.NumIndices  = Config::GeomMaxNumIndices;
-    meshSetup.IndicesType = IndexType::Index16;
-    meshSetup.VertexDataOffset = InvalidIndex;
-    meshSetup.IndexDataOffset = 0;
-    this->IndexMesh = Gfx::CreateResource(meshSetup, indices, sizeof(indices));
+    this->IndexBuffer = Gfx::CreateBuffer(BufferDesc()
+        .Type(BufferType::IndexBuffer)
+        .Size(sizeof(indices))
+        .Content(indices));
 
     // setup shader params template
     Shader::vsParams vsParams;
@@ -47,25 +44,32 @@ GeomPool::Setup(const GfxSetup& gfxSetup) {
     }
 
     // setup shader and drawstate
-    Id shd = Gfx::CreateResource(Shader::Setup());
-    auto pips = PipelineSetup::FromShader(shd);
-    pips.Layouts[1]
-        .Add(VertexAttr::Position, VertexFormat::UByte4N)
-        .Add(VertexAttr::Normal, VertexFormat::UByte4N);
-    pips.DepthStencilState.DepthCmpFunc = CompareFunc::LessEqual;
-    pips.DepthStencilState.DepthWriteEnabled = true;
-    pips.RasterizerState.CullFaceEnabled = true;
-    pips.RasterizerState.CullFace = Face::Front;
-    pips.RasterizerState.SampleCount = gfxSetup.SampleCount;
-    this->Pipeline = Gfx::CreateResource(pips);
+    Id shd = Gfx::CreateShader(Shader::Desc());
+    VertexLayout layout = {
+        { "position", VertexFormat::UByte4N },
+        { "normal", VertexFormat::UByte4N }
+    };
+    this->Pipeline = Gfx::CreatePipeline(PipelineDesc()
+        .Shader(shd)
+        .IndexType(IndexType::UInt16)
+        .Layout(0, layout)
+        .DepthCmpFunc(CompareFunc::LessEqual)
+        .DepthWriteEnabled(true)
+        .CullFaceEnabled(true)
+        .CullFace(Face::Front)
+        .ColorFormat(gfxDesc.ColorFormat())
+        .DepthFormat(gfxDesc.DepthFormat())
+        .SampleCount(gfxDesc.SampleCount()));
 
     // setup items
-    meshSetup = MeshSetup::Empty(Config::GeomMaxNumVertices, Usage::Dynamic);
-    meshSetup.Layout = pips.Layouts[1];
+    auto vbufDesc = BufferDesc()
+        .Type(BufferType::VertexBuffer)
+        .Usage(Usage::Dynamic)
+        .Size(Config::GeomMaxNumVertices * layout.ByteSize());
     for (auto& geom : this->Geoms) {
         geom.VSParams = vsParams;
         geom.NumQuads = 0;
-        geom.Mesh = Gfx::CreateResource(meshSetup);
+        geom.VertexBuffer = Gfx::CreateBuffer(vbufDesc);
     }
     this->freeGeoms.Reserve(NumGeoms);
     this->FreeAll();
@@ -74,7 +78,7 @@ GeomPool::Setup(const GfxSetup& gfxSetup) {
 //------------------------------------------------------------------------------
 void
 GeomPool::Discard() {
-    this->IndexMesh.Invalidate();
+    this->IndexBuffer.Invalidate();
     this->Pipeline.Invalidate();
     this->freeGeoms.Clear();
 }

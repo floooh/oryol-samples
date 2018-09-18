@@ -29,9 +29,10 @@ OryolMain(DemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnInit() {
-    auto gfxSetup = GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo");
-    gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f));
-    Gfx::Setup(gfxSetup);
+    Gfx::Setup(GfxDesc()
+        .Width(1024).Height(700)
+        .Title("Basic Nuklear UI Demo")
+        .HtmlTrackElementSize(true));
     Input::Setup();
     NKUI::Setup();
     return AppState::Running;
@@ -40,7 +41,7 @@ DemoApp::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 DemoApp::OnRunning() {
-    Gfx::BeginPass();
+    Gfx::BeginPass(PassAction().Clear(0.25f, 0.25f, 0.75f, 1.0f));
     nk_context* ctx = NKUI::NewFrame();
     drawOverviewWindow(ctx);
     NKUI::Draw();
