@@ -5,7 +5,7 @@ body {
 
 /** sample header styling **/
 .title {    
-    color: #dda3dd;
+    color: #ffc107;
     text-align: left;
     padding-left: 20px;
     font-family: "Arial Black", Gadget, sans-serif;
@@ -21,7 +21,7 @@ body {
 
 .main-menu-link {
     text-decoration: none;
-    color: #dda3dd;
+    color: #ffc107;
 }
 
 /** game page styling **/
@@ -64,11 +64,11 @@ body {
     padding: 1px;
     float: left;
     background: #292d3e;
-    border: 1px solid #dda3dd;
+    border: 1px solid #ffc107;
 }
 .thumb-title {
     text-align: center;
-    color: #dda3dd;
+    color: #ffc107;
     font-family: "Arial Black", Gadget, sans-serif;
     font-size: 20px;        
 }
@@ -106,7 +106,7 @@ a.thumb-link:link, a.thumb-link:visited {
     font-size: 16px;    
     display: block;
     width: 80px;
-    color: #dda3dd;
+    color: #ffc107;
     text-align: center;
     text-decoration: none;
 }

@@ -25,7 +25,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
         samples = yaml.load(f.read())
 
     # create directories
-    for platform in ['asmjs', 'wasm'] :
+    for platform in ['wasm'] :
         platform_dir = '{}/{}'.format(webpage_dir, platform)
         if not os.path.isdir(platform_dir) :
             os.makedirs(platform_dir)
@@ -61,7 +61,7 @@ def deploy_webpage(fips_dir, proj_dir, webpage_dir) :
         f.write(html)
 
     # copy other required files
-    for name in ['style.css', 'dummy.jpg', 'emsc.js', 'wasm.js', 'favicon.png', 'core_samples.jpg'] :
+    for name in ['style.css', 'dummy.jpg', 'emsc.js', 'favicon.png', 'core_samples.jpg'] :
         log.info('> copy file: {}'.format(name))
         shutil.copy(proj_dir + '/web/' + name, webpage_dir + '/' + name)
 
