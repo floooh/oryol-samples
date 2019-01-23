@@ -69,6 +69,7 @@ AppState::Code
 SoundTestApp::OnInit() {
     auto gfxSetup = GfxSetup::Window(1024, 480, "Sound Test");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.75f, 0.75f, 0.75f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Sound::Setup(SoundSetup());

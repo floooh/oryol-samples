@@ -100,6 +100,7 @@ DemoApp::OnInit() {
     IO::Setup(ioSetup);
     auto gfxSetup = GfxSetup::Window(1024, 700, "Basic Nuklear UI Demo");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.25f, 0.25f, 0.75f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     NKUI::Setup();

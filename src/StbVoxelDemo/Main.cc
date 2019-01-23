@@ -48,6 +48,7 @@ VoxelTest::OnInit() {
     gfxSetup.ResourcePoolSize[GfxResourceType::Pipeline] = 1024;
     gfxSetup.ResourcePoolSize[GfxResourceType::Mesh] = 1024;
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.2f, 0.5f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::SetPointerLockHandler([](const InputEvent& event) -> PointerLockMode::Code {

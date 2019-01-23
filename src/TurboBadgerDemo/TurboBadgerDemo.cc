@@ -66,6 +66,7 @@ TurboBadgerDemoApp::OnInit() {
 
     auto gfxSetup = GfxSetup::Window(1000, 650, "TurboBadger UI Demo");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.0f, 1.0f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Dbg::Setup();
     Input::Setup();

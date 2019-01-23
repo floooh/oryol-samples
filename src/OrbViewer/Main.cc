@@ -81,6 +81,7 @@ Main::OnInit() {
 
     this->gfxSetup = GfxSetup::WindowMSAA4(1024, 640, "Orb File Viewer");
     this->gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.1f, 0.1f, 0.2f, 1.0f));
+    this->gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(this->gfxSetup);
     AnimSetup animSetup;
     animSetup.SkinMatrixTableWidth = BoneTextureWidth;

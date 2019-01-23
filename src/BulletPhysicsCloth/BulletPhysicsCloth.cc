@@ -68,6 +68,7 @@ AppState::Code
 BulletPhysicsClothApp::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 600, "BulletPhysicsCloth");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     this->colorFSParams.shadowMapSize = glm::vec2(float(this->shapeRenderer.ShadowMapSize));
 

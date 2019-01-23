@@ -124,6 +124,7 @@ MeshViewerApp::OnInit() {
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Oryol Mesh Viewer");
     gfxSetup.HighDPI = true;
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {

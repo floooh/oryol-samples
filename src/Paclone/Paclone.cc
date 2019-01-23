@@ -55,7 +55,9 @@ PacloneApp::OnInit() {
     const int canvasHeight = Height * 8;
     const int dispWidth = canvasWidth * 2;
     const int dispHeight = canvasHeight * 2;
-    Gfx::Setup(GfxSetup::Window(dispWidth, dispHeight, "Oryol Pacman Clone Sample"));
+    auto gfxSetup = GfxSetup::Window(dispWidth, dispHeight, "Oryol Pacman Clone Sample");
+    gfxSetup.HtmlTrackElementSize = true;
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     Sound::Setup(SoundSetup());
     Dbg::Setup();

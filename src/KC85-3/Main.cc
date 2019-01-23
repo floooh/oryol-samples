@@ -63,6 +63,7 @@ KC853App::OnInit() {
     IO::Setup(ioSetup);
     auto gfxSetup = GfxSetup::WindowMSAA4(800, 512, "Emu");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.4f, 0.6f, 0.8f, 1.0f));
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     Dbg::Setup();

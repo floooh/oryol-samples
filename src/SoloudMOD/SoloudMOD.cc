@@ -108,8 +108,9 @@ SoloudMODApp::OnInit() {
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
     ioSetup.Assigns.Add("snd:", ORYOL_SAMPLE_URL);
     IO::Setup(ioSetup);
-
-    Gfx::Setup(GfxSetup::Window(800, 500, "SoLoud MOD Demo"));
+    auto gfxSetup = GfxSetup::Window(800, 500, "SoLoud MOD Demo");
+    gfxSetup.HtmlTrackElementSize = true;
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     IMUI::Setup();
 

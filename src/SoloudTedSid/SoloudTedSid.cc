@@ -154,8 +154,9 @@ SoloudTedSidApp::OnInit() {
     ioSetup.FileSystems.Add("http", HTTPFileSystem::Creator());
     ioSetup.Assigns.Add("snd:", ORYOL_SAMPLE_URL);
     IO::Setup(ioSetup);
-
-    Gfx::Setup(GfxSetup::Window(800, 460, "SoLoud TED/SID Demo"));
+    auto gfxSetup = GfxSetup::Window(800, 460, "SoLoud TED/SID Demo");
+    gfxSetup.HtmlTrackElementSize = true;
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     IMUI::Setup();
 

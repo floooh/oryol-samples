@@ -30,7 +30,9 @@ OryolMain(ImGuiDemoApp);
 //------------------------------------------------------------------------------
 AppState::Code
 ImGuiDemoApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(1024, 700, "Oryol ImGui Demo"));
+    auto gfxSetup = GfxSetup::Window(1024, 700, "Oryol ImGui Demo");
+    gfxSetup.HtmlTrackElementSize = true;
+    Gfx::Setup(gfxSetup);
     Input::Setup();
     IMUI::Setup();
     this->lastTimePoint = Clock::Now();

@@ -119,7 +119,9 @@ FractalApp::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 FractalApp::OnInit() {
-    Gfx::Setup(GfxSetup::Window(800, 512, "Fractal Sample"));
+    auto gfxSetup = GfxSetup::Window(800, 512, "Fractal Sample");
+    gfxSetup.HtmlTrackElementSize = true;
+    Gfx::Setup(gfxSetup);
     Gfx::Subscribe([this](const GfxEvent& event) {
         if (event.Type == GfxEvent::DisplayModified) {
             this->recreateRenderTargets(event.DisplayAttrs);

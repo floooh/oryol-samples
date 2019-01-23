@@ -194,6 +194,7 @@ DrawCallExplorerApp::OnInit() {
     GfxSetup gfxSetup = GfxSetup::Window(620, 500, "Oryol DrawCallExplorer");
     gfxSetup.DefaultPassAction = PassAction::Clear(glm::vec4(0.5f, 0.5f, 0.5f, 1.0f));
     gfxSetup.GlobalUniformBufferSize = 1024 * 1024 * 32;
+    gfxSetup.HtmlTrackElementSize = true;
     Gfx::Setup(gfxSetup);
     Input::Setup();
     IMUI::Setup();
