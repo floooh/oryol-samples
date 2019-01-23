@@ -151,7 +151,7 @@ void Emu::Tick(Duration frameTime) {
         if (microSecs > 33333) {
             microSecs = 33333;
         }
-        kc85_exec(&this->kc85, (uint32_t)frameTime.AsMicroSeconds());
+        kc85_exec(&this->kc85, microSecs);
     }
     // start a game?
     if (this->startGamePath && (this->startGameFrameIndex == this->frameIndex)) {
