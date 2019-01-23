@@ -10,9 +10,9 @@
 #include "Dbg/Dbg.h"
 #include "Input/Input.h"
 #include "Common/CameraHelper.h"
-#include "EmuCommon/KC85Emu.h"
 #include "SceneRenderer.h"
 #include "RayCheck.h"
+#include "Emu.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include <cstring>
 
@@ -44,11 +44,11 @@ public:
     void tooltip(const DisplayAttrs& disp, const char* str);
 
     TimePoint lapTime;
-    KC85Emu kc85Emu;
     SceneRenderer scene;
     RayCheck rayChecker;
     glm::mat4 kcModelMatrix;
     CameraHelper camera;
+    Emu emu;
 };
 OryolMain(KC853App);
 
@@ -92,7 +92,7 @@ KC853App::OnInit() {
     this->camera.Orbital = glm::vec2(glm::radians(10.0f), glm::radians(160.0f));
 
     // setup the KC emulator
-    this->kc85Emu.Setup(gfxSetup);
+    this->emu.Setup(gfxSetup);
     this->lapTime = Clock::Now();
 
     glm::mat4 m = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -111,12 +111,12 @@ KC853App::OnRunning() {
     this->handleInput();
 
     // update KC85 emu
-    this->kc85Emu.Update(Clock::LapTime(this->lapTime));
+    this->emu.Tick(Clock::LapTime(this->lapTime));
 
     // render the voxel scene and emulator screen
     Gfx::BeginPass();
     this->scene.Render(this->camera.ViewProj);
-    this->kc85Emu.Render(this->camera.ViewProj * this->kcModelMatrix);
+    this->emu.Render(this->camera.ViewProj * this->kcModelMatrix);
 //    this->rayChecker.RenderDebug(this->camera.ViewProj);
     Dbg::DrawTextBuffer();
     Gfx::EndPass();
@@ -127,6 +127,7 @@ KC853App::OnRunning() {
 //------------------------------------------------------------------------------
 AppState::Code
 KC853App::OnCleanup() {
+    this->emu.Discard();
     Input::Discard();
     IO::Discard();
     Gfx::Discard();
@@ -147,9 +148,9 @@ KC853App::handleInput() {
         switch (hit) {
             case PowerOnButton:
                 if (lmb) {
-                    this->kc85Emu.TogglePower();
+                    this->emu.TogglePower();
                 }
-                if (this->kc85Emu.SwitchedOn()) {
+                if (this->emu.SwitchedOn()) {
                     this->tooltip(disp, "SWITCH KC85/3 OFF");
                 }
                 else {
@@ -158,7 +159,7 @@ KC853App::handleInput() {
                 break;
             case ResetButton:
                 if (lmb) {
-                    this->kc85Emu.Reset();
+                    this->emu.Reset();
                 }
                 this->tooltip(disp, "RESET KC85/3");
                 break;
@@ -179,36 +180,36 @@ KC853App::handleInput() {
                 break;
             case Jungle:
                 if (lmb) {
-                    this->kc85Emu.StartGame("Jungle");
+                    this->emu.StartGame("kcc:jungle.kcc");
                 }
                 this->tooltip(disp, "PLAY JUNGLE!");
                 break;
             case Digger:
                 if (lmb) {
-                    this->kc85Emu.StartGame("Digger");
+                    this->emu.StartGame("kcc:digger3.tap");
                 }
                 this->tooltip(disp, "PLAY DIGGER!");
                 break;
             case Pengo:
                 if (lmb) {
-                    this->kc85Emu.StartGame("Pengo");
+                    this->emu.StartGame("kcc:pengo.kcc");
                 }
                 this->tooltip(disp, "PLAY PENGO!");
                 break;
             case Boulderdash:
                 if (lmb) {
-                    this->kc85Emu.StartGame("Boulderdash");
+                    this->emu.StartGame("kcc:boulder3.tap");
                 }
                 this->tooltip(disp, "PLAY BOULDERDASH!");
                 break;
             case Cave:
                 if (lmb) {
-                    this->kc85Emu.StartGame("Cave");
+                    this->emu.StartGame("kcc:cave.kcc");
                 }
                 this->tooltip(disp, "PLAY CAVE!");
                 break;
             default:
-                if (!this->kc85Emu.SwitchedOn()) {
+                if (!this->emu.SwitchedOn()) {
                     this->tooltip(disp, "EXPLORE!");
                 }
                 break;

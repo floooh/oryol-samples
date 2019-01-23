@@ -13,8 +13,6 @@ imports:
         git: https://github.com/floooh/oryol-nuklear.git
     oryol-sound:
         git: https://github.com/floooh/oryol-sound.git
-    yakc:
-        git: https://github.com/floooh/yakc.git
     fips-soloud:
         git: https://github.com/floooh/fips-soloud.git
     fips-bullet:
@@ -23,6 +21,4 @@ imports:
         git: https://github.com/floooh/oryol-fileformats.git
     oryol-animation:
         git: https://github.com/floooh/oryol-animation.git
-
-
 
