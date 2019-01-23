@@ -1,9 +1,0 @@
-{
-  "program": {
-    "portable": {
-      "pnacl-translate": {
-        "url": "KC85-3.pexe"
-      }
-    }
-  }
-}
