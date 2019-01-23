@@ -14,17 +14,6 @@
   </div>
   <canvas class="game" id="canvas" oncontextmenu="event.preventDefault()"></canvas>
   <script type="text/javascript" src="../emsc.js"></script>
-  <script>
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'NuklearUIBasic.wasm.txt', true)
-    xhr.responseType = 'arraybuffer';
-    xhr.onload = function() {
-      Module.wasmBinary = xhr.response;
-      var script = document.createElement('script');
-      script.src = "NuklearUIBasic.js";
-      document.body.appendChild(script);
-    };
-    xhr.send(null);
-  </script>
+  <script async type="text/javascript" src="NuklearUIBasic.js"></script>
 </body>
 </html>
