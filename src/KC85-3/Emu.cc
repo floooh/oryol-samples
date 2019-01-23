@@ -146,6 +146,11 @@ void Emu::Discard() {
 void Emu::Tick(Duration frameTime) {
     this->frameIndex++;
     if (this->switchedOn) {
+        uint32_t microSecs = (uint32_t)frameTime.AsMicroSeconds();
+        // clamp to 30Hz, in case we've been switched to the background
+        if (microSecs > 33333) {
+            microSecs = 33333;
+        }
         kc85_exec(&this->kc85, (uint32_t)frameTime.AsMicroSeconds());
     }
     // start a game?
