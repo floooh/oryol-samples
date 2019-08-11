@@ -124,7 +124,7 @@ Main::OnInit() {
 //------------------------------------------------------------------------------
 AppState::Code
 Main::OnRunning() {
-    if (!ImGui::IsMouseHoveringAnyWindow()) {
+    if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
         this->camera.Update();
     }
     this->wireframe.ViewProj = this->camera.ViewProj;
@@ -220,7 +220,7 @@ Main::drawUI() {
 //------------------------------------------------------------------------------
 void
 Main::drawMainWindow() {
-    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiCond_Once);
     if (ImGui::Begin("##main_window", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Checkbox("freeze time", &this->ui.freezeTime);
         ImGui::SliderFloat("time scale", &this->ui.timeScale, 0.001f, 2.0f);
@@ -249,8 +249,8 @@ Main::drawAnimControlWindow() {
     const float w = 720.0f;
     const float h = 230.0f;
     const AnimLibrary& lib = Anim::Library(this->model.orb.AnimLib);
-    ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - h), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
     if (ImGui::Begin("Anim Sequencer", &this->ui.animWindowEnabled)) {
         ImGui::BeginChild("Controls", ImVec2(210, -1), true);
         {
@@ -320,8 +320,8 @@ void
 Main::drawBoneTextureWindow() {
     const float w = 800.0f;
     const float h = 64.0f;
-    ImGui::SetNextWindowPos(ImVec2(5, ImGui::GetIO().DisplaySize.y - h), ImGuiSetCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, ImGui::GetIO().DisplaySize.y - h), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(w, h), ImGuiCond_Once);
     if (ImGui::Begin("Bone Texture", &this->ui.textureWindowEnabled)) {
         ImGui::Image(this->imguiBoneTextureId,
             ImVec2(float(BoneTextureWidth), float(BoneTextureHeight) * 4),

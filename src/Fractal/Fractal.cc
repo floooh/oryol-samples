@@ -203,7 +203,7 @@ FractalApp::drawUI() {
     IMUI::NewFrame();
 
     // draw the controls window
-    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(5, 5), ImGuiCond_Once);
     ImGui::Begin("Controls", nullptr, ImVec2(300, 230));
     ImGui::BulletText("mouse-drag a rectangle to zoom in");
     ImGui::BulletText("click into Mandelbrot to render\nJulia set at that point");
@@ -252,7 +252,7 @@ FractalApp::drawUI() {
     }
 
     // handle dragging
-    if (!ImGui::IsMouseHoveringAnyWindow() && ImGui::IsMouseClicked(0)) {
+    if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) && ImGui::IsMouseClicked(0)) {
         this->dragStarted = true;
         this->dragStartPos = ImGui::GetMousePos();
     }

@@ -130,7 +130,7 @@ MeshViewerApp::OnInit() {
     Input::SetPointerLockHandler([this] (const InputEvent& event) -> PointerLockMode::Code {
         if (event.Button == MouseButton::Left) {
             if (event.Type == InputEvent::MouseButtonDown) {
-                if (!ImGui::IsMouseHoveringAnyWindow()) {
+                if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
                     this->dragging = true;
                     return PointerLockMode::Enable;
                 }
@@ -225,7 +225,7 @@ MeshViewerApp::handleInput() {
 
     // rotate camera with mouse if not UI-dragging
     if (Input::TouchpadAttached()) {
-        if (!ImGui::IsMouseHoveringAnyWindow()) {
+        if (!ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
             if (Input::TouchPanningStarted()) {
                 this->camera.startOrbital = this->camera.orbital;
             }
