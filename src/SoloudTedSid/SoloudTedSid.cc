@@ -61,7 +61,7 @@ SoloudTedSidApp::OnRunning() {
 
     Gfx::BeginPass(PassAction::Clear(glm::vec4(0.2f, 0.4f, 0.8f, 1.0f)));
     IMUI::NewFrame();
-    ImGui::SetNextWindowPos(ImVec2(500, 20), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(500, 20), ImGuiCond_Once);
     ImGui::Begin("Output");
     ImGui::PlotLines("##Wave", buf, 256, 0, "Wave", -1, 1, ImVec2(264, 80));
     ImGui::PlotHistogram("##FFT", fft, 256/2, 0, "FFT", 0, 10, ImVec2(264, 80), 8);
@@ -114,7 +114,7 @@ SoloudTedSidApp::OnRunning() {
         (int)this->soloud.getInfo(this->musicHandle2, 68));
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiSetCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Once);
     ImGui::Begin("Control", nullptr, ImVec2(300, -1));
     ImGui::Text("Song volumes");
     if (ImGui::SliderFloat("Song1 vol", &this->music1Volume, 0, 1)) {
