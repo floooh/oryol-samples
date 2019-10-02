@@ -16,7 +16,7 @@ imports:
     fips-soloud:
         git: https://github.com/floooh/fips-soloud.git
     fips-bullet:
-        git: https://github.com/floooh/fips-bullet.git
+        git: https://github.com/fips-libs/fips-bullet.git
     oryol-fileformats:
         git: https://github.com/floooh/oryol-fileformats.git
     oryol-animation:
