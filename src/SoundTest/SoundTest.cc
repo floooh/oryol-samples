@@ -380,7 +380,8 @@ SoundTestApp::OnRunning() {
 
     // draw UI
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::Begin("SoundTest", nullptr, ImVec2(1024, 400));
+    ImGui::Begin("SoundTest", nullptr);
+    ImGui::SetNextWindowSize(ImVec2(1024, 400));
     if (ImGui::Button("Play!")) {
         Sound::Play(this->effects[this->uiCurEffect].id);
     }
