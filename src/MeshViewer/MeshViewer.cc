@@ -296,9 +296,9 @@ MeshViewerApp::drawUI() {
         default: state = "Invalid"; break;
     }
     IMUI::NewFrame();
-    ImGui::Begin("Mesh Viewer", nullptr, 0);
     ImGui::SetNextWindowSize(ImVec2(240,300));
     ImGui::SetNextWindowBgAlpha(0.25f);
+    ImGui::Begin("Mesh Viewer", nullptr, 0);
     ImGui::PushItemWidth(130.0f);
     if (ImGui::Combo("##mesh", (int*) &this->curMeshIndex, this->meshNames, numMeshes)) {
         this->camera = this->cameraSettings[this->curMeshIndex];

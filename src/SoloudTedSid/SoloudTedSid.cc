@@ -115,8 +115,8 @@ SoloudTedSidApp::OnRunning() {
     ImGui::End();
 
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Once);
-    ImGui::Begin("Control", nullptr);
     ImGui::SetNextWindowSize(ImVec2(300, -1));
+    ImGui::Begin("Control", nullptr);
     ImGui::Text("Song volumes");
     if (ImGui::SliderFloat("Song1 vol", &this->music1Volume, 0, 1)) {
         this->soloud.setVolume(this->musicHandle1, this->music1Volume);
